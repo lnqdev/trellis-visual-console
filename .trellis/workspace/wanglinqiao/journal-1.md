@@ -72,3 +72,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 3: 完成第三阶段项目扫描与内容解析
+
+**Date**: 2026-07-16
+**Task**: 完成第三阶段项目扫描与内容解析
+**Branch**: `main`
+
+### Summary
+
+实现 Trellis 项目递归发现、结构校验、稳定 ID、monorepo/Spec/Task/Workflow 摘要解析、坏文件诊断、项目登记和 .trellis 内 Markdown 安全按需读取；完成真实项目与临时 fixture 验证。
+
+### Main Changes
+
+- Detailed change bullets were not supplied; see the summary above.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `4518034` | (see git log) |
+
+### Testing
+
+- Validation was not recorded for this session.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
