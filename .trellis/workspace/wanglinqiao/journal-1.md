@@ -105,3 +105,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 4: 完成第四阶段焦点项目与实时更新
+
+**Date**: 2026-07-16
+**Task**: 完成第四阶段焦点项目与实时更新
+**Branch**: `main`
+
+### Summary
+
+完成焦点项目生命周期、受限文件监听、批量重新索引、轻量事件通知、启动恢复与轮询降级，并同步后端实时更新规范。
+
+### Main Changes
+
+- Detailed change bullets were not supplied; see the summary above.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c0ac8ef` | (see git log) |
+
+### Testing
+
+- Validation was not recorded for this session.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
