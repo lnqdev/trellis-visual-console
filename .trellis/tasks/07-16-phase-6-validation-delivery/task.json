@@ -1,0 +1,32 @@
+{
+  "id": "phase-6-validation-delivery",
+  "name": "phase-6-validation-delivery",
+  "title": "阶段六验证与交付",
+  "description": "系统验证异常处理、焦点恢复、生产交付与多项目性能基线，并修复验收缺陷",
+  "status": "in_progress",
+  "dev_type": null,
+  "scope": "backend, frontend, validation, docs",
+  "package": null,
+  "priority": "P2",
+  "creator": "wanglinqiao",
+  "assignee": "wanglinqiao",
+  "createdAt": "2026-07-16",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [
+    "src/server/projects",
+    "src/server/realtime",
+    "src/server/api",
+    "src/web",
+    "docs/planning/implement.md"
+  ],
+  "notes": "",
+  "meta": {}
+}

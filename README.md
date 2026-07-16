@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-项目已完成运行骨架、本机持久化、项目扫描与内容解析、焦点项目实时更新，以及正式只读 HTTP API 与 Web 控制台。当前可直接登记本机 Trellis 项目并浏览概览、Spec、Task、Workflow 和诊断。
+项目已完成运行骨架、本机持久化、项目扫描与内容解析、焦点项目实时更新、正式只读 HTTP API 与 Web 控制台，以及阶段六系统验证与交付。当前可直接登记本机 Trellis 项目并浏览概览、Spec、Task、Workflow 和诊断。
 
 核心方向：
 
@@ -34,6 +34,8 @@
 - 焦点/历史/不可用项目分组导航，以及项目发现和中文错误反馈。
 - 概览、Spec、Task、Workflow、诊断页面和安全 Markdown 渲染。
 - URL 阅读上下文恢复、SSE 自动刷新和 375–1440px 响应式布局。
+- macOS 实机异常、监听降级、重启恢复、生产退出和多项目性能基线验证。
+- Windows/Linux 路径、应用数据目录、Chokidar 和外部打开的平台中立审查。
 
 ## 本地运行
 
@@ -62,7 +64,8 @@ pnpm start
 - [实施清单](docs/planning/implement.md)
 - [第一性原理分析](docs/planning/fp-analysis.md)
 - [新会话交接说明](docs/planning/session-handoff.md)
+- [阶段六验证与交付报告](docs/validation/phase-6-report.md)
 
-## 下一步
+## 验证状态
 
-按照 [实施清单](docs/planning/implement.md) 进入阶段 6：验证与交付，补充跨平台、权限异常、项目移动/删除和多项目基准验证。每个阶段单独建立 Trellis 任务，避免越过已确认的首版边界。
+阶段六已完成 macOS 实机验证，并对 Windows/Linux 完成平台中立代码审查。Windows/Linux 的真实文件事件、权限模型、系统外部打开和信号行为尚未实机覆盖，详细结果与指标见[阶段六验证与交付报告](docs/validation/phase-6-report.md)。

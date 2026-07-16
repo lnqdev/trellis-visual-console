@@ -203,6 +203,7 @@ export class ProjectCatalog {
       const refreshedProject: RegisteredProject = {
         ...existingProject,
         path: validation.project.projectRoot,
+        state: existingProject.state === "unavailable" ? "history" : existingProject.state,
         lastAccessedAt: snapshot.indexedAt,
         lastIndexedAt: snapshot.indexedAt,
         error: createProjectError(snapshot.diagnostics, snapshot.indexedAt),

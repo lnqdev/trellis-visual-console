@@ -77,16 +77,16 @@ async function parseProjectPackages(
   let configText: string;
   try {
     configText = await readUtf8File(configPath);
-  } catch (error) {
-    diagnostics.push(createFileDiagnostic("config-read-failed", error, sourcePath));
+  } catch {
+    diagnostics.push(createFileDiagnostic("config-read-failed", sourcePath));
     return [];
   }
 
   let unknownConfig: unknown;
   try {
     unknownConfig = parseYaml(configText) as unknown;
-  } catch (error) {
-    diagnostics.push(createFileDiagnostic("config-yaml-invalid", error, sourcePath));
+  } catch {
+    diagnostics.push(createFileDiagnostic("config-yaml-invalid", sourcePath));
     return [];
   }
 
@@ -128,11 +128,10 @@ async function walkSpecDirectory(
   let directory;
   try {
     directory = await opendir(directoryPath);
-  } catch (error) {
+  } catch {
     diagnostics.push(
       createFileDiagnostic(
         "spec-directory-unreadable",
-        error,
         toProjectRelativePath(project.projectRoot, directoryPath),
       ),
     );
@@ -186,11 +185,10 @@ async function indexTasks(
   let taskDirectory;
   try {
     taskDirectory = await opendir(tasksRoot);
-  } catch (error) {
+  } catch {
     diagnostics.push(
       createFileDiagnostic(
         "tasks-directory-unreadable",
-        error,
         toProjectRelativePath(project.projectRoot, tasksRoot),
       ),
     );
@@ -247,11 +245,10 @@ async function findArchivedTaskDirectories(
     let directory;
     try {
       directory = await opendir(currentDirectory);
-    } catch (error) {
+    } catch {
       diagnostics.push(
         createFileDiagnostic(
           "archive-directory-unreadable",
-          error,
           toProjectRelativePath(project.projectRoot, currentDirectory),
           "warning",
         ),
@@ -317,16 +314,16 @@ async function readTaskRecord(
   let taskText: string;
   try {
     taskText = await readUtf8File(taskJsonPath);
-  } catch (error) {
-    diagnostics.push(createFileDiagnostic("task-json-read-failed", error, sourcePath));
+  } catch {
+    diagnostics.push(createFileDiagnostic("task-json-read-failed", sourcePath));
     return {};
   }
 
   let unknownTask: unknown;
   try {
     unknownTask = JSON.parse(taskText) as unknown;
-  } catch (error) {
-    diagnostics.push(createFileDiagnostic("task-json-invalid", error, sourcePath));
+  } catch {
+    diagnostics.push(createFileDiagnostic("task-json-invalid", sourcePath));
     return {};
   }
 
@@ -401,11 +398,10 @@ async function validateTaskJsonlFiles(
     let directory;
     try {
       directory = await opendir(currentDirectory);
-    } catch (error) {
+    } catch {
       diagnostics.push(
         createFileDiagnostic(
           "task-directory-unreadable",
-          error,
           toProjectRelativePath(project.projectRoot, currentDirectory),
           "warning",
         ),
@@ -437,8 +433,8 @@ async function validateJsonlFile(
   let content: string;
   try {
     content = await readUtf8File(filePath);
-  } catch (error) {
-    diagnostics.push(createFileDiagnostic("task-jsonl-read-failed", error, sourcePath));
+  } catch {
+    diagnostics.push(createFileDiagnostic("task-jsonl-read-failed", sourcePath));
     return;
   }
 
@@ -448,11 +444,11 @@ async function validateJsonlFile(
     }
     try {
       JSON.parse(line) as unknown;
-    } catch (error) {
+    } catch {
       diagnostics.push({
         severity: "error",
         code: "task-jsonl-invalid",
-        message: `第 ${index + 1} 行不是合法 JSON：${getErrorMessage(error)}`,
+        message: `第 ${index + 1} 行不是合法 JSON`,
         sourcePath,
       });
     }
@@ -471,8 +467,8 @@ async function parseWorkflow(
 
   try {
     content = await readUtf8File(workflowPath);
-  } catch (error) {
-    diagnostics.push(createFileDiagnostic("workflow-read-failed", error, sourcePath, "warning"));
+  } catch {
+    diagnostics.push(createFileDiagnostic("workflow-read-failed", sourcePath, "warning"));
     return { name: null, currentPhase: inferCurrentPhase(activeTasks), summary: null, sourcePath };
   }
 
@@ -584,14 +580,25 @@ function compareTasks(left: TaskSummarySnapshot, right: TaskSummarySnapshot): nu
 /** 构建统一文件诊断。 */
 function createFileDiagnostic(
   code: string,
-  error: unknown,
   sourcePath: string,
   severity: SnapshotDiagnostic["severity"] = "error",
 ): SnapshotDiagnostic {
+  const messages: Record<string, string> = {
+    "config-read-failed": "config.yaml 读取失败",
+    "config-yaml-invalid": "config.yaml 不是合法 YAML",
+    "spec-directory-unreadable": "Spec 目录无法读取",
+    "tasks-directory-unreadable": "Task 目录无法读取",
+    "archive-directory-unreadable": "归档 Task 目录无法读取",
+    "task-json-read-failed": "task.json 读取失败",
+    "task-json-invalid": "task.json 不是合法 JSON",
+    "task-directory-unreadable": "Task 子目录无法读取",
+    "task-jsonl-read-failed": "Task JSONL 文件读取失败",
+    "workflow-read-failed": "workflow.md 读取失败",
+  };
   return {
     severity,
     code,
-    message: getErrorMessage(error),
+    message: messages[code] ?? "文件解析失败",
     sourcePath,
   };
 }
@@ -599,11 +606,6 @@ function createFileDiagnostic(
 /** 格式化 Zod 校验问题。 */
 function formatZodIssues(error: z.ZodError): string {
   return error.issues
-    .map((issue) => `${issue.path.join(".") || "root"}: ${issue.message}`)
+    .map((issue) => `${issue.path.join(".") || "root"}: 字段格式不正确`)
     .join("; ");
-}
-
-/** 提取未知错误的可读消息。 */
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "文件解析失败";
 }
