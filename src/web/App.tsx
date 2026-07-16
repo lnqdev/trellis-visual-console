@@ -1,114 +1,204 @@
-import { useEffect, useState } from "react";
-import { isHealthResponse, type HealthResponse } from "../shared/health";
+import {
+  BookOpenText,
+  GitBranch,
+  LayoutDashboard,
+  ListTodo,
+  RefreshCw,
+  TriangleAlert,
+  X,
+} from "lucide-react";
+import type { ProjectDetailResponse } from "../shared/api";
+import { DiagnosticsPanel } from "./components/DiagnosticsPanel";
+import { ProjectDiscovery } from "./components/ProjectDiscovery";
+import { ProjectHeader } from "./components/ProjectHeader";
+import { ProjectOverview } from "./components/ProjectOverview";
+import { ProjectSidebar } from "./components/ProjectSidebar";
+import { SpecBrowser } from "./components/SpecBrowser";
+import { TaskBrowser } from "./components/TaskBrowser";
+import { WorkflowPanel } from "./components/WorkflowPanel";
+import { useProjectConsole, type ProjectView } from "./hooks/useProjectConsole";
 
-type ConnectionState =
-  | { status: "loading" }
-  | { status: "connected"; health: HealthResponse }
-  | { status: "error"; message: string };
+const PROJECT_VIEWS: Array<{
+  id: ProjectView;
+  label: string;
+  icon: typeof LayoutDashboard;
+}> = [
+  { id: "overview", label: "概览", icon: LayoutDashboard },
+  { id: "spec", label: "Spec", icon: BookOpenText },
+  { id: "tasks", label: "Task", icon: ListTodo },
+  { id: "workflow", label: "Workflow", icon: GitBranch },
+  { id: "diagnostics", label: "诊断", icon: TriangleAlert },
+];
 
-/** Trellis Visual Console 的首阶段页面壳。 */
+/** Trellis Visual Console 主应用。 */
 export function App() {
-  const [connection, setConnection] = useState<ConnectionState>({ status: "loading" });
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    /** 读取本地服务健康状态，验证开发代理和共享接口合同。 */
-    async function loadHealth(): Promise<void> {
-      try {
-        const response = await fetch("/api/health", { signal: controller.signal });
-        if (!response.ok) {
-          throw new Error(`健康检查失败：HTTP ${response.status}`);
-        }
-
-        const payload: unknown = await response.json();
-        if (!isHealthResponse(payload)) {
-          throw new Error("健康检查返回格式不正确");
-        }
-
-        setConnection({ status: "connected", health: payload });
-      } catch (error) {
-        if (controller.signal.aborted) {
-          return;
-        }
-
-        const message = error instanceof Error ? error.message : "无法连接本地服务";
-        setConnection({ status: "error", message });
-      }
-    }
-
-    void loadHealth();
-    return () => controller.abort();
-  }, []);
+  const consoleState = useProjectConsole();
+  const projectCount = consoleState.projects.data?.length ?? 0;
 
   return (
-    <main className="app-shell">
-      <section className="intro-card" aria-labelledby="page-title">
-        <div className="brand-mark" aria-hidden="true">
-          T
-        </div>
-        <p className="eyebrow">LOCAL · READ ONLY</p>
-        <h1 id="page-title">Trellis Visual Console</h1>
-        <p className="summary">面向个人本机使用的 Trellis 只读可视化内容中心。</p>
+    <div className="console-shell">
+      <ProjectSidebar
+        projects={consoleState.projects}
+        selectedProjectId={consoleState.selectedProjectId}
+        eventStreamState={consoleState.eventStreamState}
+        onSelectProject={consoleState.selectProject}
+        onOpenDiscovery={consoleState.openDiscovery}
+        onRetry={consoleState.retryProjects}
+      />
 
-        <div className={`health-panel health-panel--${connection.status}`} aria-live="polite">
-          <span className="health-dot" aria-hidden="true" />
-          <div>
-            <strong>{getConnectionTitle(connection)}</strong>
-            <p>{getConnectionDescription(connection)}</p>
+      <main className="workspace-shell">
+        {consoleState.notice !== null ? (
+          <div className={`global-notice global-notice--${consoleState.notice.tone}`} aria-live="polite">
+            <span>{consoleState.notice.message}</span>
+            <button type="button" onClick={consoleState.clearNotice} aria-label="关闭提示">
+              <X size={15} aria-hidden="true" />
+            </button>
           </div>
-        </div>
+        ) : null}
 
-        <div className="scope-grid" aria-label="首阶段项目边界">
-          <article>
-            <span>01</span>
-            <h2>本地服务</h2>
-            <p>固定绑定 127.0.0.1，仅建立只读 API 运行基础。</p>
-          </article>
-          <article>
-            <span>02</span>
-            <h2>浏览器界面</h2>
-            <p>React 与 Vite 页面壳，当前只验证前后端连接。</p>
-          </article>
-          <article>
-            <span>03</span>
-            <h2>明确边界</h2>
-            <p>尚未读取、扫描、监听或修改任何 Trellis 项目。</p>
-          </article>
-        </div>
-      </section>
-    </main>
+        {consoleState.discoveryOpen ? (
+          <ProjectDiscovery
+            canClose={projectCount > 0}
+            busyAction={consoleState.busyAction}
+            onScan={consoleState.discoverProjects}
+            onRegister={consoleState.addProjects}
+            onClose={consoleState.closeDiscovery}
+          />
+        ) : consoleState.selectedProjectId === null ? (
+          <section className="empty-workspace">
+            <LayoutDashboard size={28} aria-hidden="true" />
+            <h1>还没有已登记项目</h1>
+            <p>添加一个扫描根目录或 Trellis 项目路径开始浏览。</p>
+            <button className="primary-button" type="button" onClick={consoleState.openDiscovery}>
+              添加项目
+            </button>
+          </section>
+        ) : consoleState.detail.loading && consoleState.detail.data === null ? (
+          <div className="workspace-loading">正在读取项目快照…</div>
+        ) : consoleState.detail.error !== null ? (
+          <section className="empty-workspace" role="alert">
+            <TriangleAlert size={28} aria-hidden="true" />
+            <h1>项目详情读取失败</h1>
+            <p>{consoleState.detail.error}</p>
+            <button className="secondary-button" type="button" onClick={consoleState.retryDetail}>
+              <RefreshCw size={15} aria-hidden="true" />
+              重试
+            </button>
+          </section>
+        ) : consoleState.detail.data !== null ? (
+          <ProjectWorkspace detail={consoleState.detail.data} consoleState={consoleState} />
+        ) : null}
+      </main>
+    </div>
   );
 }
 
-/** 获取连接状态标题。 */
-function getConnectionTitle(connection: ConnectionState): string {
-  switch (connection.status) {
-    case "loading":
-      return "正在连接本地服务";
-    case "connected":
-      return "本地服务已连接";
-    case "error":
-      return "本地服务连接失败";
-  }
+interface ProjectWorkspaceProps {
+  detail: ProjectDetailResponse;
+  consoleState: ReturnType<typeof useProjectConsole>;
 }
 
-/** 获取连接状态说明。 */
-function getConnectionDescription(connection: ConnectionState): string {
-  switch (connection.status) {
-    case "loading":
-      return "正在验证 /api/health 接口…";
-    case "connected":
-      return `服务 ${connection.health.service} · ${formatTime(connection.health.timestamp)}`;
-    case "error":
-      return connection.message;
-  }
+/** 组合单项目头部、主导航和当前内容视图。 */
+function ProjectWorkspace({ detail, consoleState }: ProjectWorkspaceProps) {
+  return (
+    <div className="project-workspace">
+      <ProjectHeader
+        detail={detail}
+        busyAction={consoleState.busyAction}
+        onRefresh={() => void consoleState.refreshSelectedProject()}
+        onChangeFocus={(focused) => void consoleState.changeFocus(focused)}
+        onOpenProject={() => void consoleState.openSelectedPath()}
+      />
+
+      {detail.project.state === "history" ? (
+        <div className="snapshot-banner">
+          当前内容来自最后快照，只有显式刷新或加入焦点时才访问源项目。
+        </div>
+      ) : detail.runtime.watchMode === "polling" ? (
+        <div className="snapshot-banner snapshot-banner--warning">
+          原生文件事件不可用，当前使用低频轮询，更新可能存在延迟。
+        </div>
+      ) : null}
+
+      <nav className="view-tabs" aria-label="项目内容视图">
+        {PROJECT_VIEWS.map((item) => {
+          const Icon = item.icon;
+          const diagnosticCount = detail.snapshot?.diagnostics.length ?? 0;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              className={consoleState.view === item.id ? "active" : ""}
+              aria-current={consoleState.view === item.id ? "page" : undefined}
+              onClick={() => consoleState.selectView(item.id)}
+            >
+              <Icon size={15} aria-hidden="true" />
+              {item.label}
+              {item.id === "diagnostics" && diagnosticCount > 0 ? (
+                <span className="count-badge">{diagnosticCount}</span>
+              ) : null}
+            </button>
+          );
+        })}
+      </nav>
+
+      <div className="view-content">
+        {renderProjectView(detail, consoleState)}
+      </div>
+    </div>
+  );
 }
 
-/** 将 ISO 时间格式化为本地可读时间。 */
-function formatTime(timestamp: string): string {
-  return new Intl.DateTimeFormat("zh-CN", {
-    dateStyle: "medium",
-    timeStyle: "medium",
-  }).format(new Date(timestamp));
+/** 根据当前导航状态渲染项目内容。 */
+function renderProjectView(
+  detail: ProjectDetailResponse,
+  consoleState: ReturnType<typeof useProjectConsole>,
+) {
+  if (detail.snapshot === null && consoleState.view !== "diagnostics") {
+    return <div className="content-state">项目没有可用快照，请先刷新或查看诊断。</div>;
+  }
+
+  switch (consoleState.view) {
+    case "overview":
+      return <ProjectOverview detail={detail} />;
+    case "spec":
+      return (
+        <SpecBrowser
+          tree={detail.snapshot?.specTree ?? []}
+          selectedPath={consoleState.selectedSpecPath}
+          document={consoleState.specDocument}
+          onSelectPath={consoleState.selectSpecPath}
+          onOpenSource={(sourcePath) => void consoleState.openSelectedPath(sourcePath)}
+        />
+      );
+    case "tasks":
+      return (
+        <TaskBrowser
+          activeTasks={detail.snapshot?.tasks.active ?? []}
+          archivedTasks={detail.snapshot?.tasks.archived ?? []}
+          selectedTaskSourcePath={consoleState.selectedTaskSourcePath}
+          selectedDocumentPath={consoleState.selectedTaskDocumentPath}
+          taskDetail={consoleState.taskDetail}
+          taskDocument={consoleState.taskDocument}
+          onSelectTask={consoleState.selectTaskSourcePath}
+          onSelectDocument={consoleState.selectTaskDocumentPath}
+          onOpenSource={(sourcePath) => void consoleState.openSelectedPath(sourcePath)}
+        />
+      );
+    case "workflow":
+      return (
+        <WorkflowPanel
+          detail={detail}
+          onOpenSource={(sourcePath) => void consoleState.openSelectedPath(sourcePath)}
+        />
+      );
+    case "diagnostics":
+      return (
+        <DiagnosticsPanel
+          detail={detail}
+          busyAction={consoleState.busyAction}
+          onRefresh={() => void consoleState.refreshSelectedProject()}
+        />
+      );
+  }
 }

@@ -8,20 +8,32 @@ export const PROJECT_REALTIME_EVENT_TYPES = [
   "project-reindexed",
 ] as const;
 
+/** 实时事件资源类型集合。 */
+export const PROJECT_EVENT_RESOURCES = ["project", "spec", "tasks"] as const;
+
+/** 事件失效范围集合。 */
+export const PROJECT_INVALIDATION_SCOPES = ["all", "summary", "tree"] as const;
+
+/** 实际活动文件监听模式集合。 */
+export const PROJECT_WATCH_MODES = ["native", "polling"] as const;
+
+/** 包含停止状态的完整运行时监听模式集合。 */
+export const PROJECT_RUNTIME_WATCH_MODES = ["stopped", ...PROJECT_WATCH_MODES] as const;
+
 /** 项目实时事件类型。 */
 export type ProjectRealtimeEventType = (typeof PROJECT_REALTIME_EVENT_TYPES)[number];
 
 /** 事件指向的只读资源类型。 */
-export type ProjectEventResource = "project" | "spec" | "tasks";
+export type ProjectEventResource = (typeof PROJECT_EVENT_RESOURCES)[number];
 
 /** 页面重新查询数据时使用的失效范围。 */
-export type ProjectInvalidationScope = "all" | "summary" | "tree";
+export type ProjectInvalidationScope = (typeof PROJECT_INVALIDATION_SCOPES)[number];
 
 /** 项目文件变化的监听模式。 */
-export type ProjectWatchMode = "native" | "polling";
+export type ProjectWatchMode = (typeof PROJECT_WATCH_MODES)[number];
 
 /** 项目运行时可能处于的完整监听状态。 */
-export type ProjectRuntimeWatchMode = ProjectWatchMode | "stopped";
+export type ProjectRuntimeWatchMode = (typeof PROJECT_RUNTIME_WATCH_MODES)[number];
 
 /** 后续 SSE 路由和 Web UI 共同复用的轻量事件合同。 */
 export interface ProjectRealtimeEvent {
@@ -62,15 +74,15 @@ export function isProjectRealtimeEvent(value: unknown): value is ProjectRealtime
 
 /** 判断未知值是否为合法资源类型。 */
 function isProjectEventResource(value: unknown): value is ProjectEventResource {
-  return value === "project" || value === "spec" || value === "tasks";
+  return PROJECT_EVENT_RESOURCES.includes(value as ProjectEventResource);
 }
 
 /** 判断未知值是否为合法失效范围。 */
 function isProjectInvalidationScope(value: unknown): value is ProjectInvalidationScope {
-  return value === "all" || value === "summary" || value === "tree";
+  return PROJECT_INVALIDATION_SCOPES.includes(value as ProjectInvalidationScope);
 }
 
 /** 判断未知值是否为合法运行时监听状态。 */
 function isProjectRuntimeWatchMode(value: unknown): value is ProjectRuntimeWatchMode {
-  return value === "stopped" || value === "native" || value === "polling";
+  return PROJECT_RUNTIME_WATCH_MODES.includes(value as ProjectRuntimeWatchMode);
 }

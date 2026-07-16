@@ -47,6 +47,35 @@ export interface ProjectRefreshResult {
   diagnostics: SnapshotDiagnostic[];
 }
 
+/** 注册表项目与可空摘要快照的只读配对。 */
+export interface ProjectCatalogData {
+  project: RegisteredProject;
+  snapshot: ProjectSnapshot | null;
+}
+
+/** Task 目录中可按需读取的文档摘要。 */
+export interface ProjectTaskDocumentSummary {
+  name: string;
+  relativePath: string;
+  sourcePath: string;
+  format: "markdown" | "jsonl";
+  modifiedAt: string;
+}
+
+/** 已知 Task 的详情与文档清单。 */
+export interface ProjectTaskDetail {
+  task: import("../storage/models.js").TaskSummarySnapshot;
+  documents: ProjectTaskDocumentSummary[];
+}
+
+/** Task 文档正文。 */
+export interface ProjectTaskDocument {
+  content: string;
+  sourcePath: string;
+  modifiedAt: string;
+  format: "markdown" | "jsonl";
+}
+
 /** 按需读取的 Markdown 正文。 */
 export interface ProjectMarkdownDocument {
   content: string;

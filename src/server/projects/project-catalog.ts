@@ -8,6 +8,7 @@ import type {
 import { createApplicationStorage, type ApplicationStorage } from "../storage/application-storage.js";
 import type {
   ProjectDiscoveryCandidate,
+  ProjectCatalogData,
   ProjectRefreshResult,
   ProjectRegistrationResult,
   ProjectScanResult,
@@ -126,6 +127,31 @@ export class ProjectCatalog {
     return this.enqueueStorageOperation(async () => {
       const initialization = await this.storage.initialize();
       return initialization.registry.projects;
+    });
+  }
+
+  /** 返回注册表项目与最后快照的只读配对，不访问源项目。 */
+  async listProjectData(): Promise<ProjectCatalogData[]> {
+    return this.enqueueStorageOperation(async () => {
+      const initialization = await this.storage.initialize();
+      return initialization.registry.projects.map((project) => ({
+        project,
+        snapshot: initialization.snapshots.snapshots[project.id] ?? null,
+      }));
+    });
+  }
+
+  /** 返回单个已登记项目和最后快照，不访问源项目。 */
+  async getProjectData(projectId: string): Promise<ProjectCatalogData | null> {
+    return this.enqueueStorageOperation(async () => {
+      const initialization = await this.storage.initialize();
+      const project = initialization.registry.projects.find((item) => item.id === projectId);
+      return project === undefined
+        ? null
+        : {
+            project,
+            snapshot: initialization.snapshots.snapshots[project.id] ?? null,
+          };
     });
   }
 

@@ -4,6 +4,9 @@ import open from "open";
 import { fileURLToPath } from "node:url";
 import { basename } from "node:path";
 import { SERVICE_NAME, type HealthResponse } from "../shared/health.js";
+import { ProjectApiService } from "./api/project-api-service.js";
+import { registerProjectEventsRoute } from "./api/project-events-route.js";
+import { registerProjectRoutes } from "./api/project-routes.js";
 import { ProjectCatalog } from "./projects/project-catalog.js";
 import { ProjectEventHub } from "./realtime/project-event-hub.js";
 import { ProjectRealtimeManager } from "./realtime/project-realtime-manager.js";
@@ -81,6 +84,10 @@ async function startServer(): Promise<void> {
       );
     },
   });
+  const projectApiService = new ProjectApiService(catalog, realtimeManager);
+
+  registerProjectRoutes(server, projectApiService);
+  registerProjectEventsRoute(server, eventHub);
 
   server.addHook("onClose", async () => {
     await realtimeManager.close();

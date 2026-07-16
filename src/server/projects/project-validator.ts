@@ -1,6 +1,7 @@
 import { lstat, realpath } from "node:fs/promises";
 import { basename, join } from "node:path";
 import type { SnapshotDiagnostic } from "../storage/models.js";
+import { getFileSystemAccessMessage } from "./filesystem-errors.js";
 import type { ProjectValidationResult } from "./project-models.js";
 import { createStableProjectId } from "./project-paths.js";
 
@@ -128,7 +129,10 @@ function createErrorDiagnostic(
   return {
     severity: "error",
     code,
-    message: error instanceof Error ? error.message : "文件系统访问失败",
+    message: getFileSystemAccessMessage(
+      error,
+      code === "project-path-unavailable" ? "项目路径" : "Trellis 必需文件或目录",
+    ),
     sourcePath,
   };
 }

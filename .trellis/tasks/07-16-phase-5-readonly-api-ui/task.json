@@ -1,0 +1,33 @@
+{
+  "id": "phase-5-readonly-api-ui",
+  "name": "phase-5-readonly-api-ui",
+  "title": "阶段五只读 HTTP API 与 Web UI",
+  "description": "实现只读项目 API、SSE 订阅和焦点/历史项目内容浏览 Web UI",
+  "status": "in_progress",
+  "dev_type": "fullstack",
+  "scope": "阶段五：只读 HTTP API 与 Web UI",
+  "package": null,
+  "priority": "P2",
+  "creator": "wanglinqiao",
+  "assignee": "wanglinqiao",
+  "createdAt": "2026-07-16",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [
+    "src/shared/api.ts",
+    "src/server/api/",
+    "src/server/projects/",
+    "src/server/index.ts",
+    "src/web/",
+    "package.json"
+  ],
+  "notes": "",
+  "meta": {}
+}

@@ -1,6 +1,7 @@
 import { lstat, opendir, realpath } from "node:fs/promises";
 import { join } from "node:path";
 import type { SnapshotDiagnostic } from "../storage/models.js";
+import { getFileSystemAccessMessage } from "./filesystem-errors.js";
 import type { ValidatedTrellisProject } from "./project-models.js";
 import { ProjectValidator } from "./project-validator.js";
 
@@ -124,7 +125,10 @@ function createScanDiagnostic(
   return {
     severity,
     code,
-    message: error instanceof Error ? error.message : "目录扫描失败",
+    message: getFileSystemAccessMessage(
+      error,
+      code === "scan-root-unavailable" ? "扫描根目录" : "扫描目录",
+    ),
     sourcePath,
   };
 }
