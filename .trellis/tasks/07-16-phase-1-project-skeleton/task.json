@@ -1,0 +1,31 @@
+{
+  "id": "phase-1-project-skeleton",
+  "name": "phase-1-project-skeleton",
+  "title": "阶段一项目运行骨架",
+  "description": "按既有规划完成独立 pnpm/TypeScript、React/Vite 与 Node 本地服务的第一阶段运行骨架",
+  "status": "in_progress",
+  "dev_type": "fullstack",
+  "scope": "阶段一：独立仓库与运行骨架",
+  "package": null,
+  "priority": "P2",
+  "creator": "wanglinqiao",
+  "assignee": "wanglinqiao",
+  "createdAt": "2026-07-16",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [
+    "package.json",
+    "src/server/",
+    "src/web/",
+    "src/shared/"
+  ],
+  "notes": "",
+  "meta": {}
+}
