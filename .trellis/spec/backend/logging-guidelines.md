@@ -1,51 +1,33 @@
-# Logging Guidelines
+# 后端日志规范
 
-> How logging is done in this project.
+## 当前实现
 
----
+本地服务使用 Fastify 内置结构化日志。正常 HTTP 请求由 Fastify 记录，应用代码只补充有运维价值的生命周期和恢复事件。
 
-## Overview
+## 级别
 
-<!--
-Document your project's logging conventions here.
+- `info`：服务监听成功、收到退出信号等正常生命周期。
+- `warn`：非致命降级或已完成恢复，例如浏览器自动打开失败、损坏数据已隔离并恢复。
+- `error`：服务无法启动等致命错误，由进程入口输出并以非零状态退出。
+- 当前不使用业务 `debug` 日志。
 
-Questions to answer:
-- What logging library do you use?
-- What are the log levels and when to use each?
-- What should be logged?
-- What should NOT be logged (PII, secrets)?
--->
+## 结构化字段
 
-(To be filled by the team)
+损坏恢复日志使用：
 
----
+```typescript
+{
+  file: "registry.json",
+  backup: "registry.corrupt-<timestamp>-<uuid>.json",
+  reason: "invalid-json" | "invalid-structure",
+  message: "校验失败原因"
+}
+```
 
-## Log Levels
+只记录应用数据文件名，不通过 HTTP 或日志记录已登记项目的绝对路径、Markdown 内容或源文件正文。
 
-<!-- When to use each level: debug, info, warn, error -->
+## 禁止记录
 
-(To be filled by the team)
-
----
-
-## Structured Logging
-
-<!-- Log format, required fields -->
-
-(To be filled by the team)
-
----
-
-## What to Log
-
-<!-- Important events to log -->
-
-(To be filled by the team)
-
----
-
-## What NOT to Log
-
-<!-- Sensitive data, PII, secrets -->
-
-(To be filled by the team)
+- 被浏览项目的完整文件内容。
+- 未来可能出现的访问令牌、密钥或个人敏感信息。
+- 为调试方便而长期保留的无结构 `console.log`。

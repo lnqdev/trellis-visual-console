@@ -2,7 +2,9 @@ import fastifyStatic from "@fastify/static";
 import Fastify, { type FastifyInstance } from "fastify";
 import open from "open";
 import { fileURLToPath } from "node:url";
+import { basename } from "node:path";
 import { SERVICE_NAME, type HealthResponse } from "../shared/health.js";
+import { createApplicationStorage } from "./storage/application-storage.js";
 
 const HOST = "127.0.0.1";
 const DEFAULT_PORT = 3100;
@@ -61,6 +63,21 @@ function resolvePort(): number {
 /** 启动服务并注册退出清理逻辑。 */
 async function startServer(): Promise<void> {
   const server = createServer();
+  const storage = createApplicationStorage();
+  const initialization = await storage.initialize();
+
+  for (const recovery of initialization.recoveries) {
+    server.log.warn(
+      {
+        file: basename(recovery.filePath),
+        backup: basename(recovery.backupPath),
+        reason: recovery.reason,
+        message: recovery.message,
+      },
+      "应用数据文件损坏，已隔离原文件并恢复默认数据",
+    );
+  }
+
   const address = await server.listen({ host: HOST, port: resolvePort() });
 
   if (isProduction) {

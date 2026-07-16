@@ -5,7 +5,8 @@
 ```text
 src/
 ├── server/
-│   └── index.ts       # Fastify 服务入口、基础路由和进程生命周期
+│   ├── index.ts       # Fastify 服务入口、基础路由和进程生命周期
+│   └── storage/       # 应用自有注册表和快照持久化
 └── shared/
     └── health.ts      # 不依赖 Node/浏览器运行时的共享 DTO 与守卫
 ```
@@ -25,6 +26,17 @@ dist/
 - `src/shared` 只放前后端都能运行的纯 TypeScript 合同，不允许导入 `node:*`、React 或浏览器全局对象。
 - 当前只有一个服务入口，不为单次使用逻辑提前拆分 service、repository、utils 等抽象。
 - 后续新增扫描、解析或监听模块时，按职责放入 `src/server` 子目录，并让路由只依赖服务层公开接口。
+- `src/server/storage` 只管理应用自有数据文件，不读取或写入项目 `.trellis/`。
+
+当前存储目录：
+
+```text
+src/server/storage/
+├── application-paths.ts
+├── models.ts
+├── json-file-store.ts
+└── application-storage.ts
+```
 
 ## 命名与导入
 
@@ -41,3 +53,4 @@ import { SERVICE_NAME } from "../shared/health.js";
 
 - 服务入口：`src/server/index.ts`
 - 共享健康合同：`src/shared/health.ts`
+- 应用存储入口：`src/server/storage/application-storage.ts`
