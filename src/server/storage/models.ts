@@ -93,12 +93,22 @@ export const SpecTreeNodeSchema: z.ZodType<SpecTreeNode> = z.lazy(() =>
     }),
 );
 
+/** Monorepo 包摘要。 */
+export const ProjectPackageSnapshotSchema = z
+  .object({
+    name: NonEmptyStringSchema,
+    path: NonEmptyStringSchema,
+    type: NonEmptyStringSchema.nullable(),
+    git: z.boolean(),
+  })
+  .strict();
+
 /** 项目概览快照。 */
 export const ProjectOverviewSnapshotSchema = z
   .object({
     label: NonEmptyStringSchema,
     path: NonEmptyStringSchema,
-    packageNames: z.array(NonEmptyStringSchema),
+    packages: z.array(ProjectPackageSnapshotSchema),
   })
   .strict();
 
@@ -177,6 +187,7 @@ export type ProjectDisplayState = z.infer<typeof ProjectDisplayStateSchema>;
 export type ProjectError = z.infer<typeof ProjectErrorSchema>;
 export type RegisteredProject = z.infer<typeof RegisteredProjectSchema>;
 export type ProjectRegistryFile = z.infer<typeof ProjectRegistryFileSchema>;
+export type ProjectPackageSnapshot = z.infer<typeof ProjectPackageSnapshotSchema>;
 export type ProjectOverviewSnapshot = z.infer<typeof ProjectOverviewSnapshotSchema>;
 export type TaskSummarySnapshot = z.infer<typeof TaskSummarySnapshotSchema>;
 export type WorkflowSummarySnapshot = z.infer<typeof WorkflowSummarySnapshotSchema>;

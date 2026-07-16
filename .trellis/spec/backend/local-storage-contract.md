@@ -36,6 +36,7 @@
 - 项目状态只能是 `history | focus | unavailable`。
 - 注册表中的项目 ID 和项目路径不能重复。
 - 快照对象键必须与内部 `projectId` 一致。
+- 项目概览中的 monorepo 包保存名称、路径、可选类型和独立 Git 标记。
 - Spec 文件节点的 `children` 必须为空。
 - 日期时间使用 ISO 8601 UTC 字符串。
 - 默认目录根据操作系统解析，不从项目路径推导。

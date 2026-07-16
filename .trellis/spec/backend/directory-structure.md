@@ -6,6 +6,7 @@
 src/
 ├── server/
 │   ├── index.ts       # Fastify 服务入口、基础路由和进程生命周期
+│   ├── projects/      # Trellis 项目发现、解析和只读内容访问
 │   └── storage/       # 应用自有注册表和快照持久化
 └── shared/
     └── health.ts      # 不依赖 Node/浏览器运行时的共享 DTO 与守卫
@@ -27,6 +28,20 @@ dist/
 - 当前只有一个服务入口，不为单次使用逻辑提前拆分 service、repository、utils 等抽象。
 - 后续新增扫描、解析或监听模块时，按职责放入 `src/server` 子目录，并让路由只依赖服务层公开接口。
 - `src/server/storage` 只管理应用自有数据文件，不读取或写入项目 `.trellis/`。
+- `src/server/projects` 只读访问源项目，扫描、校验、索引和登记编排按职责分文件。
+
+当前项目发现目录：
+
+```text
+src/server/projects/
+├── project-models.ts
+├── project-paths.ts
+├── project-validator.ts
+├── project-scanner.ts
+├── trellis-indexer.ts
+├── markdown-reader.ts
+└── project-catalog.ts
+```
 
 当前存储目录：
 
@@ -54,3 +69,4 @@ import { SERVICE_NAME } from "../shared/health.js";
 - 服务入口：`src/server/index.ts`
 - 共享健康合同：`src/shared/health.ts`
 - 应用存储入口：`src/server/storage/application-storage.ts`
+- 项目目录入口：`src/server/projects/project-catalog.ts`

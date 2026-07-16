@@ -24,11 +24,11 @@
 
 ## 阶段 3：项目扫描与 Trellis 内容解析
 
-- [ ] 实现用户指定目录下的递归扫描，跳过 `.git`、`node_modules`、构建产物、缓存和符号链接逃逸路径。
-- [ ] 实现单项目手动添加和 `.trellis/` 结构校验。
-- [ ] 解析项目概览、monorepo 包信息、Workflow 摘要、Spec 文件树和 Task 摘要。
-- [ ] 对 `task.json`、Markdown、JSONL、YAML 缺失或格式异常返回带源路径的诊断，不让单个坏文件阻塞整个项目。
-- [ ] Markdown 正文按需读取，历史项目默认只使用摘要快照。
+- [x] 实现用户指定目录下的递归扫描，跳过 `.git`、`node_modules`、构建产物、缓存和符号链接逃逸路径。
+- [x] 实现单项目手动添加和 `.trellis/` 结构校验。
+- [x] 解析项目概览、monorepo 包信息、Workflow 摘要、Spec 文件树和 Task 摘要。
+- [x] 对 `task.json`、Markdown、JSONL、YAML 缺失或格式异常返回带源路径的诊断，不让单个坏文件阻塞整个项目。
+- [x] Markdown 正文按需读取，历史项目默认只使用摘要快照。
 
 ## 阶段 4：焦点项目与实时更新
 
