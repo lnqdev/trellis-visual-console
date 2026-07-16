@@ -39,6 +39,14 @@ export interface ProjectRegistrationResult {
   diagnostics: SnapshotDiagnostic[];
 }
 
+/** 已登记项目重新校验和索引后的结果。 */
+export interface ProjectRefreshResult {
+  status: "refreshed" | "unavailable" | "not-found";
+  project: RegisteredProject | null;
+  snapshot: ProjectSnapshot | null;
+  diagnostics: SnapshotDiagnostic[];
+}
+
 /** 按需读取的 Markdown 正文。 */
 export interface ProjectMarkdownDocument {
   content: string;

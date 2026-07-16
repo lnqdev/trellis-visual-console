@@ -1,0 +1,32 @@
+{
+  "id": "phase-4-focus-realtime",
+  "name": "phase-4-focus-realtime",
+  "title": "阶段四焦点项目与实时更新",
+  "description": "实现焦点项目生命周期、受限文件监听、批量重新索引、轻量事件通知与轮询降级",
+  "status": "in_progress",
+  "dev_type": "backend",
+  "scope": "阶段四：焦点项目与实时更新",
+  "package": null,
+  "priority": "P2",
+  "creator": "wanglinqiao",
+  "assignee": "wanglinqiao",
+  "createdAt": "2026-07-16",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [
+    "src/server/realtime/",
+    "src/server/projects/project-catalog.ts",
+    "src/server/index.ts",
+    "src/shared/project-events.ts",
+    "package.json"
+  ],
+  "notes": "",
+  "meta": {}
+}

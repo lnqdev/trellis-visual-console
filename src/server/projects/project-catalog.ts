@@ -8,6 +8,7 @@ import type {
 import { createApplicationStorage, type ApplicationStorage } from "../storage/application-storage.js";
 import type {
   ProjectDiscoveryCandidate,
+  ProjectRefreshResult,
   ProjectRegistrationResult,
   ProjectScanResult,
   ValidatedTrellisProject,
@@ -16,8 +17,10 @@ import { ProjectScanner } from "./project-scanner.js";
 import { TrellisIndexer } from "./trellis-indexer.js";
 import { ProjectValidator } from "./project-validator.js";
 
-/** 编排项目扫描、索引和应用注册表持久化。 */
+/** 编排项目扫描、索引、生命周期和应用注册表持久化。 */
 export class ProjectCatalog {
+  private storageQueue: Promise<void> = Promise.resolve();
+
   /** 创建项目目录服务。 */
   constructor(
     private readonly storage: ApplicationStorage = createApplicationStorage(),
@@ -55,53 +58,56 @@ export class ProjectCatalog {
    * @returns 新增、更新或无效结果
    */
   async registerProject(projectPath: string, label?: string): Promise<ProjectRegistrationResult> {
-    const validation = await this.validator.validate(projectPath);
-    if (!validation.valid || validation.project === null) {
-      return {
-        status: "invalid",
-        project: null,
-        snapshot: null,
-        diagnostics: validation.diagnostics,
+    return this.enqueueStorageOperation(async () => {
+      const validation = await this.validator.validate(projectPath);
+      if (!validation.valid || validation.project === null) {
+        return {
+          status: "invalid",
+          project: null,
+          snapshot: null,
+          diagnostics: validation.diagnostics,
+        };
+      }
+
+      const validatedProject = validation.project;
+      const snapshot = await this.indexer.index(validatedProject);
+      const initialization = await this.storage.initialize();
+      const existingProject = initialization.registry.projects.find(
+        (project) => project.path === validatedProject.projectRoot,
+      );
+
+      const registeredProject = createRegisteredProject(
+        validatedProject,
+        snapshot,
+        existingProject ?? null,
+        label ?? null,
+      );
+      assertNoIdentityCollision(initialization.registry.projects, registeredProject);
+
+      const snapshots: ProjectSnapshotsFile = {
+        version: initialization.snapshots.version,
+        snapshots: {
+          ...initialization.snapshots.snapshots,
+          [registeredProject.id]: snapshot,
+        },
       };
-    }
+      const projects = existingProject
+        ? initialization.registry.projects.map((project) =>
+            project.path === registeredProject.path ? registeredProject : project,
+          )
+        : [...initialization.registry.projects, registeredProject];
 
-    const snapshot = await this.indexer.index(validation.project);
-    const initialization = await this.storage.initialize();
-    const existingProject = initialization.registry.projects.find(
-      (project) => project.path === validation.project?.projectRoot,
-    );
+      // 快照先落盘；注册表失败时最多留下无引用快照，不会出现无快照的新注册项。
+      await this.storage.snapshots.save(snapshots);
+      await this.storage.registry.save({ version: initialization.registry.version, projects });
 
-    const registeredProject = createRegisteredProject(
-      validation.project,
-      snapshot,
-      existingProject ?? null,
-      label ?? null,
-    );
-    assertNoIdentityCollision(initialization.registry.projects, registeredProject);
-
-    const snapshots: ProjectSnapshotsFile = {
-      version: initialization.snapshots.version,
-      snapshots: {
-        ...initialization.snapshots.snapshots,
-        [registeredProject.id]: snapshot,
-      },
-    };
-    const projects = existingProject
-      ? initialization.registry.projects.map((project) =>
-          project.path === registeredProject.path ? registeredProject : project,
-        )
-      : [...initialization.registry.projects, registeredProject];
-
-    // 快照先落盘；注册表失败时最多留下无引用快照，不会出现无快照的新注册项。
-    await this.storage.snapshots.save(snapshots);
-    await this.storage.registry.save({ version: initialization.registry.version, projects });
-
-    return {
-      status: existingProject ? "updated" : "added",
-      project: registeredProject,
-      snapshot,
-      diagnostics: snapshot.diagnostics,
-    };
+      return {
+        status: existingProject ? "updated" : "added",
+        project: registeredProject,
+        snapshot,
+        diagnostics: snapshot.diagnostics,
+      };
+    });
   }
 
   /** 按调用顺序批量登记项目。 */
@@ -113,6 +119,121 @@ export class ProjectCatalog {
       results.push(await this.registerProject(project.path, project.label));
     }
     return results;
+  }
+
+  /** 返回当前注册表中的项目列表。 */
+  async listProjects(): Promise<RegisteredProject[]> {
+    return this.enqueueStorageOperation(async () => {
+      const initialization = await this.storage.initialize();
+      return initialization.registry.projects;
+    });
+  }
+
+  /**
+   * 重新校验并索引一个已登记项目。
+   *
+   * @param projectId 稳定项目 ID
+   * @returns 新快照、不可用状态或未找到结果
+   */
+  async refreshProject(projectId: string): Promise<ProjectRefreshResult> {
+    return this.enqueueStorageOperation(async () => {
+      const initialization = await this.storage.initialize();
+      const existingProject = initialization.registry.projects.find(
+        (project) => project.id === projectId,
+      );
+      if (existingProject === undefined) {
+        return {
+          status: "not-found",
+          project: null,
+          snapshot: null,
+          diagnostics: [],
+        };
+      }
+
+      const validation = await this.validator.validate(existingProject.path);
+      if (!validation.valid || validation.project === null) {
+        const occurredAt = new Date().toISOString();
+        const unavailableProject: RegisteredProject = {
+          ...existingProject,
+          state: "unavailable",
+          lastAccessedAt: occurredAt,
+          error: createProjectError(validation.diagnostics, occurredAt),
+        };
+        const projects = initialization.registry.projects.map((project) =>
+          project.id === projectId ? unavailableProject : project,
+        );
+
+        // 项目不可用时只更新注册表，旧快照必须原样保留。
+        await this.storage.registry.save({ version: initialization.registry.version, projects });
+        return {
+          status: "unavailable",
+          project: unavailableProject,
+          snapshot: initialization.snapshots.snapshots[projectId] ?? null,
+          diagnostics: validation.diagnostics,
+        };
+      }
+
+      const snapshot = await this.indexer.index(validation.project);
+      const refreshedProject: RegisteredProject = {
+        ...existingProject,
+        path: validation.project.projectRoot,
+        lastAccessedAt: snapshot.indexedAt,
+        lastIndexedAt: snapshot.indexedAt,
+        error: createProjectError(snapshot.diagnostics, snapshot.indexedAt),
+      };
+      const snapshots: ProjectSnapshotsFile = {
+        version: initialization.snapshots.version,
+        snapshots: {
+          ...initialization.snapshots.snapshots,
+          [projectId]: snapshot,
+        },
+      };
+      const projects = initialization.registry.projects.map((project) =>
+        project.id === projectId ? refreshedProject : project,
+      );
+
+      await this.storage.snapshots.save(snapshots);
+      await this.storage.registry.save({ version: initialization.registry.version, projects });
+      return {
+        status: "refreshed",
+        project: refreshedProject,
+        snapshot,
+        diagnostics: snapshot.diagnostics,
+      };
+    });
+  }
+
+  /** 将已登记项目切换为焦点或历史状态。 */
+  async updateProjectState(
+    projectId: string,
+    state: "focus" | "history",
+  ): Promise<RegisteredProject | null> {
+    return this.enqueueStorageOperation(async () => {
+      const initialization = await this.storage.initialize();
+      const existingProject = initialization.registry.projects.find(
+        (project) => project.id === projectId,
+      );
+      if (existingProject === undefined) {
+        return null;
+      }
+
+      const updatedProject: RegisteredProject = { ...existingProject, state };
+      const projects = initialization.registry.projects.map((project) =>
+        project.id === projectId ? updatedProject : project,
+      );
+      await this.storage.registry.save({ version: initialization.registry.version, projects });
+      return updatedProject;
+    });
+  }
+
+  /** 将跨注册表和快照的读改写放入同一串行队列。 */
+  private enqueueStorageOperation<T>(operation: () => Promise<T>): Promise<T> {
+    const result = this.storageQueue.then(operation);
+    this.storageQueue = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    return result;
   }
 }
 

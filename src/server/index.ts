@@ -4,6 +4,9 @@ import open from "open";
 import { fileURLToPath } from "node:url";
 import { basename } from "node:path";
 import { SERVICE_NAME, type HealthResponse } from "../shared/health.js";
+import { ProjectCatalog } from "./projects/project-catalog.js";
+import { ProjectEventHub } from "./realtime/project-event-hub.js";
+import { ProjectRealtimeManager } from "./realtime/project-realtime-manager.js";
 import { createApplicationStorage } from "./storage/application-storage.js";
 
 const HOST = "127.0.0.1";
@@ -65,6 +68,23 @@ async function startServer(): Promise<void> {
   const server = createServer();
   const storage = createApplicationStorage();
   const initialization = await storage.initialize();
+  const catalog = new ProjectCatalog(storage);
+  const eventHub = new ProjectEventHub((error) => {
+    server.log.warn({ errorName: getErrorName(error) }, "项目事件订阅者处理失败");
+  });
+  const realtimeManager = new ProjectRealtimeManager(catalog, eventHub, {
+    onOperationalError: (projectId, error) => {
+      // 文件系统错误可能包含本机绝对路径，日志只保留项目 ID 和错误类型。
+      server.log.warn(
+        { projectId, errorName: getErrorName(error) },
+        "焦点项目实时能力发生错误或进入降级",
+      );
+    },
+  });
+
+  server.addHook("onClose", async () => {
+    await realtimeManager.close();
+  });
 
   for (const recovery of initialization.recoveries) {
     server.log.warn(
@@ -75,6 +95,23 @@ async function startServer(): Promise<void> {
         message: recovery.message,
       },
       "应用数据文件损坏，已隔离原文件并恢复默认数据",
+    );
+  }
+
+  const restoreResult = await realtimeManager.restoreFocusProjects();
+  for (const failure of restoreResult.failures) {
+    server.log.warn({ projectId: failure.projectId }, "焦点项目恢复失败或项目已不可用");
+  }
+  if (restoreResult.restoredProjectIds.length > 0) {
+    const pollingCount = realtimeManager
+      .listRuntimeStatuses()
+      .filter((status) => status.watchMode === "polling").length;
+    server.log.info(
+      {
+        restoredCount: restoreResult.restoredProjectIds.length,
+        pollingCount,
+      },
+      "已恢复焦点项目监听",
     );
   }
 
@@ -104,3 +141,8 @@ startServer().catch((error: unknown) => {
   console.error("本地服务启动失败", error);
   process.exit(1);
 });
+
+/** 提取不包含文件路径和正文的错误类型。 */
+function getErrorName(error: unknown): string {
+  return error instanceof Error ? error.name : "UnknownError";
+}
