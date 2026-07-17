@@ -12,7 +12,7 @@
 8. [x] 证据通过后勾选 `docs/planning/prd.md` 对应验收项。
 9. [x] 执行 `pnpm lint`、`pnpm typecheck`、`pnpm build`、`git diff --check`。
 10. [x] 使用 `trellis-check` 进行后端、前端和跨层全量复核，并更新后端 API、前端 Hook、组件和控制台可执行规范。
-11. [ ] 按 Phase 3.4 提交代码和文档，再使用 `trellis-finish-work` 归档任务并记录 journal。
+11. [x] 按 Phase 3.4 提交代码和文档，再使用 `trellis-finish-work` 归档任务并记录 journal。
 
 ## 风险文件
 
