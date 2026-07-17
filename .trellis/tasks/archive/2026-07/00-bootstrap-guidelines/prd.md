@@ -21,9 +21,17 @@ the rest conversationally.
 
 ## Status (update the checkboxes as you complete each item)
 
-- [ ] Fill backend guidelines
-- [ ] Fill frontend guidelines
-- [ ] Add code examples
+- [x] Fill backend guidelines
+- [x] Fill frontend guidelines
+- [x] Add code examples
+
+## 完成证据
+
+- 后端引导规范已覆盖目录结构、无数据库首版决策、错误处理、结构化日志和质量门禁；文件均包含当前项目合同、真实模块路径或已落地示例。
+- 前端引导规范已覆盖目录结构、组件、Hook、状态管理、类型安全和质量门禁；示例直接引用 `src/web`、`src/shared` 和现有 API/SSE 数据流。
+- `.trellis/spec/backend/` 与 `.trellis/spec/frontend/` 未发现 `TBD`、`TODO`、待填写或占位文本。
+- 代码与配置示例已分布在目录、错误处理、日志、组件、Hook、状态、类型和只读 API 合同中；无数据库规范明确记录首版不引入数据库的真实决策，不伪造 ORM 示例。
+- 规范由阶段一至阶段六及本次验收修复持续维护，对应 Git 提交包括 `75c8f6d`、`f4a94e1`、`4518034`、`c0ac8ef`、`9cf6db6`、`ff577ed`、`fb5cf32`。
 
 ---
 
