@@ -204,3 +204,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 7: 修复阶段六验收问题
+
+**Date**: 2026-07-17
+**Task**: 修复阶段六验收问题
+**Branch**: `main`
+
+### Summary
+
+修复历史项目正文读取边界、项目详情异步竞态和归档 Task 标签同步；完成 HTTP、Playwright 与质量门禁验证，更新 PRD、验证报告和前后端可执行规范。
+
+### Main Changes
+
+- Detailed change bullets were not supplied; see the summary above.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `fb5cf32` | (see git log) |
+
+### Testing
+
+- Validation was not recorded for this session.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
