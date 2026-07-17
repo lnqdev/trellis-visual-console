@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 7
+- **Total Sessions**: 8
 - **Last Active**: 2026-07-17
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~239 | Active |
+| `journal-1.md` | ~270 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 8 | 2026-07-17 | 完成 Trellis 规范引导审计 | - | `main` |
 | 7 | 2026-07-17 | 修复阶段六验收问题 | `fb5cf32` | `main` |
 | 6 | 2026-07-16 | 完成阶段六验证与交付 | `ff577ed` | `main` |
 | 5 | 2026-07-16 | 完成第五阶段只读 API 与 Web UI | `9cf6db6` | `main` |

@@ -237,3 +237,34 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 8: 完成 Trellis 规范引导审计
+
+**Date**: 2026-07-17
+**Task**: 完成 Trellis 规范引导审计
+**Branch**: `main`
+
+### Summary
+
+单独审计 00-bootstrap-guidelines：确认后端与前端规范均已填充、无占位文本且包含真实路径或代码示例；更新完成证据并归档任务，未勾选产品 PRD 的其他未验证验收项。
+
+### Main Changes
+
+- Detailed change bullets were not supplied; see the summary above.
+
+### Git Commits
+
+(No commits - planning session)
+
+### Testing
+
+- Validation was not recorded for this session.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
