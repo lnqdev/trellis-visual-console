@@ -1,71 +1,166 @@
 # Trellis Visual Console
 
-一个面向个人本机使用的 Trellis 只读可视化内容中心。
+[简体中文](README_CN.md)
 
-## 当前状态
+Trellis Visual Console is a local, read-only web console for browsing Trellis data across multiple projects on one computer.
 
-项目已完成运行骨架、本机持久化、项目扫描与内容解析、焦点项目实时更新、正式只读 HTTP API 与 Web 控制台，以及阶段六系统验证与交付。当前可直接登记本机 Trellis 项目并浏览概览、Spec、Task、Workflow 和诊断。
+It helps answer practical questions without opening every repository individually:
 
-核心方向：
+- Which local projects use Trellis?
+- What specifications does each project contain?
+- Which tasks are active or archived?
+- What do a task's PRD, design, implementation plan, and research files say?
+- Which workflow and phase does a project currently use?
 
-- 独立仓库
-- 本地 Node.js 服务 + 浏览器 Web UI
-- 指定目录快速扫描与手动添加 Trellis 项目
-- 焦点项目实时监听，历史项目仅保留摘要快照
-- 浏览 Spec、活动/归档 Task、任务规划资料和 Workflow 摘要
-- 不修改被查看项目的 `.trellis/` 内容
+The console is not a replacement for the Trellis CLI and does not edit a project's `.trellis/` directory.
 
-当前已具备：
+## Highlights
 
-- 跨平台应用数据目录解析。
-- 版本化 `registry.json` 项目注册表。
-- 版本化 `snapshots.json` 摘要快照。
-- 原子写入、进程内写入串行化、损坏文件隔离恢复和版本保护。
-- 指定目录递归发现与单项目结构校验。
-- monorepo 配置、Spec 树、活动/归档 Task 和 Workflow 摘要解析。
-- 单个坏文件诊断隔离、项目登记和受路径保护的 Markdown 按需读取。
-- `history | focus | unavailable` 项目生命周期与启动恢复。
-- 焦点项目受限路径监听、事件防抖、批量重索引和退出清理。
-- 原生文件事件失败后的低频轮询降级与非实时状态标记。
-- 可供后续 SSE 路由复用的轻量事件合同和进程内订阅中心。
-- 项目列表、扫描、批量登记、详情、焦点切换、刷新和外部打开 API。
-- 基于快照白名单和 realpath 边界的 Spec、Task Markdown/JSONL 内容 API。
-- 带心跳和连接清理的 `/api/events` SSE 订阅接口。
-- 焦点/历史/不可用项目分组导航，以及项目发现和中文错误反馈。
-- 概览、Spec、Task、Workflow、诊断页面和安全 Markdown 渲染。
-- URL 阅读上下文恢复、SSE 自动刷新和 375–1440px 响应式布局。
-- macOS 实机异常、监听降级、重启恢复、生产退出和多项目性能基线验证。
-- Windows/Linux 路径、应用数据目录、Chokidar 和外部打开的平台中立审查。
+- Recursively scan a user-selected directory for Trellis projects.
+- Manually register an individual project.
+- Browse project summaries, monorepo packages, Specs, Tasks, Workflow information, and diagnostics.
+- Read Markdown and task planning artifacts with source-path traceability.
+- Separate projects into `focus`, `history`, and `unavailable` states.
+- Watch only focus projects and deliver invalidation events to the UI through SSE.
+- Keep history projects lightweight by serving their last indexed snapshot without active watchers.
+- Fall back to low-frequency polling when native file events are unavailable.
+- Store the project registry and rebuildable snapshots outside the inspected repositories.
+- Bind the service to `127.0.0.1` and enforce registered-project, allowlist, realpath, and Markdown safety boundaries.
 
-## 本地运行
+## How it works
 
-环境要求：Node.js 22.12+、pnpm 10+。
+```text
+Browser UI (React)
+  ├─ HTTP: projects, Specs, Tasks, Workflow, diagnostics
+  └─ SSE: project-level invalidation events
+                  │
+                  ▼
+Local service (Fastify on 127.0.0.1)
+  ├─ project scanner and validator
+  ├─ Trellis content indexer
+  ├─ local registry and snapshot storage
+  └─ focus-project file watchers
+                  │
+                  ▼
+       Registered local .trellis/ directories
+```
+
+The source project's `.trellis/` directory remains the only source of truth. The application writes only its own `registry.json` and `snapshots.json` files.
+
+### Focus and history projects
+
+- **Focus**: reindexed when focused, actively watched, and updated in the UI through SSE invalidation events.
+- **History**: no active watcher; displays the last successful summary snapshot. A successful explicit refresh temporarily enables document reading for the current server process.
+- **Unavailable**: the path is missing, inaccessible, or no longer has a valid Trellis structure; the previous record and snapshot are retained for diagnosis.
+
+Scanning is always user-triggered. The selected scan root is not turned into a permanent watcher.
+
+## Requirements
+
+- Node.js 22.12 or newer
+- pnpm 10 or newer
+
+## Development
 
 ```bash
 pnpm install
 pnpm dev
 ```
 
-开发模式会同时启动 `127.0.0.1:3100` 的本地服务和 `127.0.0.1:5173` 的 Vite 页面，并自动打开浏览器。
+Development mode starts:
 
-生产构建与启动：
+- the local API server at `http://127.0.0.1:3100`
+- the Vite UI at `http://127.0.0.1:5173`
+
+The browser opens automatically. The Vite development server proxies API requests to the local service.
+
+## Production build
 
 ```bash
 pnpm build
 pnpm start
 ```
 
-生产模式由 Node 服务托管 Web 静态资源，健康检查地址为 `http://127.0.0.1:3100/api/health`。
+In production mode, the Node.js service hosts the built web assets and opens its local address in the browser. The default health endpoint is:
 
-## 规划文档
+```text
+http://127.0.0.1:3100/api/health
+```
 
-- [产品需求](docs/planning/prd.md)
-- [技术设计](docs/planning/design.md)
-- [实施清单](docs/planning/implement.md)
-- [第一性原理分析](docs/planning/fp-analysis.md)
-- [新会话交接说明](docs/planning/session-handoff.md)
-- [阶段六验证与交付报告](docs/validation/phase-6-report.md)
+To use another port:
 
-## 验证状态
+```bash
+PORT=3200 pnpm start
+```
 
-阶段六已完成 macOS 实机验证，并对 Windows/Linux 完成平台中立代码审查。Windows/Linux 的真实文件事件、权限模型、系统外部打开和信号行为尚未实机覆盖，详细结果与指标见[阶段六验证与交付报告](docs/validation/phase-6-report.md)。
+## Local application data
+
+By default, application-owned data is stored at:
+
+| Platform | Directory |
+| --- | --- |
+| macOS | `~/Library/Application Support/Trellis Visual Console` |
+| Windows | `%APPDATA%/Trellis Visual Console` |
+| Linux | `$XDG_CONFIG_HOME/trellis-visual-console` or `~/.config/trellis-visual-console` |
+
+Override the directory when developing or running isolated checks:
+
+```bash
+TRELLIS_VISUAL_CONSOLE_DATA_DIR=/tmp/trellis-visual-console pnpm dev
+```
+
+Deleting this application data removes only the console's registry and cached summaries. It does not modify any registered Trellis project.
+
+## Read-only and security boundaries
+
+- The HTTP service listens only on `127.0.0.1`.
+- The API addresses projects by registered ID instead of accepting arbitrary absolute paths.
+- Document reads are restricted to indexed Trellis files and verified with realpath boundaries.
+- Unsafe path traversal and symlink escapes are rejected.
+- Rendered Markdown does not execute embedded HTML or scripts.
+- The application exposes no API for editing files, changing task state, running agents, or executing commands.
+- “Open externally” actions pass only validated project paths to the operating system.
+
+## Project structure
+
+```text
+src/server/   local HTTP service, storage, scanning, indexing, and watchers
+src/shared/   API schemas and shared contracts
+src/web/      React console and read-only content views
+docs/         product planning, technical design, and validation evidence
+.trellis/     project workflow, specifications, tasks, and developer records
+```
+
+## Quality checks
+
+```bash
+pnpm lint
+pnpm typecheck
+pnpm build
+git diff --check
+```
+
+The current MVP has completed macOS system validation. Windows and Linux have received platform-neutral path and implementation review, but native file events, permissions, external opening, and process signals have not yet been verified on real machines.
+
+See the [Phase 6 validation report](docs/validation/phase-6-report.md) for scenarios, known coverage limits, fixes, and performance baselines.
+
+## Project documentation
+
+- [Product requirements](docs/planning/prd.md)
+- [Technical design](docs/planning/design.md)
+- [Implementation plan](docs/planning/implement.md)
+- [First-principles analysis](docs/planning/fp-analysis.md)
+- [Session handoff](docs/planning/session-handoff.md)
+- [Phase 6 validation report](docs/validation/phase-6-report.md)
+
+## Current scope
+
+The MVP is intentionally local and read-only. It does not include:
+
+- editing Specs, Tasks, or Workflow state
+- team accounts, remote access, or cloud synchronization
+- Channel, Worker, Mem, Workspace Journal, or runtime-operation panels
+- an Electron or Tauri installer
+- a required dependency on `@mindfoldhq/trellis-core`
+
+The Core SDK may be evaluated later if reusing canonical Trellis validation or workflow semantics becomes more valuable than maintaining a small local adapter.
