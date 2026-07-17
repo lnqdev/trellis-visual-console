@@ -1,5 +1,5 @@
 import { Archive, CircleDot, FileJson2, FileText, ListTodo, UserRound } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type {
   ProjectDocumentResponse,
   TaskDetailResponse,
@@ -33,12 +33,33 @@ export function TaskBrowser({
   onSelectDocument,
   onOpenSource,
 }: TaskBrowserProps) {
-  const initialCollection = useMemo(
-    () => archivedTasks.some((task) => task.sourcePath === selectedTaskSourcePath) ? "archived" : "active",
-    [archivedTasks, selectedTaskSourcePath],
+  const [collection, setCollection] = useState<"active" | "archived">(() =>
+    archivedTasks.some((task) => task.sourcePath === selectedTaskSourcePath) ? "archived" : "active",
   );
-  const [collection, setCollection] = useState<"active" | "archived">(initialCollection);
   const tasks = collection === "active" ? activeTasks : archivedTasks;
+
+  useEffect(() => {
+    if (selectedTaskSourcePath !== null) {
+      if (archivedTasks.some((task) => task.sourcePath === selectedTaskSourcePath)) {
+        setCollection("archived");
+        return;
+      }
+      if (activeTasks.some((task) => task.sourcePath === selectedTaskSourcePath)) {
+        setCollection("active");
+        return;
+      }
+    }
+
+    setCollection((current) => {
+      if (current === "active" && activeTasks.length === 0 && archivedTasks.length > 0) {
+        return "archived";
+      }
+      if (current === "archived" && archivedTasks.length === 0 && activeTasks.length > 0) {
+        return "active";
+      }
+      return current;
+    });
+  }, [activeTasks, archivedTasks, selectedTaskSourcePath]);
 
   useEffect(() => {
     if (selectedTaskSourcePath === null && tasks[0] !== undefined) {

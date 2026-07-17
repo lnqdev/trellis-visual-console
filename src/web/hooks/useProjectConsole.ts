@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   ProjectDetailResponse,
   ProjectDocumentResponse,
@@ -46,6 +46,8 @@ const VALID_VIEWS: ProjectView[] = ["overview", "spec", "tasks", "workflow", "di
 /** 集中管理项目列表、详情、文档、URL 选择和 SSE 刷新。 */
 export function useProjectConsole() {
   const initialSelection = useMemo(readUrlSelection, []);
+  const selectedProjectIdRef = useRef<string | null>(initialSelection.projectId);
+  const detailRequestGenerationRef = useRef(0);
   const [projects, setProjects] = useState<AsyncState<ProjectListItem[]>>(createAsyncState([]));
   const [detail, setDetail] = useState<AsyncState<ProjectDetailResponse>>(
     createAsyncState<ProjectDetailResponse>(null),
@@ -77,6 +79,65 @@ export function useProjectConsole() {
   const [notice, setNotice] = useState<ConsoleNotice | null>(null);
   const [discoveryOpen, setDiscoveryOpen] = useState(false);
 
+  /** 提交当前项目选择，并同步失效所有旧项目详情请求。 */
+  const applyProjectSelection = useCallback(
+    (projectId: string | null, resetNavigation: boolean) => {
+      if (selectedProjectIdRef.current !== projectId) {
+        selectedProjectIdRef.current = projectId;
+        detailRequestGenerationRef.current += 1;
+        setSelectedProjectId(projectId);
+        setDetail(createAsyncState<ProjectDetailResponse>(null));
+      }
+      if (resetNavigation) {
+        setView("overview");
+        setSelectedSpecPath(null);
+        setSelectedTaskSourcePath(null);
+        setSelectedTaskDocumentPath(null);
+        setSpecDocument(createAsyncState<ProjectDocumentResponse>(null));
+        setTaskDetail(createAsyncState<TaskDetailResponse>(null));
+        setTaskDocument(createAsyncState<ProjectDocumentResponse>(null));
+      }
+    },
+    [],
+  );
+
+  /** 仅在请求仍属于当前项目和最新代次时提交详情。 */
+  const commitProjectDetail = useCallback(
+    (projectId: string, generation: number, response: ProjectDetailResponse): boolean => {
+      if (
+        selectedProjectIdRef.current !== projectId ||
+        detailRequestGenerationRef.current !== generation ||
+        response.project.id !== projectId
+      ) {
+        return false;
+      }
+
+      setDetail({ data: response, loading: false, error: null });
+      if (!response.contentReadable) {
+        setSelectedSpecPath(null);
+        setSelectedTaskSourcePath(null);
+        setSelectedTaskDocumentPath(null);
+        setSpecDocument(createAsyncState<ProjectDocumentResponse>(null));
+        setTaskDetail(createAsyncState<TaskDetailResponse>(null));
+        setTaskDocument(createAsyncState<ProjectDocumentResponse>(null));
+        return true;
+      }
+
+      const specTree = response.snapshot?.specTree ?? [];
+      const tasks = response.snapshot === null
+        ? []
+        : [...response.snapshot.tasks.active, ...response.snapshot.tasks.archived];
+      setSelectedSpecPath((current) =>
+        current !== null && containsSpecFile(specTree, current) ? current : null,
+      );
+      setSelectedTaskSourcePath((current) =>
+        current !== null && tasks.some((task) => task.sourcePath === current) ? current : null,
+      );
+      return true;
+    },
+    [],
+  );
+
   /** 读取项目列表并修复失效的当前选择。 */
   const loadProjects = useCallback(async (background = false, signal?: AbortSignal) => {
     if (!background) {
@@ -85,12 +146,13 @@ export function useProjectConsole() {
     try {
       const response = await fetchProjects(signal);
       setProjects({ data: response.projects, loading: false, error: null });
-      setSelectedProjectId((current) => {
-        if (current !== null && response.projects.some((item) => item.project.id === current)) {
-          return current;
-        }
-        return response.projects[0]?.project.id ?? null;
-      });
+      const currentProjectId = selectedProjectIdRef.current;
+      const nextProjectId =
+        currentProjectId !== null &&
+        response.projects.some((item) => item.project.id === currentProjectId)
+          ? currentProjectId
+          : response.projects[0]?.project.id ?? null;
+      applyProjectSelection(nextProjectId, nextProjectId !== currentProjectId);
       if (response.projects.length === 0) {
         setDiscoveryOpen(true);
       }
@@ -99,34 +161,30 @@ export function useProjectConsole() {
         setProjects((current) => ({ ...current, loading: false, error: getErrorMessage(error) }));
       }
     }
-  }, []);
+  }, [applyProjectSelection]);
 
   /** 读取一个项目的缓存详情。 */
   const loadDetail = useCallback(
     async (projectId: string, background = false, signal?: AbortSignal) => {
+      const generation = detailRequestGenerationRef.current + 1;
+      detailRequestGenerationRef.current = generation;
       if (!background) {
         setDetail({ data: null, loading: true, error: null });
       }
       try {
         const response = await fetchProject(projectId, signal);
-        setDetail({ data: response, loading: false, error: null });
-        const specTree = response.snapshot?.specTree ?? [];
-        const tasks = response.snapshot === null
-          ? []
-          : [...response.snapshot.tasks.active, ...response.snapshot.tasks.archived];
-        setSelectedSpecPath((current) =>
-          current !== null && containsSpecFile(specTree, current) ? current : null,
-        );
-        setSelectedTaskSourcePath((current) =>
-          current !== null && tasks.some((task) => task.sourcePath === current) ? current : null,
-        );
+        commitProjectDetail(projectId, generation, response);
       } catch (error) {
-        if (!isAbortError(error)) {
+        if (
+          !isAbortError(error) &&
+          selectedProjectIdRef.current === projectId &&
+          detailRequestGenerationRef.current === generation
+        ) {
           setDetail((current) => ({ ...current, loading: false, error: getErrorMessage(error) }));
         }
       }
     },
-    [],
+    [commitProjectDetail],
   );
 
   /** 读取当前 Spec 文档。 */
@@ -222,6 +280,7 @@ export function useProjectConsole() {
       selectedProjectId === null ||
       selectedSpecPath === null ||
       detail.data?.project.id !== selectedProjectId ||
+      !detail.data.contentReadable ||
       !containsSpecFile(detail.data.snapshot?.specTree ?? [], selectedSpecPath)
     ) {
       setSpecDocument(createAsyncState<ProjectDocumentResponse>(null));
@@ -237,6 +296,7 @@ export function useProjectConsole() {
       selectedProjectId === null ||
       selectedTaskSourcePath === null ||
       detail.data?.project.id !== selectedProjectId ||
+      !detail.data.contentReadable ||
       !containsTask(detail.data, selectedTaskSourcePath)
     ) {
       setTaskDetail(createAsyncState<TaskDetailResponse>(null));
@@ -260,6 +320,8 @@ export function useProjectConsole() {
       selectedTaskSourcePath === null ||
       selectedTaskDocumentPath === null ||
       taskDetail.data?.projectId !== selectedProjectId ||
+      detail.data?.project.id !== selectedProjectId ||
+      !detail.data.contentReadable ||
       taskDetail.data.task.sourcePath !== selectedTaskSourcePath ||
       !taskDetail.data.documents.some(
         (document) => document.relativePath === selectedTaskDocumentPath,
@@ -278,6 +340,7 @@ export function useProjectConsole() {
     return () => controller.abort();
   }, [
     loadTaskDocument,
+    detail.data,
     selectedProjectId,
     selectedTaskDocumentPath,
     selectedTaskSourcePath,
@@ -325,13 +388,9 @@ export function useProjectConsole() {
 
   /** 选择项目并重置项目内导航。 */
   const selectProject = useCallback((projectId: string) => {
-    setSelectedProjectId(projectId);
-    setView("overview");
-    setSelectedSpecPath(null);
-    setSelectedTaskSourcePath(null);
-    setSelectedTaskDocumentPath(null);
+    applyProjectSelection(projectId, true);
     setDiscoveryOpen(false);
-  }, []);
+  }, [applyProjectSelection]);
 
   /** 切换当前项目主视图。 */
   const selectView = useCallback((nextView: ProjectView) => setView(nextView), []);
@@ -342,9 +401,14 @@ export function useProjectConsole() {
       if (selectedProjectId === null) {
         return;
       }
-      await runAction(`focus:${selectedProjectId}`, async () => {
-        const response = await setProjectFocus(selectedProjectId, focused);
-        setDetail({ data: response, loading: false, error: null });
+      const projectId = selectedProjectId;
+      await runAction(`focus:${projectId}`, async () => {
+        const response = await setProjectFocus(projectId, focused);
+        if (selectedProjectIdRef.current === projectId) {
+          const generation = detailRequestGenerationRef.current + 1;
+          detailRequestGenerationRef.current = generation;
+          commitProjectDetail(projectId, generation, response);
+        }
         await loadProjects(true);
         setNotice({
           tone: "success",
@@ -352,7 +416,7 @@ export function useProjectConsole() {
         });
       });
     },
-    [loadProjects, selectedProjectId],
+    [commitProjectDetail, loadProjects, selectedProjectId],
   );
 
   /** 显式刷新当前项目。 */
@@ -360,13 +424,18 @@ export function useProjectConsole() {
     if (selectedProjectId === null) {
       return;
     }
-    await runAction(`refresh:${selectedProjectId}`, async () => {
-      const response = await refreshProject(selectedProjectId);
-      setDetail({ data: response, loading: false, error: null });
+    const projectId = selectedProjectId;
+    await runAction(`refresh:${projectId}`, async () => {
+      const response = await refreshProject(projectId);
+      if (selectedProjectIdRef.current === projectId) {
+        const generation = detailRequestGenerationRef.current + 1;
+        detailRequestGenerationRef.current = generation;
+        commitProjectDetail(projectId, generation, response);
+      }
       await loadProjects(true);
       setNotice({ tone: "success", message: "项目快照已重新索引" });
     });
-  }, [loadProjects, selectedProjectId]);
+  }, [commitProjectDetail, loadProjects, selectedProjectId]);
 
   /** 使用系统外部应用打开当前项目或源路径。 */
   const openSelectedPath = useCallback(

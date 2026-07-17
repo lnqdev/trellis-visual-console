@@ -13,7 +13,11 @@ import {
   ProjectTaskDocumentNotFoundError,
   ProjectTaskNotFoundError,
 } from "../projects/task-reader.js";
-import { ProjectApiNotFoundError, ProjectApiService } from "./project-api-service.js";
+import {
+  ProjectApiContentUnavailableError,
+  ProjectApiNotFoundError,
+  ProjectApiService,
+} from "./project-api-service.js";
 
 const ProjectParamsSchema = z.object({ projectId: z.string().min(1) }).strict();
 const SpecDocumentQuerySchema = z.object({ path: z.string().min(1) }).strict();
@@ -133,6 +137,9 @@ async function executeRoute(
     }
     if (error instanceof UnsafeProjectPathError) {
       return sendApiError(reply, 400, "unsafe-project-path", error.message);
+    }
+    if (error instanceof ProjectApiContentUnavailableError) {
+      return sendApiError(reply, 409, "project-content-unavailable", error.message);
     }
     if (isNodeError(error, "EACCES") || isNodeError(error, "EPERM")) {
       return sendApiError(reply, 403, "project-access-denied", "没有权限访问该项目资源");

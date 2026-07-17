@@ -165,6 +165,7 @@ export const ProjectDetailResponseSchema = z
     runtime: ProjectRuntimeStatusApiSchema,
     snapshot: ProjectSnapshotApiSchema.nullable(),
     possiblyStale: z.boolean(),
+    contentReadable: z.boolean(),
   })
   .strict();
 

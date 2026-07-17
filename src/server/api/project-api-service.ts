@@ -36,8 +36,19 @@ export class ProjectApiNotFoundError extends Error {
   }
 }
 
+/** 当前项目状态不允许读取源文件正文。 */
+export class ProjectApiContentUnavailableError extends Error {
+  /** 创建正文读取不可用错误。 */
+  constructor() {
+    super("当前项目尚未显式刷新或加入焦点，不能读取完整正文");
+    this.name = "ProjectApiContentUnavailableError";
+  }
+}
+
 /** 编排项目 API 所需的存储、实时状态和受保护内容读取。 */
 export class ProjectApiService {
+  private readonly refreshedHistoryProjects = new Set<string>();
+
   /** 创建项目 API 服务。 */
   constructor(
     private readonly catalog: ProjectCatalog,
@@ -83,18 +94,26 @@ export class ProjectApiService {
     } else {
       await this.realtimeManager.unfocusProject(projectId);
     }
+    // 移出焦点后立即恢复为纯摘要历史项目；焦点项目本身不需要临时授权。
+    this.refreshedHistoryProjects.delete(projectId);
     return ProjectActionResponseSchema.parse(await this.getProject(projectId));
   }
 
   /** 显式刷新项目并返回最新详情。 */
   async refreshProject(projectId: string): Promise<ProjectActionResponse> {
-    await this.realtimeManager.refreshProject(projectId);
+    const result = await this.realtimeManager.refreshProject(projectId);
+    if (result.status === "refreshed" && result.project?.state === "history") {
+      // 历史项目只有经过本进程内的用户显式刷新后，才临时开放按需正文读取。
+      this.refreshedHistoryProjects.add(projectId);
+    } else {
+      this.refreshedHistoryProjects.delete(projectId);
+    }
     return ProjectActionResponseSchema.parse(await this.getProject(projectId));
   }
 
   /** 读取快照 Spec 树中已知的 Markdown 文档。 */
   async readSpecDocument(projectId: string, sourcePath: string): Promise<ProjectDocumentResponse> {
-    const data = await this.requireProjectData(projectId);
+    const data = await this.requireReadableProjectData(projectId);
     if (data.snapshot === null || !containsSpecFile(data.snapshot.specTree, sourcePath)) {
       throw new ProjectApiNotFoundError("当前项目快照中不存在指定 Spec 文档");
     }
@@ -105,7 +124,7 @@ export class ProjectApiService {
 
   /** 返回快照中已知 Task 的文档清单。 */
   async readTaskDetail(projectId: string, taskSourcePath: string): Promise<TaskDetailResponse> {
-    const data = await this.requireProjectData(projectId);
+    const data = await this.requireReadableProjectData(projectId);
     if (data.snapshot === null) {
       throw new ProjectApiNotFoundError("当前项目没有可用快照");
     }
@@ -124,7 +143,7 @@ export class ProjectApiService {
     taskSourcePath: string,
     documentPath: string,
   ): Promise<ProjectDocumentResponse> {
-    const data = await this.requireProjectData(projectId);
+    const data = await this.requireReadableProjectData(projectId);
     if (data.snapshot === null) {
       throw new ProjectApiNotFoundError("当前项目没有可用快照");
     }
@@ -153,6 +172,21 @@ export class ProjectApiService {
     return data;
   }
 
+  /** 要求项目已显式刷新或处于焦点状态，避免历史项目直接访问源文件正文。 */
+  private async requireReadableProjectData(projectId: string): Promise<ProjectCatalogData> {
+    const data = await this.requireProjectData(projectId);
+    if (!this.isProjectContentReadable(data)) {
+      throw new ProjectApiContentUnavailableError();
+    }
+    return data;
+  }
+
+  /** 判断项目是否已通过焦点状态或本进程显式刷新获得正文读取资格。 */
+  private isProjectContentReadable(data: ProjectCatalogData): boolean {
+    return data.project.state === "focus" ||
+      (data.project.state === "history" && this.refreshedHistoryProjects.has(data.project.id));
+  }
+
   /** 将存储数据与运行时监听状态投影为列表单项。 */
   private createProjectListItem(data: ProjectCatalogData): ProjectListItem {
     const runtime = this.realtimeManager.getRuntimeStatus(data.project.id);
@@ -175,6 +209,7 @@ export class ProjectApiService {
       runtime,
       snapshot: data.snapshot,
       possiblyStale: data.project.state !== "focus" || runtime.watchMode !== "native",
+      contentReadable: this.isProjectContentReadable(data),
     });
   }
 }

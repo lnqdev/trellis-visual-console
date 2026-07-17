@@ -162,6 +162,9 @@ function renderProjectView(
     case "overview":
       return <ProjectOverview detail={detail} />;
     case "spec":
+      if (!detail.contentReadable) {
+        return <ReadonlySnapshotNotice resourceLabel="Spec 正文" />;
+      }
       return (
         <SpecBrowser
           tree={detail.snapshot?.specTree ?? []}
@@ -172,6 +175,9 @@ function renderProjectView(
         />
       );
     case "tasks":
+      if (!detail.contentReadable) {
+        return <ReadonlySnapshotNotice resourceLabel="Task 规划资料" />;
+      }
       return (
         <TaskBrowser
           activeTasks={detail.snapshot?.tasks.active ?? []}
@@ -201,4 +207,17 @@ function renderProjectView(
         />
       );
   }
+}
+
+interface ReadonlySnapshotNoticeProps {
+  resourceLabel: string;
+}
+
+/** 提示尚未显式刷新的历史或不可用项目只能浏览摘要快照。 */
+function ReadonlySnapshotNotice({ resourceLabel }: ReadonlySnapshotNoticeProps) {
+  return (
+    <div className="content-state">
+      当前项目只展示摘要快照，不能直接读取{resourceLabel}。请先刷新摘要，或加入焦点持续读取。
+    </div>
+  );
 }
