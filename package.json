@@ -11,7 +11,7 @@
   "packageManager": "pnpm@10.33.0",
   "scripts": {
     "dev": "concurrently --kill-others-on-fail --names server,web --prefix-colors cyan,magenta \"pnpm dev:server\" \"pnpm dev:web\"",
-    "dev:server": "tsx watch src/server/index.ts",
+    "dev:server": "node --watch --import tsx src/server/index.ts",
     "dev:web": "vite",
     "build": "pnpm build:web && pnpm build:server",
     "build:web": "vite build",
