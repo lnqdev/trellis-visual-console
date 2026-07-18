@@ -123,6 +123,8 @@ export const TaskSummarySnapshotSchema = z
     packageName: NonEmptyStringSchema.nullable(),
     updatedAt: NullableIsoDateTimeSchema,
     sourcePath: NonEmptyStringSchema,
+    parentSourcePath: NonEmptyStringSchema.nullable().default(null),
+    childSourcePaths: z.array(NonEmptyStringSchema).default([]),
   })
   .strict();
 

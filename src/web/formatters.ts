@@ -43,7 +43,10 @@ export function formatTaskStatus(task: TaskSummaryApi): string {
       return "规划中";
     case "in_progress":
       return "实施中";
+    case "review":
+      return "评审中";
     case "completed":
+    case "done":
       return "已完成";
     default:
       return task.status;

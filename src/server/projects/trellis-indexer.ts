@@ -34,6 +34,21 @@ interface TaskIndexResult {
   archived: TaskSummarySnapshot[];
 }
 
+interface ParsedTask {
+  summary: TaskSummarySnapshot;
+  directoryName: string;
+  parentName: string | null;
+  childNames: string[];
+}
+
+interface TaskRelationCandidate {
+  parent: ParsedTask;
+  child: ParsedTask;
+  declaredByParent: boolean;
+  declaredByChild: boolean;
+  parentDeclarationIndex: number | null;
+}
+
 /** 将单个 Trellis 项目解析为可持久化摘要快照。 */
 export class TrellisIndexer {
   /**
@@ -180,7 +195,7 @@ async function indexTasks(
   diagnostics: SnapshotDiagnostic[],
 ): Promise<TaskIndexResult> {
   const tasksRoot = join(project.trellisRoot, "tasks");
-  const active: TaskSummarySnapshot[] = [];
+  const active: ParsedTask[] = [];
 
   let taskDirectory;
   try {
@@ -192,7 +207,7 @@ async function indexTasks(
         toProjectRelativePath(project.projectRoot, tasksRoot),
       ),
     );
-    return { active, archived: [] };
+    return { active: [], archived: [] };
   }
 
   for await (const entry of taskDirectory) {
@@ -214,9 +229,7 @@ async function indexTasks(
     ),
   );
 
-  active.sort(compareTasks);
-  archived.sort(compareTasks);
-  return { active, archived };
+  return resolveTaskRelationships(active, archived, diagnostics);
 }
 
 /** 递归发现归档目录中包含 task.json 的任务根目录。 */
@@ -272,7 +285,7 @@ async function parseTaskDirectory(
   taskRoot: string,
   archived: boolean,
   diagnostics: SnapshotDiagnostic[],
-): Promise<TaskSummarySnapshot> {
+): Promise<ParsedTask> {
   const taskJsonPath = join(taskRoot, "task.json");
   const sourcePath = toProjectRelativePath(project.projectRoot, taskJsonPath);
   const directoryName = basename(taskRoot);
@@ -283,6 +296,8 @@ async function parseTaskDirectory(
   const recordStatus = readTaskString(taskRecord, "status", diagnostics, sourcePath);
   const recordAssignee = readTaskString(taskRecord, "assignee", diagnostics, sourcePath);
   const recordPackage = readTaskString(taskRecord, "package", diagnostics, sourcePath);
+  const recordParent = readTaskString(taskRecord, "parent", diagnostics, sourcePath);
+  const recordChildren = readTaskStringArray(taskRecord, "children", diagnostics, sourcePath);
 
   if (!archived) {
     await validateActiveTaskPrd(project, taskRoot, diagnostics);
@@ -294,14 +309,21 @@ async function parseTaskDirectory(
   const status = recordStatus ?? (archived ? "completed" : "unknown");
 
   return {
-    id,
-    title,
-    status,
-    phase: mapTaskStatusToPhase(status),
-    assignee: recordAssignee,
-    packageName: recordPackage,
-    updatedAt: await readTaskModifiedAt(taskJsonPath, taskRoot),
-    sourcePath,
+    directoryName,
+    parentName: recordParent,
+    childNames: recordChildren,
+    summary: {
+      id,
+      title,
+      status,
+      phase: mapTaskStatusToPhase(status),
+      assignee: recordAssignee,
+      packageName: recordPackage,
+      updatedAt: await readTaskModifiedAt(taskJsonPath, taskRoot),
+      sourcePath,
+      parentSourcePath: null,
+      childSourcePaths: [],
+    },
   };
 }
 
@@ -363,6 +385,242 @@ function readTaskString(
     sourcePath,
   });
   return null;
+}
+
+/** 读取任务字符串数组字段，非法成员产生警告并被忽略。 */
+function readTaskStringArray(
+  task: Record<string, unknown>,
+  field: string,
+  diagnostics: SnapshotDiagnostic[],
+  sourcePath: string,
+): string[] {
+  const value = task[field];
+  if (value === undefined || value === null) {
+    return [];
+  }
+  if (!Array.isArray(value)) {
+    diagnostics.push(createTaskRelationDiagnostic("task-relation-field-invalid", sourcePath));
+    return [];
+  }
+
+  const values: string[] = [];
+  value.forEach((item) => {
+    if (typeof item === "string" && item.length > 0) {
+      values.push(item);
+      return;
+    }
+    diagnostics.push(createTaskRelationDiagnostic("task-relation-field-invalid", sourcePath));
+  });
+  return values;
+}
+
+/** 跨活动与归档集合解析任务关系，并隔离损坏或循环的关系边。 */
+function resolveTaskRelationships(
+  activeTasks: ParsedTask[],
+  archivedTasks: ParsedTask[],
+  diagnostics: SnapshotDiagnostic[],
+): TaskIndexResult {
+  const allTasks = [...activeTasks, ...archivedTasks];
+  const taskByDirectoryName = new Map<string, ParsedTask>();
+  const taskBySourcePath = new Map(allTasks.map((task) => [task.summary.sourcePath, task]));
+  const relationCandidates = new Map<string, TaskRelationCandidate>();
+  const parentByChildPath = new Map<string, string>();
+
+  allTasks.forEach((task) => {
+    if (taskByDirectoryName.has(task.directoryName)) {
+      diagnostics.push(
+        createTaskRelationDiagnostic("task-relation-name-duplicate", task.summary.sourcePath),
+      );
+      return;
+    }
+    taskByDirectoryName.set(task.directoryName, task);
+  });
+
+  allTasks.forEach((parent) => {
+    const seenChildren = new Set<string>();
+    parent.childNames.forEach((childName, childIndex) => {
+      if (seenChildren.has(childName)) {
+        diagnostics.push(
+          createTaskRelationDiagnostic("task-relation-child-duplicate", parent.summary.sourcePath),
+        );
+        return;
+      }
+      seenChildren.add(childName);
+      const child = taskByDirectoryName.get(childName);
+      if (child === undefined) {
+        diagnostics.push(
+          createTaskRelationDiagnostic("task-relation-child-missing", parent.summary.sourcePath),
+        );
+        return;
+      }
+      if (parent.summary.sourcePath === child.summary.sourcePath) {
+        diagnostics.push(
+          createTaskRelationDiagnostic("task-relation-self-reference", parent.summary.sourcePath),
+        );
+        return;
+      }
+
+      const candidateKey = createTaskRelationKey(parent, child);
+      const candidate = relationCandidates.get(candidateKey) ?? {
+        parent,
+        child,
+        declaredByParent: false,
+        declaredByChild: false,
+        parentDeclarationIndex: null,
+      };
+      candidate.declaredByParent = true;
+      candidate.parentDeclarationIndex ??= childIndex;
+      relationCandidates.set(candidateKey, candidate);
+    });
+  });
+
+  allTasks.forEach((child) => {
+    if (child.parentName === null) {
+      return;
+    }
+    const parent = taskByDirectoryName.get(child.parentName);
+    if (parent === undefined) {
+      diagnostics.push(
+        createTaskRelationDiagnostic("task-relation-parent-missing", child.summary.sourcePath),
+      );
+      return;
+    }
+    if (parent.summary.sourcePath === child.summary.sourcePath) {
+      diagnostics.push(
+        createTaskRelationDiagnostic("task-relation-self-reference", child.summary.sourcePath),
+      );
+      return;
+    }
+
+    const candidateKey = createTaskRelationKey(parent, child);
+    const candidate = relationCandidates.get(candidateKey) ?? {
+      parent,
+      child,
+      declaredByParent: false,
+      declaredByChild: false,
+      parentDeclarationIndex: null,
+    };
+    candidate.declaredByChild = true;
+    relationCandidates.set(candidateKey, candidate);
+  });
+
+  const candidates = [...relationCandidates.values()].sort(compareTaskRelationCandidates);
+  candidates.forEach((candidate) => {
+    const { parent, child } = candidate;
+    if (candidate.declaredByParent !== candidate.declaredByChild) {
+      diagnostics.push(
+        createTaskRelationDiagnostic("task-relation-asymmetric", child.summary.sourcePath),
+      );
+    }
+
+    const existingParentPath = parentByChildPath.get(child.summary.sourcePath);
+    if (existingParentPath !== undefined && existingParentPath !== parent.summary.sourcePath) {
+      diagnostics.push(
+        createTaskRelationDiagnostic("task-relation-parent-conflict", child.summary.sourcePath),
+      );
+      return;
+    }
+    if (wouldCreateTaskCycle(parent.summary.sourcePath, child.summary.sourcePath, parentByChildPath)) {
+      diagnostics.push(
+        createTaskRelationDiagnostic("task-relation-cycle", child.summary.sourcePath),
+      );
+      return;
+    }
+
+    parentByChildPath.set(child.summary.sourcePath, parent.summary.sourcePath);
+    child.summary.parentSourcePath = parent.summary.sourcePath;
+    parent.summary.childSourcePaths.push(child.summary.sourcePath);
+  });
+
+  // 关系可信度只决定保留哪条边；最终展示顺序仍服从父任务原始 children。
+  allTasks.forEach((parent) => {
+    const childOrder = new Map(parent.childNames.map((childName, index) => [childName, index]));
+    parent.summary.childSourcePaths.sort((leftPath, rightPath) => {
+      const leftName = taskBySourcePath.get(leftPath)?.directoryName;
+      const rightName = taskBySourcePath.get(rightPath)?.directoryName;
+      const leftOrder = leftName === undefined ? Number.MAX_SAFE_INTEGER :
+        (childOrder.get(leftName) ?? Number.MAX_SAFE_INTEGER);
+      const rightOrder = rightName === undefined ? Number.MAX_SAFE_INTEGER :
+        (childOrder.get(rightName) ?? Number.MAX_SAFE_INTEGER);
+      return leftOrder - rightOrder || leftPath.localeCompare(rightPath);
+    });
+  });
+
+  const active = activeTasks.map((task) => task.summary).sort(compareTasks);
+  const archived = archivedTasks.map((task) => task.summary).sort(compareTasks);
+  return { active, archived };
+}
+
+/** 为同一父子候选边生成稳定键。 */
+function createTaskRelationKey(parent: ParsedTask, child: ParsedTask): string {
+  return `${parent.summary.sourcePath}\u0000${child.summary.sourcePath}`;
+}
+
+/** 双向一致关系优先，其次按声明方向和目录名稳定排序。 */
+function compareTaskRelationCandidates(
+  left: TaskRelationCandidate,
+  right: TaskRelationCandidate,
+): number {
+  const priorityDifference = readTaskRelationPriority(left) - readTaskRelationPriority(right);
+  if (priorityDifference !== 0) {
+    return priorityDifference;
+  }
+  if (
+    left.parent.directoryName === right.parent.directoryName &&
+    left.parentDeclarationIndex !== null &&
+    right.parentDeclarationIndex !== null
+  ) {
+    return left.parentDeclarationIndex - right.parentDeclarationIndex;
+  }
+  return left.parent.directoryName.localeCompare(right.parent.directoryName) ||
+    left.child.directoryName.localeCompare(right.child.directoryName);
+}
+
+/** 返回关系候选优先级，数值越小可信度越高。 */
+function readTaskRelationPriority(candidate: TaskRelationCandidate): number {
+  if (candidate.declaredByParent && candidate.declaredByChild) {
+    return 0;
+  }
+  return candidate.declaredByParent ? 1 : 2;
+}
+
+/** 判断新增父子边是否会闭合已有祖先链。 */
+function wouldCreateTaskCycle(
+  parentPath: string,
+  childPath: string,
+  parentByChildPath: Map<string, string>,
+): boolean {
+  const visited = new Set<string>();
+  let currentPath: string | undefined = parentPath;
+  while (currentPath !== undefined && !visited.has(currentPath)) {
+    if (currentPath === childPath) {
+      return true;
+    }
+    visited.add(currentPath);
+    currentPath = parentByChildPath.get(currentPath);
+  }
+  return false;
+}
+
+/** 构建稳定中文的任务关系诊断。 */
+function createTaskRelationDiagnostic(code: string, sourcePath: string): SnapshotDiagnostic {
+  const messages: Record<string, string> = {
+    "task-relation-field-invalid": "任务关系字段格式不正确，已忽略非法内容",
+    "task-relation-name-duplicate": "任务目录名称重复，部分父子关系无法解析",
+    "task-relation-self-reference": "任务不能将自身声明为子任务，已忽略该关系",
+    "task-relation-parent-conflict": "任务声明了多个父任务，已按关系一致性保留一条关系",
+    "task-relation-cycle": "任务父子关系形成循环，已忽略该关系",
+    "task-relation-child-duplicate": "父任务重复引用同一子任务，已忽略重复关系",
+    "task-relation-child-missing": "父任务引用的子任务不存在",
+    "task-relation-parent-missing": "任务引用的父任务不存在",
+    "task-relation-asymmetric": "任务父子关系双向声明不一致，已按可解析关系展示",
+  };
+  return {
+    severity: "warning",
+    code,
+    message: messages[code] ?? "任务父子关系无法解析",
+    sourcePath,
+  };
 }
 
 /** 活动任务缺少 prd.md 时记录警告。 */

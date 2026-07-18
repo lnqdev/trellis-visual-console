@@ -99,6 +99,8 @@ export const TaskSummaryApiSchema = z
     packageName: NonEmptyStringSchema.nullable(),
     updatedAt: NullableIsoDateTimeSchema,
     sourcePath: NonEmptyStringSchema,
+    parentSourcePath: NonEmptyStringSchema.nullable(),
+    childSourcePaths: z.array(NonEmptyStringSchema),
   })
   .strict();
 
