@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 8
-- **Last Active**: 2026-07-17
+- **Total Sessions**: 9
+- **Last Active**: 2026-07-19
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~270 | Active |
+| `journal-1.md` | ~304 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 9 | 2026-07-19 | 添加项目本机目录选择 | `caea6b4`, `d96dc58` | `codex/project-directory-picker` |
 | 8 | 2026-07-17 | 完成 Trellis 规范引导审计 | - | `main` |
 | 7 | 2026-07-17 | 修复阶段六验收问题 | `fb5cf32` | `main` |
 | 6 | 2026-07-16 | 完成阶段六验证与交付 | `ff577ed` | `main` |

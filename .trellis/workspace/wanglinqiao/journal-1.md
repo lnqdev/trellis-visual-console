@@ -268,3 +268,37 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 9: 添加项目本机目录选择
+
+**Date**: 2026-07-19
+**Task**: 添加项目本机目录选择
+**Branch**: `codex/project-directory-picker`
+
+### Summary
+
+实现 Windows 与 macOS 原生目录选择桥接，添加页支持扫描路径回填和单项目选择后自动登记；补齐严格 API 合同、错误处理、关闭清理、响应式与可访问性验证。
+
+### Main Changes
+
+- Detailed change bullets were not supplied; see the summary above.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `caea6b4` | (see git log) |
+| `d96dc58` | (see git log) |
+
+### Testing
+
+- Validation was not recorded for this session.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
