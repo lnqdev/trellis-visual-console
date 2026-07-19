@@ -1,6 +1,15 @@
-import { Check, FolderSearch, Plus, ScanSearch, X } from "lucide-react";
+import {
+  Check,
+  FolderOpen,
+  FolderSearch,
+  LoaderCircle,
+  Plus,
+  ScanSearch,
+  X,
+} from "lucide-react";
 import { useState } from "react";
 import type {
+  DirectoryPickerResponse,
   ProjectRegisterInput,
   ProjectRegisterResponse,
   ProjectScanResponse,
@@ -10,8 +19,14 @@ interface ProjectDiscoveryProps {
   canClose: boolean;
   busyAction: string | null;
   onScan: (rootPath: string) => Promise<ProjectScanResponse>;
+  onSelectDirectory: () => Promise<DirectoryPickerResponse>;
   onRegister: (projects: ProjectRegisterInput[]) => Promise<ProjectRegisterResponse>;
   onClose: () => void;
+}
+
+interface DiscoveryNotice {
+  tone: "info" | "error";
+  message: string;
 }
 
 /** 提供快速扫描、候选批量登记和单项目手动添加。 */
@@ -19,6 +34,7 @@ export function ProjectDiscovery({
   canClose,
   busyAction,
   onScan,
+  onSelectDirectory,
   onRegister,
   onClose,
 }: ProjectDiscoveryProps) {
@@ -26,24 +42,80 @@ export function ProjectDiscovery({
   const [manualPath, setManualPath] = useState("");
   const [scanResult, setScanResult] = useState<ProjectScanResponse | null>(null);
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
-  const [localMessage, setLocalMessage] = useState<string | null>(null);
+  const [localNotice, setLocalNotice] = useState<DiscoveryNotice | null>(null);
+  const [pickingField, setPickingField] = useState<"scan" | "manual" | null>(null);
+
+  /** 更新项目发现页的局部提示。 */
+  function showLocalNotice(message: string, tone: DiscoveryNotice["tone"] = "info"): void {
+    setLocalNotice({ tone, message });
+  }
+
+  /** 打开系统目录选择器，并处理扫描路径回填或单项目直接登记。 */
+  async function handleSelectDirectory(target: "scan" | "manual"): Promise<void> {
+    if (pickingField !== null) {
+      return;
+    }
+
+    setPickingField(target);
+    try {
+      const result = await onSelectDirectory();
+      if (result.status === "cancelled") {
+        return;
+      }
+
+      if (target === "scan") {
+        setScanRoot(result.path);
+        showLocalNotice("扫描根目录已选择，可继续扫描");
+      } else {
+        setManualPath(result.path);
+        await registerManualProject(result.path);
+      }
+    } catch (error) {
+      showLocalNotice(
+        error instanceof Error ? error.message : "目录选择失败，请手工输入路径",
+        "error",
+      );
+    } finally {
+      setPickingField(null);
+    }
+  }
+
+  /** 校验并登记单个项目路径。 */
+  async function registerManualProject(path: string): Promise<void> {
+    try {
+      const response = await onRegister([{ path }]);
+      const result = response.results[0];
+      if (result === undefined) {
+        showLocalNotice("项目登记未返回结果", "error");
+        return;
+      }
+      if (result.status === "invalid") {
+        showLocalNotice(result.diagnostics[0]?.message ?? "项目结构无效", "error");
+        return;
+      }
+      showLocalNotice("项目已登记");
+      setManualPath("");
+    } catch {
+      showLocalNotice("项目登记失败", "error");
+    }
+  }
 
   /** 执行快速扫描并默认选中全部候选。 */
   async function handleScan(event: React.FormEvent): Promise<void> {
     event.preventDefault();
     if (scanRoot.trim() === "") {
-      setLocalMessage("请输入本机扫描根路径");
+      showLocalNotice("请输入本机扫描根路径", "error");
       return;
     }
     try {
       const result = await onScan(scanRoot.trim());
       setScanResult(result);
       setSelectedPaths(new Set(result.candidates.map((candidate) => candidate.project.path)));
-      setLocalMessage(
+      showLocalNotice(
         result.candidates.length === 0 ? "没有发现有效 Trellis 项目" : `发现 ${result.candidates.length} 个候选项目`,
       );
     } catch {
-      setLocalMessage("扫描失败，请检查路径和权限");
+      showLocalNotice("扫描失败，请检查路径和权限", "error");
     }
   }
 
@@ -51,15 +123,15 @@ export function ProjectDiscovery({
   async function handleRegisterCandidates(): Promise<void> {
     const projects = [...selectedPaths].map((path) => ({ path }));
     if (projects.length === 0) {
-      setLocalMessage("请至少选择一个候选项目");
+      showLocalNotice("请至少选择一个候选项目", "error");
       return;
     }
     try {
       const response = await onRegister(projects);
       const succeeded = response.results.filter((result) => result.status !== "invalid").length;
-      setLocalMessage(`已处理 ${response.results.length} 个项目，其中 ${succeeded} 个登记成功`);
+      showLocalNotice(`已处理 ${response.results.length} 个项目，其中 ${succeeded} 个登记成功`);
     } catch {
-      setLocalMessage("候选项目登记失败");
+      showLocalNotice("候选项目登记失败", "error");
     }
   }
 
@@ -67,23 +139,10 @@ export function ProjectDiscovery({
   async function handleManualAdd(event: React.FormEvent): Promise<void> {
     event.preventDefault();
     if (manualPath.trim() === "") {
-      setLocalMessage("请输入项目根路径");
+      showLocalNotice("请输入项目根路径", "error");
       return;
     }
-    try {
-      const response = await onRegister([{ path: manualPath.trim() }]);
-      const result = response.results[0];
-      setLocalMessage(
-        result?.status === "invalid"
-          ? result.diagnostics[0]?.message ?? "项目结构无效"
-          : "项目已登记",
-      );
-      if (result?.status !== "invalid") {
-        setManualPath("");
-      }
-    } catch {
-      setLocalMessage("项目登记失败");
-    }
+    await registerManualProject(manualPath.trim());
   }
 
   /** 切换候选项目选择状态。 */
@@ -105,7 +164,7 @@ export function ProjectDiscovery({
         <div>
           <span className="eyebrow">PROJECT DISCOVERY</span>
           <h1 id="discovery-title">添加 Trellis 项目</h1>
-          <p>浏览器不会暴露本机绝对目录，请粘贴路径。服务只扫描或登记你明确输入的位置。</p>
+          <p>可直接输入本机绝对路径，也可使用目录选择按钮。服务只扫描或登记你明确确认的位置。</p>
         </div>
         {canClose ? (
           <button className="icon-only-button" type="button" onClick={onClose} aria-label="关闭添加项目">
@@ -114,7 +173,15 @@ export function ProjectDiscovery({
         ) : null}
       </header>
 
-      {localMessage !== null ? <div className="inline-notice" aria-live="polite">{localMessage}</div> : null}
+      {localNotice !== null ? (
+        <div
+          className={`inline-notice${localNotice.tone === "error" ? " inline-notice--error" : ""}`}
+          role={localNotice.tone === "error" ? "alert" : undefined}
+          aria-live={localNotice.tone === "error" ? "assertive" : "polite"}
+        >
+          {localNotice.message}
+        </div>
+      ) : null}
 
       <div className="discovery-grid">
         <article className="panel-card">
@@ -128,13 +195,29 @@ export function ProjectDiscovery({
           <form className="path-form" onSubmit={(event) => void handleScan(event)}>
             <label htmlFor="scan-root">扫描根路径</label>
             <div className="input-action-row">
-              <input
-                id="scan-root"
-                value={scanRoot}
-                onChange={(event) => setScanRoot(event.target.value)}
-                placeholder="/Users/you/work"
-                autoComplete="off"
-              />
+              <div className="path-picker-field">
+                <input
+                  id="scan-root"
+                  value={scanRoot}
+                  onChange={(event) => setScanRoot(event.target.value)}
+                  placeholder="选择或输入扫描根目录"
+                  autoComplete="off"
+                />
+                <button
+                  className="icon-button path-picker-button"
+                  type="button"
+                  disabled={busyAction !== null || pickingField !== null}
+                  aria-label="选择扫描根目录"
+                  title="选择扫描根目录"
+                  onClick={() => void handleSelectDirectory("scan")}
+                >
+                  {pickingField === "scan" ? (
+                    <LoaderCircle className="spin" size={17} aria-hidden="true" />
+                  ) : (
+                    <FolderOpen size={17} aria-hidden="true" />
+                  )}
+                </button>
+              </div>
               <button className="primary-button" type="submit" disabled={busyAction !== null}>
                 <FolderSearch size={16} aria-hidden="true" />
                 扫描
@@ -195,13 +278,29 @@ export function ProjectDiscovery({
           </div>
           <form className="path-form" onSubmit={(event) => void handleManualAdd(event)}>
             <label htmlFor="manual-project-path">项目根路径</label>
-            <input
-              id="manual-project-path"
-              value={manualPath}
-              onChange={(event) => setManualPath(event.target.value)}
-              placeholder="/Users/you/work/project"
-              autoComplete="off"
-            />
+            <div className="path-picker-field">
+              <input
+                id="manual-project-path"
+                value={manualPath}
+                onChange={(event) => setManualPath(event.target.value)}
+                placeholder="选择或输入 Trellis 项目目录"
+                autoComplete="off"
+              />
+              <button
+                className="icon-button path-picker-button"
+                type="button"
+                disabled={busyAction !== null || pickingField !== null}
+                aria-label="选择并添加项目目录"
+                title="选择并添加项目目录"
+                onClick={() => void handleSelectDirectory("manual")}
+              >
+                {pickingField === "manual" ? (
+                  <LoaderCircle className="spin" size={17} aria-hidden="true" />
+                ) : (
+                  <FolderOpen size={17} aria-hidden="true" />
+                )}
+              </button>
+            </div>
             <button className="secondary-button" type="submit" disabled={busyAction !== null}>
               <Plus size={16} aria-hidden="true" />
               校验并添加

@@ -1,6 +1,7 @@
 import type { ZodType } from "zod";
 import {
   ApiErrorResponseSchema,
+  DirectoryPickerResponseSchema,
   OpenProjectPathResponseSchema,
   ProjectActionResponseSchema,
   ProjectDetailResponseSchema,
@@ -10,6 +11,7 @@ import {
   ProjectScanResponseSchema,
   TaskDetailResponseSchema,
   type OpenProjectPathResponse,
+  type DirectoryPickerResponse,
   type ProjectActionResponse,
   type ProjectDetailResponse,
   type ProjectDocumentResponse,
@@ -68,6 +70,15 @@ export function registerProjects(
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ projects }),
+  });
+}
+
+/** 打开系统目录选择对话框。 */
+export function selectDirectory(): Promise<DirectoryPickerResponse> {
+  return requestJson("/api/system/directories/select", DirectoryPickerResponseSchema, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({}),
   });
 }
 

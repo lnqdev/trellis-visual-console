@@ -5,12 +5,15 @@ import { fileURLToPath } from "node:url";
 import { basename } from "node:path";
 import { SERVICE_NAME, type HealthResponse } from "../shared/health.js";
 import { ProjectApiService } from "./api/project-api-service.js";
+import { getErrorName, sendApiError } from "./api/api-errors.js";
+import { registerDirectoryPickerRoute } from "./api/directory-picker-route.js";
 import { registerProjectEventsRoute } from "./api/project-events-route.js";
 import { registerProjectRoutes } from "./api/project-routes.js";
 import { ProjectCatalog } from "./projects/project-catalog.js";
 import { ProjectEventHub } from "./realtime/project-event-hub.js";
 import { ProjectRealtimeManager } from "./realtime/project-realtime-manager.js";
 import { createApplicationStorage } from "./storage/application-storage.js";
+import { DirectoryPicker } from "./system/directory-picker.js";
 
 const HOST = "127.0.0.1";
 const DEFAULT_PORT = 3100;
@@ -24,6 +27,18 @@ const webRoot = fileURLToPath(new URL("../web", import.meta.url));
  */
 function createServer(): FastifyInstance {
   const server = Fastify({ logger: true });
+
+  server.setErrorHandler(async (error, request, reply) => {
+    if (
+      isErrorCode(error, "FST_ERR_CTP_INVALID_JSON_BODY") ||
+      isErrorCode(error, "FST_ERR_CTP_INVALID_MEDIA_TYPE")
+    ) {
+      return sendApiError(reply, 400, "invalid-request", "请求参数不正确");
+    }
+
+    request.log.error({ errorName: getErrorName(error) }, "本地服务未处理错误");
+    return sendApiError(reply, 500, "internal-error", "本地服务处理请求失败");
+  });
 
   server.get("/api/health", async (): Promise<HealthResponse> => {
     return {
@@ -85,9 +100,15 @@ async function startServer(): Promise<void> {
     },
   });
   const projectApiService = new ProjectApiService(catalog, realtimeManager);
+  const directoryPicker = new DirectoryPicker();
 
   registerProjectRoutes(server, projectApiService);
+  registerDirectoryPickerRoute(server, directoryPicker);
   registerProjectEventsRoute(server, eventHub);
+
+  server.addHook("preClose", async () => {
+    directoryPicker.close();
+  });
 
   server.addHook("onClose", async () => {
     await realtimeManager.close();
@@ -149,7 +170,7 @@ startServer().catch((error: unknown) => {
   process.exit(1);
 });
 
-/** 提取不包含文件路径和正文的错误类型。 */
-function getErrorName(error: unknown): string {
-  return error instanceof Error ? error.name : "UnknownError";
+/** 判断未知错误是否携带指定稳定错误码。 */
+function isErrorCode(error: unknown, code: string): boolean {
+  return error instanceof Error && "code" in error && error.code === code;
 }

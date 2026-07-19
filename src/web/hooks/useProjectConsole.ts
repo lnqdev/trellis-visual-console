@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
+  DirectoryPickerResponse,
   ProjectDetailResponse,
   ProjectDocumentResponse,
   ProjectListItem,
@@ -19,6 +20,7 @@ import {
   refreshProject,
   registerProjects,
   scanProjects,
+  selectDirectory,
   setProjectFocus,
 } from "../api-client";
 
@@ -456,6 +458,16 @@ export function useProjectConsole() {
     return runActionWithResult("scan", () => scanProjects(rootPath));
   }, []);
 
+  /** 打开系统目录选择对话框。 */
+  const chooseDirectory = useCallback(async (): Promise<DirectoryPickerResponse> => {
+    setBusyAction("directory-picker");
+    try {
+      return await selectDirectory();
+    } finally {
+      setBusyAction(null);
+    }
+  }, []);
+
   /** 登记发现候选或手动输入的项目。 */
   const addProjects = useCallback(
     async (inputs: ProjectRegisterInput[]): Promise<ProjectRegisterResponse> => {
@@ -526,6 +538,7 @@ export function useProjectConsole() {
     refreshSelectedProject,
     openSelectedPath,
     discoverProjects,
+    chooseDirectory,
     addProjects,
     openDiscovery: () => setDiscoveryOpen(true),
     closeDiscovery: () => setDiscoveryOpen(false),

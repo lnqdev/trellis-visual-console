@@ -7,7 +7,7 @@
 ## 2. 签名
 
 - 数据入口：`useProjectConsole()`。
-- 网络边界：`src/web/api-client.ts` 中的 `fetchProjects`、`fetchProject`、`scanProjects`、`registerProjects`、`setProjectFocus`、`refreshProject`、`fetchSpecDocument`、`fetchTaskDetail`、`fetchTaskDocument`、`openProjectPath`。
+- 网络边界：`src/web/api-client.ts` 中的 `fetchProjects`、`fetchProject`、`scanProjects`、`registerProjects`、`selectDirectory`、`setProjectFocus`、`refreshProject`、`fetchSpecDocument`、`fetchTaskDetail`、`fetchTaskDocument`、`openProjectPath`。
 - URL 状态：`project`、`view`、`spec`、`task`、`document`。
 - 主视图：`overview | spec | tasks | workflow | diagnostics`。
 - 实时入口：同源 `EventSource("/api/events")`。
@@ -16,6 +16,9 @@
 
 - 所有 JSON 先按 `unknown` 接收，再用 `src/shared/api.ts` 的 Schema 校验。
 - `App` 只组合页面和功能域组件；服务端状态、URL 状态、操作状态和 SSE 失效处理集中在 `useProjectConsole`。
+- 添加项目页的扫描根路径和项目根路径都提供系统目录选择入口；扫描根目录选择成功只回填并等待主动扫描，单项目根目录选择成功立即复用现有登记动作并刷新项目列表。
+- 用户取消目录选择时保留输入框原值和当前提示；选择失败或平台不支持时显示中文反馈，并继续允许手工输入。
+- 目录选择进行中禁用两个选择入口，防止重复打开；窄屏下路径输入与图标按钮保持同一行且不产生页面级水平滚动。
 - 项目切换必须同时重置视图、Spec、Task 和文档选择，禁止把上一项目的资源路径带到新项目。
 - URL 参数只用于恢复候选选择；项目详情快照白名单就绪前不得请求 Spec/Task 文档。失效路径必须清理或回退到首个可用资源。
 - 页面只在详情 `contentReadable=true` 时渲染 Spec/Task 正文浏览器并发起内容请求；历史项目初始显示摘要限制提示，显式刷新成功或加入焦点后恢复入口。
@@ -30,6 +33,8 @@
 | 条件 | 页面行为 |
 | --- | --- |
 | API 响应不符合共享 Schema | 展示“接口返回格式不正确” |
+| 目录选择取消 | 保留目标输入框原值，不新增错误提示 |
+| 目录选择不支持或启动失败 | 展示服务端中文消息，保留手工输入和重试能力 |
 | 无效手动路径 | 展示服务端中文诊断，表单保留可重试状态 |
 | URL 项目不存在 | 回退到已登记项目；项目内资源选择清空 |
 | URL Spec/Task/文档不存在 | 不发起越界文档请求，清理并选择可用资源 |
@@ -42,6 +47,8 @@
 ## 5. 正常、基础与异常用例
 
 - 正常：登记新项目后自动切换到该项目概览，URL 不保留旧 Spec/Task 参数。
+- 正常：快速扫描入口选择后只回填路径；手动添加入口选择有效项目后自动登记、刷新项目列表并切换到该项目。
+- 基础：取消系统目录选择后输入框已有内容不变，页面不出现失败提示。
 - 正常：焦点项目 Spec 变化后当前文档自动更新，EventSource 不因文档标签切换反复重建。
 - 基础：空项目列表直接打开项目发现面板。
 - 基础：历史项目显示快照可能过期提示，仍可浏览最后快照。

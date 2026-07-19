@@ -1,7 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z, ZodError, type ZodType } from "zod";
 import {
-  ApiErrorResponseSchema,
   OpenProjectPathRequestSchema,
   OpenProjectPathResponseSchema,
   ProjectFocusRequestSchema,
@@ -18,6 +17,7 @@ import {
   ProjectApiNotFoundError,
   ProjectApiService,
 } from "./project-api-service.js";
+import { getErrorName, sendApiError } from "./api-errors.js";
 
 const ProjectParamsSchema = z.object({ projectId: z.string().min(1) }).strict();
 const SpecDocumentQuerySchema = z.object({ path: z.string().min(1) }).strict();
@@ -151,23 +151,6 @@ async function executeRoute(
   }
 }
 
-/** 发送符合共享合同的 API 错误。 */
-function sendApiError(
-  reply: FastifyReply,
-  statusCode: number,
-  code: string,
-  message: string,
-  details?: string[],
-): FastifyReply {
-  return reply.code(statusCode).send(
-    ApiErrorResponseSchema.parse({
-      code,
-      message,
-      ...(details === undefined ? {} : { details }),
-    }),
-  );
-}
-
 /** 将 Zod 问题格式化为不含请求原值的字段说明。 */
 function formatZodError(error: ZodError): string[] {
   return error.issues.map((issue) => `${issue.path.join(".") || "root"}: ${issue.message}`);
@@ -176,9 +159,4 @@ function formatZodError(error: ZodError): string[] {
 /** 判断未知错误是否为指定文件系统错误码。 */
 function isNodeError(error: unknown, code: string): error is NodeJS.ErrnoException {
   return error instanceof Error && "code" in error && error.code === code;
-}
-
-/** 提取不包含错误消息和文件路径的错误类型。 */
-function getErrorName(error: unknown): string {
-  return error instanceof Error ? error.name : "UnknownError";
 }

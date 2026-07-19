@@ -264,6 +264,20 @@ export const OpenProjectPathRequestSchema = z
 /** 外部打开响应。 */
 export const OpenProjectPathResponseSchema = z.object({ opened: z.literal(true) }).strict();
 
+/** 系统目录选择请求。 */
+export const DirectoryPickerRequestSchema = z.object({}).strict();
+
+/** 系统目录选择响应。 */
+export const DirectoryPickerResponseSchema = z.discriminatedUnion("status", [
+  z
+    .object({
+      status: z.literal("selected"),
+      path: NonEmptyStringSchema,
+    })
+    .strict(),
+  z.object({ status: z.literal("cancelled") }).strict(),
+]);
+
 export type ApiErrorResponse = z.infer<typeof ApiErrorResponseSchema>;
 export type RegisteredProjectApi = z.infer<typeof RegisteredProjectApiSchema>;
 export type ProjectRuntimeStatusApi = z.infer<typeof ProjectRuntimeStatusApiSchema>;
@@ -292,3 +306,5 @@ export type TaskDocumentSummary = z.infer<typeof TaskDocumentSummarySchema>;
 export type TaskDetailResponse = z.infer<typeof TaskDetailResponseSchema>;
 export type OpenProjectPathRequest = z.infer<typeof OpenProjectPathRequestSchema>;
 export type OpenProjectPathResponse = z.infer<typeof OpenProjectPathResponseSchema>;
+export type DirectoryPickerRequest = z.infer<typeof DirectoryPickerRequestSchema>;
+export type DirectoryPickerResponse = z.infer<typeof DirectoryPickerResponseSchema>;

@@ -40,7 +40,7 @@ interface HealthResponse {
 - `pnpm dev` 继续由 `concurrently` 管理前后端，但后端热重载必须使用 Node 原生 `--watch`，并通过 `--import tsx` 加载 TypeScript。
 - 禁止在 `concurrently` 子进程中恢复为 `tsx watch src/server/index.ts`。该组合在 Windows 上可能只留下存活的后端子进程，却永远不执行到端口监听。
 - `NODE_ENV=production` 由 `pnpm start` 设置，用于启用 `dist/web` 静态托管和自动打开浏览器。
-- 服务不接受前端传入任意绝对路径，也不读取被浏览项目。
+- 服务只在项目扫描、登记等显式接口中接收用户确认的绝对路径，不通过静态托管暴露本机文件系统。系统目录选择接口只返回用户在原生对话框中确认的路径，选择动作本身不读取被浏览项目。
 
 ### 4. 校验与错误矩阵
 

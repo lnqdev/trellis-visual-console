@@ -61,6 +61,7 @@ export function App() {
             canClose={projectCount > 0}
             busyAction={consoleState.busyAction}
             onScan={consoleState.discoverProjects}
+            onSelectDirectory={consoleState.chooseDirectory}
             onRegister={consoleState.addProjects}
             onClose={consoleState.closeDiscovery}
           />
