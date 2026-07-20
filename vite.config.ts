@@ -10,9 +10,10 @@ export default defineConfig({
   },
   server: {
     host: "127.0.0.1",
-    port: 5173,
+    port: 5273,
     open: true,
     proxy: {
+      // 仅代理接口路径，避免误将 /api-client.ts 等前端模块请求转发到后端。
       "/api/": {
         target: "http://127.0.0.1:3100",
         changeOrigin: false,
