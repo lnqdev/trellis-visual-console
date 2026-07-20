@@ -302,3 +302,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 10: 完成跨项目任务中心与性能保护
+
+**Date**: 2026-07-20
+**Task**: 完成跨项目任务中心与性能保护
+**Branch**: `codex/cross-project-task-center`
+
+### Summary
+
+实现跨项目任务聚合、搜索筛选、URL 恢复、异常跳转、SSE 合并及大任务量性能保护，并完成完整验收
+
+### Main Changes
+
+- Detailed change bullets were not supplied; see the summary above.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e533ffb` | (see git log) |
+
+### Testing
+
+- Validation was not recorded for this session.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

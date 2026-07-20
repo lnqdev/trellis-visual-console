@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 9
-- **Last Active**: 2026-07-19
+- **Total Sessions**: 10
+- **Last Active**: 2026-07-20
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~304 | Active |
+| `journal-1.md` | ~337 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 10 | 2026-07-20 | 完成跨项目任务中心与性能保护 | `e533ffb` | `codex/cross-project-task-center` |
 | 9 | 2026-07-19 | 添加项目本机目录选择 | `caea6b4`, `d96dc58` | `codex/project-directory-picker` |
 | 8 | 2026-07-17 | 完成 Trellis 规范引导审计 | - | `main` |
 | 7 | 2026-07-17 | 修复阶段六验收问题 | `fb5cf32` | `main` |
