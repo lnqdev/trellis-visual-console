@@ -104,6 +104,19 @@ export const TaskSummaryApiSchema = z
   })
   .strict();
 
+/** Task 所属集合。 */
+export const TaskCollectionApiSchema = z.enum(["active", "archived"]);
+
+/** 跨项目任务中心单项。 */
+export const TaskCenterItemApiSchema = z
+  .object({
+    projectId: NonEmptyStringSchema,
+    collection: TaskCollectionApiSchema,
+    task: TaskSummaryApiSchema,
+    parentTitle: NonEmptyStringSchema.nullable(),
+  })
+  .strict();
+
 /** Workflow 摘要。 */
 export const WorkflowSummaryApiSchema = z
   .object({
@@ -152,6 +165,14 @@ export const ProjectListItemSchema = z
     activeTaskCount: z.number().int().nonnegative(),
     archivedTaskCount: z.number().int().nonnegative(),
     diagnosticCount: z.number().int().nonnegative(),
+  })
+  .strict();
+
+/** 跨项目任务中心响应。 */
+export const TaskCenterResponseSchema = z
+  .object({
+    projects: z.array(ProjectListItemSchema),
+    tasks: z.array(TaskCenterItemApiSchema),
   })
   .strict();
 
@@ -284,10 +305,13 @@ export type ProjectRuntimeStatusApi = z.infer<typeof ProjectRuntimeStatusApiSche
 export type ProjectPackageApi = z.infer<typeof ProjectPackageApiSchema>;
 export type ProjectOverviewApi = z.infer<typeof ProjectOverviewApiSchema>;
 export type TaskSummaryApi = z.infer<typeof TaskSummaryApiSchema>;
+export type TaskCollectionApi = z.infer<typeof TaskCollectionApiSchema>;
+export type TaskCenterItemApi = z.infer<typeof TaskCenterItemApiSchema>;
 export type WorkflowSummaryApi = z.infer<typeof WorkflowSummaryApiSchema>;
 export type SnapshotDiagnosticApi = z.infer<typeof SnapshotDiagnosticApiSchema>;
 export type ProjectSnapshotApi = z.infer<typeof ProjectSnapshotApiSchema>;
 export type ProjectListItem = z.infer<typeof ProjectListItemSchema>;
+export type TaskCenterResponse = z.infer<typeof TaskCenterResponseSchema>;
 export type ProjectListResponse = z.infer<typeof ProjectListResponseSchema>;
 export type ProjectDetailResponse = z.infer<typeof ProjectDetailResponseSchema>;
 export type ProjectScanRequest = z.infer<typeof ProjectScanRequestSchema>;

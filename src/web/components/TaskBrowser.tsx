@@ -18,7 +18,7 @@ import type {
   TaskDetailResponse,
   TaskSummaryApi,
 } from "../../shared/api";
-import { formatDateTime, formatTaskStatus } from "../formatters";
+import { formatDateTime, formatTaskStatus, readTaskStatusGroup } from "../formatters";
 import type { AsyncState } from "../hooks/useProjectConsole";
 import { DocumentViewer } from "./DocumentViewer";
 
@@ -29,6 +29,7 @@ interface TaskBrowserProps {
   selectedDocumentPath: string | null;
   taskDetail: AsyncState<TaskDetailResponse>;
   taskDocument: AsyncState<ProjectDocumentResponse>;
+  autoSelectFirstTask: boolean;
   onSelectTask: (sourcePath: string) => void;
   onSelectDocument: (relativePath: string) => void;
   onOpenSource: (sourcePath: string) => void;
@@ -44,6 +45,7 @@ export function TaskBrowser({
   selectedDocumentPath,
   taskDetail,
   taskDocument,
+  autoSelectFirstTask,
   onSelectTask,
   onSelectDocument,
   onOpenSource,
@@ -120,10 +122,10 @@ export function TaskBrowser({
   }, [activeTasks, archivedTasks, selectedTaskSourcePath, taskIndex]);
 
   useEffect(() => {
-    if (selectedTaskSourcePath === null && displayedRoots[0] !== undefined) {
+    if (autoSelectFirstTask && selectedTaskSourcePath === null && displayedRoots[0] !== undefined) {
       onSelectTask(displayedRoots[0].sourcePath);
     }
-  }, [displayedRoots, onSelectTask, selectedTaskSourcePath]);
+  }, [autoSelectFirstTask, displayedRoots, onSelectTask, selectedTaskSourcePath]);
 
   useEffect(() => {
     if (
@@ -421,7 +423,7 @@ function TaskTreeNode({
 /** 按任务状态选择具有独立语义的图标。 */
 function TaskStatusIcon({ task }: { task: TaskSummaryApi }) {
   let icon: React.ReactNode;
-  switch (task.status) {
+  switch (readTaskStatusGroup(task.status)) {
     case "planning":
       icon = <Circle size={15} aria-hidden="true" />;
       break;
@@ -432,10 +434,9 @@ function TaskStatusIcon({ task }: { task: TaskSummaryApi }) {
       icon = <Eye size={15} aria-hidden="true" />;
       break;
     case "completed":
-    case "done":
       icon = <CheckCircle2 size={15} aria-hidden="true" />;
       break;
-    default:
+    case "other":
       icon = <CircleHelp size={15} aria-hidden="true" />;
       break;
   }
@@ -444,7 +445,7 @@ function TaskStatusIcon({ task }: { task: TaskSummaryApi }) {
 
 /** 将任意状态归入有限的视觉色调集合。 */
 function readTaskStatusTone(status: string): string {
-  switch (status) {
+  switch (readTaskStatusGroup(status)) {
     case "planning":
       return "planning";
     case "in_progress":
@@ -452,9 +453,8 @@ function readTaskStatusTone(status: string): string {
     case "review":
       return "review";
     case "completed":
-    case "done":
       return "completed";
-    default:
+    case "other":
       return "unknown";
   }
 }

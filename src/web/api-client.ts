@@ -9,6 +9,7 @@ import {
   ProjectListResponseSchema,
   ProjectRegisterResponseSchema,
   ProjectScanResponseSchema,
+  TaskCenterResponseSchema,
   TaskDetailResponseSchema,
   type OpenProjectPathResponse,
   type DirectoryPickerResponse,
@@ -19,6 +20,7 @@ import {
   type ProjectRegisterInput,
   type ProjectRegisterResponse,
   type ProjectScanResponse,
+  type TaskCenterResponse,
   type TaskDetailResponse,
 } from "../shared/api";
 
@@ -39,6 +41,11 @@ export class ApiClientError extends Error {
 /** 读取全部已登记项目。 */
 export function fetchProjects(signal?: AbortSignal): Promise<ProjectListResponse> {
   return requestJson("/api/projects", ProjectListResponseSchema, createSignalOptions(signal));
+}
+
+/** 读取跨项目任务中心元数据。 */
+export function fetchTaskCenter(signal?: AbortSignal): Promise<TaskCenterResponse> {
+  return requestJson("/api/tasks", TaskCenterResponseSchema, createSignalOptions(signal));
 }
 
 /** 读取单个项目详情。 */

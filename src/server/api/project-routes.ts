@@ -38,6 +38,10 @@ export function registerProjectRoutes(
     return reply.send(await service.listProjects());
   });
 
+  server.get("/api/tasks", async (_request, reply) => {
+    return reply.send(await service.listTaskCenter());
+  });
+
   server.post("/api/projects/scan", async (request, reply) => {
     return executeRoute(request, reply, async () => {
       const body = parseInput(ProjectScanRequestSchema, request.body);

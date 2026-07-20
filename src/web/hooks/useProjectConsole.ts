@@ -7,9 +7,13 @@ import type {
   ProjectRegisterInput,
   ProjectRegisterResponse,
   ProjectScanResponse,
+  TaskCenterItemApi,
   TaskDetailResponse,
 } from "../../shared/api";
-import { isProjectRealtimeEvent } from "../../shared/project-events";
+import {
+  isProjectRealtimeEvent,
+  type ProjectRealtimeEvent,
+} from "../../shared/project-events";
 import {
   fetchProject,
   fetchProjects,
@@ -23,9 +27,20 @@ import {
   selectDirectory,
   setProjectFocus,
 } from "../api-client";
+import {
+  DEFAULT_TASK_CENTER_SELECTION,
+  useTaskCenter,
+  type TaskCenterCollection,
+  type TaskCenterScope,
+  type TaskCenterSelection,
+  type TaskCenterSort,
+} from "./useTaskCenter";
 
 /** 主工作区视图集合。 */
 export type ProjectView = "overview" | "spec" | "tasks" | "workflow" | "diagnostics";
+
+/** 控制台顶层工作区模式。 */
+export type ConsoleMode = "project" | "tasks";
 
 /** 通用异步数据状态。 */
 export interface AsyncState<T> {
@@ -44,29 +59,43 @@ export interface ConsoleNotice {
 }
 
 const VALID_VIEWS: ProjectView[] = ["overview", "spec", "tasks", "workflow", "diagnostics"];
+const VALID_TASK_CENTER_SCOPES: TaskCenterScope[] = ["focus", "all"];
+const VALID_TASK_CENTER_COLLECTIONS: TaskCenterCollection[] = ["active", "archived", "all"];
+const VALID_TASK_CENTER_SORTS: TaskCenterSort[] = ["updated_desc", "updated_asc"];
 
 /** 集中管理项目列表、详情、文档、URL 选择和 SSE 刷新。 */
 export function useProjectConsole() {
   const initialSelection = useMemo(readUrlSelection, []);
-  const selectedProjectIdRef = useRef<string | null>(initialSelection.projectId);
+  const initialProjectSelection = initialSelection.mode === "project"
+    ? initialSelection
+    : createDefaultProjectUrlSelection();
+  const initialTaskCenterSelection = initialSelection.mode === "tasks"
+    ? initialSelection.taskCenter
+    : DEFAULT_TASK_CENTER_SELECTION;
+  const selectedProjectIdRef = useRef<string | null>(initialProjectSelection.projectId);
   const detailRequestGenerationRef = useRef(0);
+  const skipNextDetailLoadRef = useRef<string | null>(null);
+  const pendingEventProjectIdsRef = useRef(new Set<string>());
+  const eventRefreshTimerRef = useRef<number | null>(null);
   const [projects, setProjects] = useState<AsyncState<ProjectListItem[]>>(createAsyncState([]));
   const [detail, setDetail] = useState<AsyncState<ProjectDetailResponse>>(
     createAsyncState<ProjectDetailResponse>(null),
   );
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
-    initialSelection.projectId,
+    initialProjectSelection.projectId,
   );
-  const [view, setView] = useState<ProjectView>(initialSelection.view);
+  const [mode, setMode] = useState<ConsoleMode>(initialSelection.mode);
+  const [view, setView] = useState<ProjectView>(initialProjectSelection.view);
   const [selectedSpecPath, setSelectedSpecPath] = useState<string | null>(
-    initialSelection.specPath,
+    initialProjectSelection.specPath,
   );
   const [selectedTaskSourcePath, setSelectedTaskSourcePath] = useState<string | null>(
-    initialSelection.taskSourcePath,
+    initialProjectSelection.taskSourcePath,
   );
   const [selectedTaskDocumentPath, setSelectedTaskDocumentPath] = useState<string | null>(
-    initialSelection.taskDocumentPath,
+    initialProjectSelection.taskDocumentPath,
   );
+  const [suppressTaskAutoSelect, setSuppressTaskAutoSelect] = useState(false);
   const [specDocument, setSpecDocument] = useState<AsyncState<ProjectDocumentResponse>>(
     createAsyncState<ProjectDocumentResponse>(null),
   );
@@ -80,6 +109,12 @@ export function useProjectConsole() {
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [notice, setNotice] = useState<ConsoleNotice | null>(null);
   const [discoveryOpen, setDiscoveryOpen] = useState(false);
+  const [taskCenterRefreshGeneration, setTaskCenterRefreshGeneration] = useState(0);
+  const taskCenter = useTaskCenter({
+    active: mode === "tasks",
+    initialSelection: initialTaskCenterSelection,
+    refreshGeneration: taskCenterRefreshGeneration,
+  });
 
   /** 提交当前项目选择，并同步失效所有旧项目详情请求。 */
   const applyProjectSelection = useCallback(
@@ -98,6 +133,7 @@ export function useProjectConsole() {
         setSpecDocument(createAsyncState<ProjectDocumentResponse>(null));
         setTaskDetail(createAsyncState<TaskDetailResponse>(null));
         setTaskDocument(createAsyncState<ProjectDocumentResponse>(null));
+        setSuppressTaskAutoSelect(false);
       }
     },
     [],
@@ -268,14 +304,20 @@ export function useProjectConsole() {
   }, [loadProjects]);
 
   useEffect(() => {
-    if (selectedProjectId === null) {
-      setDetail(createAsyncState<ProjectDetailResponse>(null));
+    if (mode !== "project" || selectedProjectId === null) {
+      if (selectedProjectId === null) {
+        setDetail(createAsyncState<ProjectDetailResponse>(null));
+      }
+      return;
+    }
+    if (skipNextDetailLoadRef.current === selectedProjectId) {
+      skipNextDetailLoadRef.current = null;
       return;
     }
     const controller = new AbortController();
     void loadDetail(selectedProjectId, false, controller.signal);
     return () => controller.abort();
-  }, [loadDetail, selectedProjectId]);
+  }, [loadDetail, mode, selectedProjectId]);
 
   useEffect(() => {
     if (
@@ -350,47 +392,140 @@ export function useProjectConsole() {
   ]);
 
   useEffect(() => {
+    if (mode === "tasks") {
+      writeUrlSelection({ mode, taskCenter: taskCenter.selection });
+      return;
+    }
     writeUrlSelection({
+      mode,
       projectId: selectedProjectId,
       view,
       specPath: selectedSpecPath,
       taskSourcePath: selectedTaskSourcePath,
       taskDocumentPath: selectedTaskDocumentPath,
     });
-  }, [selectedProjectId, selectedSpecPath, selectedTaskDocumentPath, selectedTaskSourcePath, view]);
+  }, [
+    mode,
+    selectedProjectId,
+    selectedSpecPath,
+    selectedTaskDocumentPath,
+    selectedTaskSourcePath,
+    taskCenter.selection,
+    view,
+  ]);
 
   useEffect(() => {
     const eventSource = new EventSource("/api/events");
+    const pendingProjectIds = pendingEventProjectIdsRef.current;
     setEventStreamState("connecting");
     eventSource.onopen = () => setEventStreamState("connected");
     eventSource.onerror = () => setEventStreamState("reconnecting");
     eventSource.onmessage = (message) => {
-      let payload: unknown;
-      try {
-        payload = JSON.parse(message.data) as unknown;
-      } catch {
-        return;
-      }
-      if (!isProjectRealtimeEvent(payload)) {
+      const payload = parseProjectRealtimeEvent(message.data);
+      if (payload === null) {
         return;
       }
 
-      void loadProjects(true);
-      if (payload.projectId !== selectedProjectId || selectedProjectId === null) {
-        return;
+      pendingProjectIds.add(payload.projectId);
+      if (eventRefreshTimerRef.current !== null) {
+        window.clearTimeout(eventRefreshTimerRef.current);
       }
-      void loadDetail(selectedProjectId, true);
+      eventRefreshTimerRef.current = window.setTimeout(() => {
+        const projectIds = new Set(pendingProjectIds);
+        pendingProjectIds.clear();
+        eventRefreshTimerRef.current = null;
+        void loadProjects(true);
+        setTaskCenterRefreshGeneration((current) => current + 1);
+        const currentProjectId = selectedProjectIdRef.current;
+        if (currentProjectId !== null && projectIds.has(currentProjectId)) {
+          void loadDetail(currentProjectId, true);
+        }
+      }, 150);
     };
-    return () => eventSource.close();
-  }, [
-    loadDetail,
-    loadProjects,
-    selectedProjectId,
-  ]);
+    return () => {
+      if (eventRefreshTimerRef.current !== null) {
+        window.clearTimeout(eventRefreshTimerRef.current);
+        eventRefreshTimerRef.current = null;
+      }
+      pendingProjectIds.clear();
+      eventSource.close();
+    };
+  }, [loadDetail, loadProjects]);
 
   /** 选择项目并重置项目内导航。 */
   const selectProject = useCallback((projectId: string) => {
+    setMode("project");
     applyProjectSelection(projectId, true);
+    setDiscoveryOpen(false);
+  }, [applyProjectSelection]);
+
+  /** 打开全局跨项目任务中心。 */
+  const openTaskCenter = useCallback(() => {
+    setMode("tasks");
+    setDiscoveryOpen(false);
+  }, []);
+
+  /** 从任务中心打开现有单项目 Task 详情。 */
+  const openTaskCenterItem = useCallback(async (item: TaskCenterItemApi) => {
+    const project = taskCenter.response?.projects.find(
+      (candidate) => candidate.project.id === item.projectId,
+    );
+    if (project === undefined) {
+      setNotice({ tone: "error", message: "任务所属项目已不在当前任务中心响应中，请重试" });
+      return;
+    }
+
+    if (project.project.state === "focus") {
+      setMode("project");
+      applyProjectSelection(item.projectId, true);
+      setView("tasks");
+      setSelectedTaskSourcePath(item.task.sourcePath);
+      setSelectedTaskDocumentPath(null);
+      setSuppressTaskAutoSelect(false);
+      setDiscoveryOpen(false);
+      return;
+    }
+
+    await runAction(`task-center:${item.projectId}`, async () => {
+      const response = await refreshProject(item.projectId);
+      const projectChanged = selectedProjectIdRef.current !== item.projectId;
+      if (projectChanged) {
+        // 刷新接口已返回完整详情，避免项目切换 Effect 再发起一条重复详情请求。
+        skipNextDetailLoadRef.current = item.projectId;
+      }
+      setMode("project");
+      applyProjectSelection(item.projectId, true);
+      const generation = detailRequestGenerationRef.current + 1;
+      detailRequestGenerationRef.current = generation;
+      commitProjectDetail(item.projectId, generation, response);
+      setDiscoveryOpen(false);
+
+      if (response.project.state === "unavailable") {
+        setView("diagnostics");
+        setNotice({ tone: "error", message: "项目已变为不可用，请查看诊断信息" });
+      } else {
+        setView("tasks");
+        if (containsTask(response, item.task.sourcePath)) {
+          setSelectedTaskSourcePath(item.task.sourcePath);
+          setSuppressTaskAutoSelect(false);
+        } else {
+          setSelectedTaskSourcePath(null);
+          setSuppressTaskAutoSelect(true);
+          setNotice({ tone: "info", message: "任务快照已更新，原任务已不存在" });
+        }
+        setSelectedTaskDocumentPath(null);
+      }
+
+      await loadProjects(true);
+      setTaskCenterRefreshGeneration((current) => current + 1);
+    });
+  }, [applyProjectSelection, commitProjectDetail, loadProjects, taskCenter.response]);
+
+  /** 从任务中心进入不可用项目诊断视图。 */
+  const openProjectDiagnostics = useCallback((projectId: string) => {
+    setMode("project");
+    applyProjectSelection(projectId, true);
+    setView("diagnostics");
     setDiscoveryOpen(false);
   }, [applyProjectSelection]);
 
@@ -514,11 +649,14 @@ export function useProjectConsole() {
   return {
     projects,
     detail,
+    mode,
+    taskCenter,
     selectedProjectId,
     view,
     selectedSpecPath,
     selectedTaskSourcePath,
     selectedTaskDocumentPath,
+    suppressTaskAutoSelect,
     specDocument,
     taskDetail,
     taskDocument,
@@ -527,11 +665,15 @@ export function useProjectConsole() {
     notice,
     discoveryOpen,
     selectProject,
+    openTaskCenter,
+    openTaskCenterItem,
+    openProjectDiagnostics,
     selectView,
     selectSpecPath: setSelectedSpecPath,
     selectTaskSourcePath: (sourcePath: string) => {
       setSelectedTaskSourcePath(sourcePath);
       setSelectedTaskDocumentPath(null);
+      setSuppressTaskAutoSelect(false);
     },
     selectTaskDocumentPath: setSelectedTaskDocumentPath,
     changeFocus,
@@ -557,17 +699,70 @@ function createAsyncState<T>(data: T | null): AsyncState<T> {
   return { data, loading: false, error: null };
 }
 
-/** 从 URL 查询参数恢复稳定选择。 */
-function readUrlSelection(): {
+interface ProjectUrlSelection {
+  mode: "project";
   projectId: string | null;
   view: ProjectView;
   specPath: string | null;
   taskSourcePath: string | null;
   taskDocumentPath: string | null;
-} {
+}
+
+interface TaskCenterUrlSelection {
+  mode: "tasks";
+  taskCenter: TaskCenterSelection;
+}
+
+type UrlSelection = ProjectUrlSelection | TaskCenterUrlSelection;
+
+/** 创建项目工作区默认 URL 选择。 */
+function createDefaultProjectUrlSelection(): ProjectUrlSelection {
+  return {
+    mode: "project",
+    projectId: null,
+    view: "overview",
+    specPath: null,
+    taskSourcePath: null,
+    taskDocumentPath: null,
+  };
+}
+
+/** 从 URL 查询参数恢复稳定选择。 */
+function readUrlSelection(): UrlSelection {
   const params = new URLSearchParams(window.location.search);
+  if (params.get("mode") === "tasks") {
+    const status = params.get("status");
+    return {
+      mode: "tasks",
+      taskCenter: {
+        scope: readEnumValue(
+          params.get("scope"),
+          VALID_TASK_CENTER_SCOPES,
+          DEFAULT_TASK_CENTER_SELECTION.scope,
+        ),
+        collection: readEnumValue(
+          params.get("collection"),
+          VALID_TASK_CENTER_COLLECTIONS,
+          DEFAULT_TASK_CENTER_SELECTION.collection,
+        ),
+        query: params.get("q") ?? "",
+        projectId: params.get("taskProject"),
+        status: status === "done" ? "completed" : status,
+        phase: params.get("phase"),
+        assignee: params.get("assignee"),
+        packageName: params.get("package"),
+        sort: readEnumValue(
+          params.get("sort"),
+          VALID_TASK_CENTER_SORTS,
+          DEFAULT_TASK_CENTER_SELECTION.sort,
+        ),
+      },
+    };
+  }
+
   const viewValue = params.get("view");
   return {
+    mode: "project",
     projectId: params.get("project"),
     view: VALID_VIEWS.includes(viewValue as ProjectView) ? (viewValue as ProjectView) : "overview",
     specPath: params.get("spec"),
@@ -577,14 +772,41 @@ function readUrlSelection(): {
 }
 
 /** 将当前选择写回 URL，刷新页面后可以恢复阅读上下文。 */
-function writeUrlSelection(selection: {
-  projectId: string | null;
-  view: ProjectView;
-  specPath: string | null;
-  taskSourcePath: string | null;
-  taskDocumentPath: string | null;
-}): void {
+function writeUrlSelection(selection: UrlSelection): void {
   const params = new URLSearchParams();
+  if (selection.mode === "tasks") {
+    params.set("mode", "tasks");
+    if (selection.taskCenter.scope !== DEFAULT_TASK_CENTER_SELECTION.scope) {
+      params.set("scope", selection.taskCenter.scope);
+    }
+    if (selection.taskCenter.collection !== DEFAULT_TASK_CENTER_SELECTION.collection) {
+      params.set("collection", selection.taskCenter.collection);
+    }
+    if (selection.taskCenter.query.trim() !== "") {
+      params.set("q", selection.taskCenter.query);
+    }
+    if (selection.taskCenter.projectId !== null) {
+      params.set("taskProject", selection.taskCenter.projectId);
+    }
+    if (selection.taskCenter.status !== null) {
+      params.set("status", selection.taskCenter.status);
+    }
+    if (selection.taskCenter.phase !== null) {
+      params.set("phase", selection.taskCenter.phase);
+    }
+    if (selection.taskCenter.assignee !== null) {
+      params.set("assignee", selection.taskCenter.assignee);
+    }
+    if (selection.taskCenter.packageName !== null) {
+      params.set("package", selection.taskCenter.packageName);
+    }
+    if (selection.taskCenter.sort !== DEFAULT_TASK_CENTER_SELECTION.sort) {
+      params.set("sort", selection.taskCenter.sort);
+    }
+    replaceUrlSearch(params);
+    return;
+  }
+
   if (selection.projectId !== null) {
     params.set("project", selection.projectId);
   }
@@ -600,8 +822,33 @@ function writeUrlSelection(selection: {
   if (selection.taskDocumentPath !== null) {
     params.set("document", selection.taskDocumentPath);
   }
+  replaceUrlSearch(params);
+}
+
+/** 使用替换历史记录的方式写入查询参数。 */
+function replaceUrlSearch(params: URLSearchParams): void {
   const query = params.toString();
   window.history.replaceState(null, "", query === "" ? window.location.pathname : `?${query}`);
+}
+
+/** 读取有限枚举值，非法输入回退默认值。 */
+function readEnumValue<T extends string>(
+  value: string | null,
+  values: T[],
+  fallback: T,
+): T {
+  return values.includes(value as T) ? (value as T) : fallback;
+}
+
+/** 解析并校验 SSE 项目失效事件。 */
+function parseProjectRealtimeEvent(value: string): ProjectRealtimeEvent | null {
+  let payload: unknown;
+  try {
+    payload = JSON.parse(value) as unknown;
+  } catch {
+    return null;
+  }
+  return isProjectRealtimeEvent(payload) ? payload : null;
 }
 
 /** 判断错误是否来自主动请求取消。 */

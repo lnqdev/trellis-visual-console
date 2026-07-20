@@ -15,6 +15,7 @@ import { ProjectOverview } from "./components/ProjectOverview";
 import { ProjectSidebar } from "./components/ProjectSidebar";
 import { SpecBrowser } from "./components/SpecBrowser";
 import { TaskBrowser } from "./components/TaskBrowser";
+import { TaskCenter } from "./components/TaskCenter";
 import { WorkflowPanel } from "./components/WorkflowPanel";
 import { useProjectConsole, type ProjectView } from "./hooks/useProjectConsole";
 
@@ -39,9 +40,11 @@ export function App() {
     <div className="console-shell">
       <ProjectSidebar
         projects={consoleState.projects}
+        mode={consoleState.mode}
         selectedProjectId={consoleState.selectedProjectId}
         eventStreamState={consoleState.eventStreamState}
         onSelectProject={consoleState.selectProject}
+        onOpenTaskCenter={consoleState.openTaskCenter}
         onOpenDiscovery={consoleState.openDiscovery}
         onRetry={consoleState.retryProjects}
       />
@@ -64,6 +67,14 @@ export function App() {
             onSelectDirectory={consoleState.chooseDirectory}
             onRegister={consoleState.addProjects}
             onClose={consoleState.closeDiscovery}
+          />
+        ) : consoleState.mode === "tasks" ? (
+          <TaskCenter
+            state={consoleState.taskCenter}
+            busy={consoleState.busyAction !== null}
+            onOpenTask={(item) => void consoleState.openTaskCenterItem(item)}
+            onOpenDiagnostics={consoleState.openProjectDiagnostics}
+            onOpenDiscovery={consoleState.openDiscovery}
           />
         ) : consoleState.selectedProjectId === null ? (
           <section className="empty-workspace">
@@ -187,6 +198,7 @@ function renderProjectView(
           selectedDocumentPath={consoleState.selectedTaskDocumentPath}
           taskDetail={consoleState.taskDetail}
           taskDocument={consoleState.taskDocument}
+          autoSelectFirstTask={!consoleState.suppressTaskAutoSelect}
           onSelectTask={consoleState.selectTaskSourcePath}
           onSelectDocument={consoleState.selectTaskDocumentPath}
           onOpenSource={(sourcePath) => void consoleState.openSelectedPath(sourcePath)}

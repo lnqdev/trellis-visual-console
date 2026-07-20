@@ -1,6 +1,9 @@
 import type { RegisteredProjectApi, TaskSummaryApi } from "../shared/api";
 import type { ProjectRuntimeWatchMode } from "../shared/project-events";
 
+/** 任务中心标准状态分组。 */
+export type TaskStatusGroup = "planning" | "in_progress" | "review" | "completed" | "other";
+
 /** 将 ISO 时间格式化为中文本地时间。 */
 export function formatDateTime(value: string | null): string {
   if (value === null) {
@@ -36,9 +39,24 @@ export function formatWatchMode(mode: ProjectRuntimeWatchMode): string {
   }
 }
 
-/** 返回 Task 状态的中文或原始说明。 */
-export function formatTaskStatus(task: TaskSummaryApi): string {
-  switch (task.status) {
+/** 将原始 Task 状态归入任务中心标准分组。 */
+export function readTaskStatusGroup(status: string): TaskStatusGroup {
+  switch (status) {
+    case "planning":
+    case "in_progress":
+    case "review":
+      return status;
+    case "completed":
+    case "done":
+      return "completed";
+    default:
+      return "other";
+  }
+}
+
+/** 将 Task 原始状态格式化为中文或可读回退值。 */
+export function formatTaskStatusValue(status: string): string {
+  switch (readTaskStatusGroup(status)) {
     case "planning":
       return "规划中";
     case "in_progress":
@@ -46,9 +64,13 @@ export function formatTaskStatus(task: TaskSummaryApi): string {
     case "review":
       return "评审中";
     case "completed":
-    case "done":
       return "已完成";
-    default:
-      return task.status;
+    case "other":
+      return status;
   }
+}
+
+/** 返回 Task 状态的中文或原始说明。 */
+export function formatTaskStatus(task: TaskSummaryApi): string {
+  return formatTaskStatusValue(task.status);
 }

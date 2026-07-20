@@ -2,13 +2,14 @@
 
 ## 1. 范围与触发条件
 
-修改项目列表、扫描登记、项目详情、焦点/刷新操作、Spec/Task 内容读取、外部打开、系统目录选择、SSE 路由或共享 API DTO 时，必须遵守本合同。源项目始终只读；允许写入的范围仅为应用数据目录中的注册表和快照。
+修改项目列表、跨项目任务聚合、扫描登记、项目详情、焦点/刷新操作、Spec/Task 内容读取、外部打开、系统目录选择、SSE 路由或共享 API DTO 时，必须遵守本合同。源项目始终只读；允许写入的范围仅为应用数据目录中的注册表和快照。
 
 ## 2. 接口签名
 
 | 方法 | 路径 | 请求 | 响应 |
 | --- | --- | --- | --- |
 | GET | `/api/projects` | 无 | `ProjectListResponse` |
+| GET | `/api/tasks` | 无 | `TaskCenterResponse` |
 | POST | `/api/projects/scan` | `{ rootPath }` | `ProjectScanResponse`，不持久化 |
 | POST | `/api/projects/register` | `{ projects: [{ path, label? }] }` | `ProjectRegisterResponse` |
 | GET | `/api/projects/:projectId` | 无 | `ProjectDetailResponse`，包含 `contentReadable` |
@@ -26,6 +27,10 @@
 ## 3. 合同
 
 - JSON 请求和响应必须在边界通过共享 Zod Schema 校验，路由与页面不得私自重定义 DTO。
+- `GET /api/tasks` 必须只调用一次 `ProjectCatalog.listProjectData()`，响应中的 `projects` 保留全部登记项目，`tasks` 只聚合 `state !== "unavailable"` 且存在快照的活动与归档 Task。
+- `TaskCenterResponse` 单项固定包含 `projectId`、`collection`、`task` 和可空 `parentTitle`；`parentTitle` 只通过同一快照内已解析的 `parentSourcePath` 映射，引用缺失时降级为 `null`。
+- 跨项目任务聚合只投影快照元数据，不调用 `getProjectData()`、`task-reader.ts` 或 Markdown/JSONL 正文读取；历史项目不需要临时正文授权。
+- 索引阶段生成的非法 `task.json` 回退摘要、缺失关系和循环关系必须继续作为可读元数据返回，单个损坏任务不能阻塞其他项目或任务。
 - 项目列表和详情只组合注册表、最后快照与运行时状态；历史项目的 GET 请求不得访问源文件系统。
 - `ProjectDetailResponse.contentReadable` 是正文读取的统一判定：焦点项目为 `true`；历史项目初始为 `false`，只有在当前服务进程内显式刷新成功后为 `true`；服务重启、刷新失败或移出焦点后恢复为 `false`。该状态不写入注册表或快照。
 - 扫描只返回候选；登记、刷新和焦点切换才可更新应用自己的注册表与快照。
@@ -45,6 +50,9 @@
 | 条件 | HTTP / 行为 |
 | --- | --- |
 | 请求体、查询或参数不符合 Schema | `400 invalid-request`，返回字段级说明 |
+| 不可用项目保留旧快照 | `/api/tasks` 的 `projects` 保留该项目，`tasks` 不得返回其旧任务 |
+| 项目已登记但没有快照 | `/api/tasks` 的 `projects` 保留该项目，`tasks` 不产生该项目任务 |
+| 父任务引用缺失或已被索引器隔离 | 对应任务 `parentTitle=null`，其他任务继续返回 |
 | 项目、Spec、Task 或 Task 文档不存在 | `404 resource-not-found` |
 | 历史项目尚未显式刷新，或项目不可用 | `409 project-content-unavailable`，不进入源文件读取 |
 | 绝对路径、原始 `..`、符号链接或 realpath 逃逸 | `400 unsafe-project-path` |
@@ -60,6 +68,9 @@
 ## 5. 正常、基础与异常用例
 
 - 正常：焦点项目文件变化先更新快照，再通过轻量 SSE 使页面重新查询详情和当前文档。
+- 正常：一次 `/api/tasks` 请求同时返回焦点和历史项目元数据，以及所有可用快照的扁平任务项。
+- 基础：无快照项目和不可用项目仍出现在 `projects` 汇总中，但不会产生任务行。
+- 异常：旧快照中存在非法 Task 回退摘要或损坏父关系时，合法任务继续返回，损坏父关系只表现为 `parentTitle=null`。
 - 基础：历史项目详情从快照返回，`watchMode=stopped`，不会创建监听器。
 - 正常：历史项目显式刷新成功后 `contentReadable=true`，可按需读取正文但仍为 `history`、`watchMode=stopped`；服务重启后重新变为摘要模式。
 - 异常：直接调用历史项目的 Spec、Task 详情或 Task 文档接口统一返回 `409`，即使请求路径命中快照白名单也不能绕过。
@@ -81,7 +92,7 @@ pnpm build
 git diff --check
 ```
 
-临时 fixture 必须断言：扫描不持久化、批量登记、重复登记、历史详情零源读取、历史正文刷新前统一 `409`、刷新后正文 `200` 且仍零监听、服务重启后授权清除、焦点进出、Spec/Task 白名单、外部打开越界拒绝、SSE 轻量事件和连接清理。浏览器验证必须确认接口错误无堆栈、无未知 4xx/5xx。
+临时 fixture 必须断言：扫描不持久化、批量登记、重复登记、`/api/tasks` 全量项目与可用任务投影、不可用旧快照排除、无快照项目保留、父标题解析和损坏关系降级、聚合响应不含规划文档或 JSONL 正文、历史详情零源读取、历史正文刷新前统一 `409`、刷新后正文 `200` 且仍零监听、服务重启后授权清除、焦点进出、Spec/Task 白名单、外部打开越界拒绝、SSE 轻量事件和连接清理。浏览器验证必须确认接口错误无堆栈、无未知 4xx/5xx。
 
 ## 7. 错误与正确示例
 
@@ -101,4 +112,21 @@ if (data.snapshot === null || !containsSpecFile(data.snapshot.specTree, sourcePa
 }
 const document = await readProjectMarkdown(data.project.path, sourcePath);
 response.write(`data: ${JSON.stringify(event)}\n\n`);
+```
+
+错误：前端为了构建任务中心逐项目请求详情，或服务端聚合时读取 Task 正文。
+
+```typescript
+await Promise.all(projects.map((project) => fetchProject(project.project.id)));
+await readProjectTaskDetail(project.path, snapshot, task.sourcePath);
+```
+
+正确：服务端一次读取注册表与快照，只投影共享任务元数据合同。
+
+```typescript
+const projectData = await this.catalog.listProjectData();
+return TaskCenterResponseSchema.parse({
+  projects: projectData.map((data) => this.createProjectListItem(data)),
+  tasks: projectData.flatMap((data) => this.createTaskCenterItems(data)),
+});
 ```

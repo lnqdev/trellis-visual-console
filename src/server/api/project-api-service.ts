@@ -5,6 +5,7 @@ import {
   ProjectListResponseSchema,
   ProjectRegisterResponseSchema,
   ProjectScanResponseSchema,
+  TaskCenterResponseSchema,
   TaskDetailResponseSchema,
   type ProjectActionResponse,
   type ProjectDetailResponse,
@@ -14,6 +15,10 @@ import {
   type ProjectRegisterInput,
   type ProjectRegisterResponse,
   type ProjectScanResponse,
+  type TaskCenterItemApi,
+  type TaskCenterResponse,
+  type TaskCollectionApi,
+  type TaskSummaryApi,
   type TaskDetailResponse,
 } from "../../shared/api.js";
 import { ProjectCatalog } from "../projects/project-catalog.js";
@@ -60,6 +65,15 @@ export class ProjectApiService {
     const projectData = await this.catalog.listProjectData();
     return ProjectListResponseSchema.parse({
       projects: projectData.map((data) => this.createProjectListItem(data)),
+    });
+  }
+
+  /** 返回全部项目元数据和可聚合的扁平 Task 摘要。 */
+  async listTaskCenter(): Promise<TaskCenterResponse> {
+    const projectData = await this.catalog.listProjectData();
+    return TaskCenterResponseSchema.parse({
+      projects: projectData.map((data) => this.createProjectListItem(data)),
+      tasks: projectData.flatMap((data) => this.createTaskCenterItems(data)),
     });
   }
 
@@ -199,6 +213,32 @@ export class ProjectApiService {
       archivedTaskCount: data.snapshot?.tasks.archived.length ?? 0,
       diagnosticCount: data.snapshot?.diagnostics.length ?? 0,
     };
+  }
+
+  /** 将一个可用项目快照投影为任务中心单项。 */
+  private createTaskCenterItems(data: ProjectCatalogData): TaskCenterItemApi[] {
+    if (data.project.state === "unavailable" || data.snapshot === null) {
+      return [];
+    }
+
+    const allTasks = [...data.snapshot.tasks.active, ...data.snapshot.tasks.archived];
+    const titleBySourcePath = new Map(allTasks.map((task) => [task.sourcePath, task.title]));
+    const createItem = (
+      collection: TaskCollectionApi,
+      task: TaskSummaryApi,
+    ): TaskCenterItemApi => ({
+      projectId: data.project.id,
+      collection,
+      task,
+      parentTitle: task.parentSourcePath === null
+        ? null
+        : (titleBySourcePath.get(task.parentSourcePath) ?? null),
+    });
+
+    return [
+      ...data.snapshot.tasks.active.map((task) => createItem("active", task)),
+      ...data.snapshot.tasks.archived.map((task) => createItem("archived", task)),
+    ];
   }
 
   /** 将存储数据投影为单项目详情。 */

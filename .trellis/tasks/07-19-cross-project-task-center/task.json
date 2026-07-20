@@ -3,7 +3,7 @@
   "name": "cross-project-task-center",
   "title": "跨项目任务中心与搜索筛选",
   "description": "聚合多个 Trellis 项目的任务，并提供搜索、筛选与排序能力",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": null,
   "scope": null,
   "package": null,

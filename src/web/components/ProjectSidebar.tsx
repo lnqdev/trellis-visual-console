@@ -1,13 +1,23 @@
-import { CircleOff, FolderClock, Layers3, Plus, Radio, RefreshCw } from "lucide-react";
+import {
+  CircleOff,
+  FolderClock,
+  Layers3,
+  ListChecks,
+  Plus,
+  Radio,
+  RefreshCw,
+} from "lucide-react";
 import type { ProjectListItem } from "../../shared/api";
 import { formatDateTime, formatWatchMode } from "../formatters";
-import type { AsyncState, EventStreamState } from "../hooks/useProjectConsole";
+import type { AsyncState, ConsoleMode, EventStreamState } from "../hooks/useProjectConsole";
 
 interface ProjectSidebarProps {
   projects: AsyncState<ProjectListItem[]>;
+  mode: ConsoleMode;
   selectedProjectId: string | null;
   eventStreamState: EventStreamState;
   onSelectProject: (projectId: string) => void;
+  onOpenTaskCenter: () => void;
   onOpenDiscovery: () => void;
   onRetry: () => void;
 }
@@ -15,9 +25,11 @@ interface ProjectSidebarProps {
 /** 展示焦点、历史和不可用项目分组导航。 */
 export function ProjectSidebar({
   projects,
+  mode,
   selectedProjectId,
   eventStreamState,
   onSelectProject,
+  onOpenTaskCenter,
   onOpenDiscovery,
   onRetry,
 }: ProjectSidebarProps) {
@@ -25,6 +37,7 @@ export function ProjectSidebar({
   const focus = data.filter((item) => item.project.state === "focus");
   const history = data.filter((item) => item.project.state === "history");
   const unavailable = data.filter((item) => item.project.state === "unavailable");
+  const activeProjectId = mode === "project" ? selectedProjectId : null;
 
   return (
     <aside className="project-sidebar" aria-label="项目导航">
@@ -46,6 +59,19 @@ export function ProjectSidebar({
             ? "实时通道重连中"
             : "正在连接实时通道"}
       </div>
+
+      <button
+        className={`sidebar-mode-button ${mode === "tasks" ? "sidebar-mode-button--active" : ""}`}
+        type="button"
+        aria-current={mode === "tasks" ? "page" : undefined}
+        onClick={onOpenTaskCenter}
+      >
+        <ListChecks size={16} aria-hidden="true" />
+        <span>
+          <strong>任务中心</strong>
+          <small>跨项目搜索与筛选</small>
+        </span>
+      </button>
 
       <button className="primary-button primary-button--wide" type="button" onClick={onOpenDiscovery}>
         <Plus size={16} aria-hidden="true" />
@@ -69,21 +95,21 @@ export function ProjectSidebar({
               title="焦点项目"
               icon={<Layers3 size={15} aria-hidden="true" />}
               projects={focus}
-              selectedProjectId={selectedProjectId}
+              selectedProjectId={activeProjectId}
               onSelect={onSelectProject}
             />
             <ProjectGroup
               title="历史项目"
               icon={<FolderClock size={15} aria-hidden="true" />}
               projects={history}
-              selectedProjectId={selectedProjectId}
+              selectedProjectId={activeProjectId}
               onSelect={onSelectProject}
             />
             <ProjectGroup
               title="不可用"
               icon={<CircleOff size={15} aria-hidden="true" />}
               projects={unavailable}
-              selectedProjectId={selectedProjectId}
+              selectedProjectId={activeProjectId}
               onSelect={onSelectProject}
             />
           </>
