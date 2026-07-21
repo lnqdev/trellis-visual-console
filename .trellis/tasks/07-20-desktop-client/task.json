@@ -1,0 +1,28 @@
+{
+  "id": "desktop-client",
+  "name": "desktop-client",
+  "title": "桌面客户端（macOS 交付与跨平台基础）",
+  "description": "完成 Trellis Visual Console 的 Tauri 跨平台基础与 macOS 可安装桌面客户端交付；Windows x64 原生交付拆分到独立任务。",
+  "status": "in_progress",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "wanglinqiao",
+  "assignee": "wanglinqiao",
+  "createdAt": "2026-07-20",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [
+    ".trellis/tasks/07-21-desktop-client-windows-x64/prd.md"
+  ],
+  "notes": "2026-07-21：Windows x64 原生构建与实机验收拆分到 07-21-desktop-client-windows-x64。",
+  "meta": {}
+}
