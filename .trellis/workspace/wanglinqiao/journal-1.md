@@ -335,3 +335,38 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 11: 完成 Tauri 桌面客户端 macOS 交付
+
+**Date**: 2026-07-21
+**Task**: 完成 Tauri 桌面客户端 macOS 交付
+**Branch**: `feature/v2.0.0_desktop`
+
+### Summary
+
+完成 Tauri 2 与独立 Rust Core 迁移，移除 Node/Fastify 旧生产代码，交付并安装 macOS arm64/x64 DMG，补齐清理退出、性能与打包验收；Windows x64 原生交付拆分为独立 planning 任务。
+
+### Main Changes
+
+- Detailed change bullets were not supplied; see the summary above.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7332f58` | (see git log) |
+| `6026583` | (see git log) |
+| `d8f5866` | (see git log) |
+
+### Testing
+
+- Validation was not recorded for this session.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
