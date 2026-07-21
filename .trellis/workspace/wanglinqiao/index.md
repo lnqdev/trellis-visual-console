@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 11
-- **Last Active**: 2026-07-21
+- **Total Sessions**: 12
+- **Last Active**: 2026-07-22
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~372 | Active |
+| `journal-1.md` | ~405 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 12 | 2026-07-22 | Windows x64 原生交付与平台缺陷修复 | `dc85365` | `feature/v2.0.0_desktop` |
 | 11 | 2026-07-21 | 完成 Tauri 桌面客户端 macOS 交付 | `7332f58`, `6026583`, `d8f5866` | `feature/v2.0.0_desktop` |
 | 10 | 2026-07-20 | 完成跨项目任务中心与性能保护 | `e533ffb` | `codex/cross-project-task-center` |
 | 9 | 2026-07-19 | 添加项目本机目录选择 | `caea6b4`, `d96dc58` | `codex/project-directory-picker` |

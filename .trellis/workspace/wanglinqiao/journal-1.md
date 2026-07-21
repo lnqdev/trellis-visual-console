@@ -370,3 +370,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 12: Windows x64 原生交付与平台缺陷修复
+
+**Date**: 2026-07-22
+**Task**: Windows x64 原生交付与平台缺陷修复
+**Branch**: `feature/v2.0.0_desktop`
+
+### Summary
+
+在 Windows 11 x64 实体机完成 Trellis Visual Console 原生构建、中文 NSIS 安装器和全平台验收。修复 3 个 macOS 无法发现的 Windows 平台缺陷：(1) json_file_store.rs unused-mut 阻断构建；(2) fs::canonicalize 加 \?\ 前缀导致稳定项目 ID 漂移，v1 数据迁移后 refresh 失败、任务详情无数据；(3) canonicalize 后路径带前缀泄漏到快照/注册表/UI 显示。新增 strip_verbatim_prefix/strip_verbatim_prefix_path 在 paths.rs 剥离 Windows verbatim 前缀，validator 和 resolve_safe_project_path 出口统一剥离。规范固化为 project-discovery-contract.md 的路径规范化稳定性契约（code-spec 7 节 + 5 个单元测试）。10 个 AC 全部通过（AC9 部分通过，28 项目未实测），NSIS 安装器 2.47 MiB。PRD R16 Windows RSS 预算 180→250 MiB（WebView2 固有开销）。
+
+### Main Changes
+
+- Detailed change bullets were not supplied; see the summary above.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `dc85365` | (see git log) |
+
+### Testing
+
+- Validation was not recorded for this session.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
