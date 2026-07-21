@@ -1,40 +1,34 @@
 # 后端开发规范
 
-> 本目录只记录已在项目中落地的后端约定；尚未实现的能力保持“待建立”，不要提前编造规范。
-
 ## 规范索引
 
-| 规范 | 说明 | 状态 |
-| --- | --- | --- |
-| [目录结构](./directory-structure.md) | Node 服务与共享类型的目录边界 | 已建立 |
-| [本地服务合同](./local-service-contract.md) | 启动命令、监听地址、健康接口和静态托管合同 | 已建立 |
-| [本机存储合同](./local-storage-contract.md) | 注册表、快照、版本、原子写和损坏恢复合同 | 已建立 |
-| [项目发现合同](./project-discovery-contract.md) | 扫描、校验、索引、诊断、登记和 Markdown 读取合同 | 已建立 |
-| [焦点项目实时更新合同](./project-realtime-contract.md) | 焦点生命周期、受限监听、批量重索引、事件和轮询降级合同 | 已建立 |
-| [只读项目 HTTP API 与 SSE 合同](./readonly-api-contract.md) | 项目 API、受保护内容读取、外部打开和 SSE 连接合同 | 已建立 |
-| [错误处理](./error-handling.md) | 当前启动、接口与浏览器打开错误处理 | 已建立 |
-| [质量规范](./quality-guidelines.md) | TypeScript、检查命令与测试边界 | 已建立 |
-| [数据库规范](./database-guidelines.md) | 首版不使用数据库的边界 | 已建立 |
-| [日志规范](./logging-guidelines.md) | 结构化日志字段与级别约定 | 已建立 |
+| 规范 | 说明 |
+| --- | --- |
+| [目录结构](./directory-structure.md) | Rust Core 与 Tauri adapter 边界 |
+| [桌面运行合同](./desktop-runtime-contract.md) | 启动、单实例、系统集成与退出 |
+| [本机存储合同](./local-storage-contract.md) | 版本 2、迁移、原子写与清理 |
+| [项目发现合同](./project-discovery-contract.md) | 扫描、索引、正文与路径安全 |
+| [实时更新合同](./project-realtime-contract.md) | watcher、轮询、队列与事件 |
+| [桌面 Command 合同](./desktop-command-contract.md) | IPC DTO、错误和系统操作 |
+| [错误处理](./error-handling.md) | 稳定错误、初始化失败与降级 |
+| [日志规范](./logging-guidelines.md) | 受控 JSONL、轮转与隐私 |
+| [质量规范](./quality-guidelines.md) | Rust/前端门禁与依赖边界 |
+| [数据库规范](./database-guidelines.md) | 首版不使用数据库 |
 
 ## 开发前检查
 
-1. 修改服务启动、HTTP 路由或静态托管前，阅读 `local-service-contract.md`。
-2. 新增服务模块前，阅读 `directory-structure.md`。
-3. 修改注册表、快照、应用数据路径或 JSON 写入前，阅读 `local-storage-contract.md`。
-4. 修改项目扫描、Trellis 解析或 Markdown 读取前，阅读 `project-discovery-contract.md`。
-5. 修改项目聚焦、文件监听、事件批处理、轮询降级或退出清理前，阅读 `project-realtime-contract.md`。
-6. 修改项目 HTTP API、内容接口、外部打开或 SSE 路由前，阅读 `readonly-api-contract.md`。
-7. 修改错误响应或启动失败行为前，阅读 `error-handling.md`。
-8. 写完代码后执行 `pnpm lint`、`pnpm typecheck`、`pnpm build`。
+1. 修改 Core 或 adapter 前阅读 `directory-structure.md`。
+2. 修改启动、窗口、插件、目录选择、外部打开或退出前阅读 `desktop-runtime-contract.md`。
+3. 修改存储、迁移和数据清理前阅读 `local-storage-contract.md`。
+4. 修改扫描、索引、正文或路径前阅读 `project-discovery-contract.md`。
+5. 修改焦点、监听、事件或轮询前阅读 `project-realtime-contract.md`。
+6. 修改 Command、DTO 或错误映射前阅读 `desktop-command-contract.md` 和 `error-handling.md`。
 
 ## 质量检查
 
-- 服务仍默认绑定 `127.0.0.1`。
-- `/api` 之外的静态托管没有扩展到源项目目录。
-- 前后端共享 DTO 仍由 `src/shared` 单点定义。
-- 应用持久化 Schema 仍由 `src/server/storage/models.ts` 单点定义。
-- 项目文件读取仍受 `.trellis` realpath 边界保护。
-- 历史项目保持零监听，焦点项目只监听 Trellis 展示路径。
-- SSE 只发布轻量失效事件，连接关闭后订阅和心跳均已释放。
-- 没有提前引入数据库、WebSocket 或 Core SDK。
+- `trellis-core` 正常依赖树不包含 Tauri、HTTP 框架、窗口或插件类型。
+- 源项目保持只读；应用写入只发生在固定应用数据目录。
+- Command/Event DTO 与前端 Zod/守卫字段一致。
+- 历史项目零监听，焦点项目只监听允许路径。
+- 日志和错误不包含绝对项目路径、正文、命令参数、堆栈或底层错误原文。
+- 生产应用没有 Node/Fastify、本地 HTTP 服务或 sidecar。

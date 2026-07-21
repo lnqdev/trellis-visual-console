@@ -1,5 +1,7 @@
 # Trellis 可视化管理项目实施清单
 
+> 本文是迁移前 Web MVP 的历史实施记录；当前桌面实施计划见 `.trellis/tasks/07-20-desktop-client/implement.md`。
+
 ## 实施边界
 
 - 实现目标位于独立仓库，不修改当前 Trellis CLI 的发布结构。

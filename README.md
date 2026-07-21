@@ -1,166 +1,179 @@
 # Trellis Visual Console
 
-[简体中文](README_CN.md)
+Trellis Visual Console 是面向个人本机使用的 Trellis 只读桌面客户端。它把多个本地项目中的 Spec、Task、Workflow 和诊断信息集中到一个 macOS/Windows 应用中，不依赖用户预装 Node.js 或 pnpm，也不会修改被查看项目的 `.trellis/`。
 
-Trellis Visual Console is a local, read-only web console for browsing Trellis data across multiple projects on one computer.
+## 核心能力
 
-It helps answer practical questions without opening every repository individually:
+- 扫描用户明确选择的目录，发现并登记 Trellis 项目。
+- 浏览项目概览、monorepo 包、Spec、Task、Workflow 和诊断。
+- 集中搜索和筛选多个项目的活动、归档任务。
+- 安全渲染 Markdown、GFM 与 JSONL，并保留源路径追溯。
+- 使用 `focus`、`history`、`unavailable` 三态管理项目。
+- 只监听焦点项目；原生事件失败时降级为 10 秒低频轮询。
+- 将项目注册表、可重建快照和受控日志存放在应用数据目录。
+- 提供系统目录选择、受控外部打开、日志目录和本地数据清理入口。
 
-- Which local projects use Trellis?
-- What specifications does each project contain?
-- Which tasks are active or archived?
-- What do a task's PRD, design, implementation plan, and research files say?
-- Which workflow and phase does a project currently use?
-
-The console is not a replacement for the Trellis CLI and does not edit a project's `.trellis/` directory.
-
-## Highlights
-
-- Recursively scan a user-selected directory for Trellis projects.
-- Manually register an individual project.
-- Browse project summaries, monorepo packages, Specs, Tasks, Workflow information, and diagnostics.
-- Read Markdown and task planning artifacts with source-path traceability.
-- Separate projects into `focus`, `history`, and `unavailable` states.
-- Watch only focus projects and deliver invalidation events to the UI through SSE.
-- Keep history projects lightweight by serving their last indexed snapshot without active watchers.
-- Fall back to low-frequency polling when native file events are unavailable.
-- Store the project registry and rebuildable snapshots outside the inspected repositories.
-- Bind the service to `127.0.0.1` and enforce registered-project, allowlist, realpath, and Markdown safety boundaries.
-
-## How it works
+## 架构
 
 ```text
-Browser UI (React)
-  ├─ HTTP: projects, Specs, Tasks, Workflow, diagnostics
-  └─ SSE: project-level invalidation events
-                  │
-                  ▼
-Local service (Fastify on 127.0.0.1)
-  ├─ project scanner and validator
-  ├─ Trellis content indexer
-  ├─ local registry and snapshot storage
-  └─ focus-project file watchers
-                  │
-                  ▼
-       Registered local .trellis/ directories
+React / Vite WebView
+  ├─ Tauri invoke：查询、扫描、登记、正文和系统操作
+  └─ Tauri listen：trellis://project-realtime 失效事件
+                         │
+                         ▼
+Tauri 桌面适配层
+  ├─ Command / Event、窗口、单实例和关闭生命周期
+  └─ 原生目录选择、受控打开、日志与应用数据清理
+                         │
+                         ▼
+trellis-core（不依赖 Tauri 或 HTTP 框架）
+  ├─ 应用服务、存储版本 2 与版本 1 迁移
+  ├─ 项目扫描、索引、正文读取和路径安全
+  └─ 原生监听、轮询降级、300ms 防抖与事件端口
+                         │
+                         ▼
+              已登记项目的本地 .trellis/
 ```
 
-The source project's `.trellis/` directory remains the only source of truth. The application writes only its own `registry.json` and `snapshots.json` files.
+生产应用不启动 Node/Fastify、本地 HTTP 服务或 sidecar。源项目 `.trellis/` 始终是唯一事实来源；应用只写自己的 `registry.json`、`snapshots.json` 和日志。
 
-### Focus and history projects
+## 项目状态
 
-- **Focus**: reindexed when focused, actively watched, and updated in the UI through SSE invalidation events.
-- **History**: no active watcher; displays the last successful summary snapshot. A successful explicit refresh temporarily enables document reading for the current server process.
-- **Unavailable**: the path is missing, inaccessible, or no longer has a valid Trellis structure; the previous record and snapshot are retained for diagnosis.
+- **焦点项目**：加入焦点时重新索引，持续监听允许的 Trellis 路径，文件变化通过进程内事件触发界面刷新。
+- **历史项目**：零监听，只展示最后快照；显式刷新成功后，本次应用进程可读取正文。
+- **不可用项目**：路径、权限或 Trellis 结构失效；保留登记信息和最后快照用于诊断。
 
-Scanning is always user-triggered. The selected scan root is not turned into a permanent watcher.
+## 开发要求
 
-## Requirements
+- Node.js 22.12 或更高版本，仅用于前端和 Tauri 构建工具。
+- pnpm 10 或更高版本。
+- Rust stable、Cargo，以及目标平台的 Tauri 2 系统构建依赖。
 
-- Node.js 22.12 or newer
-- pnpm 10 or newer
-
-## Development
+## 开发运行
 
 ```bash
 pnpm install
 pnpm dev
 ```
 
-Development mode starts:
-
-- the local API server at `http://127.0.0.1:3100`
-- the Vite UI at `http://127.0.0.1:5173`
-
-The browser opens automatically. The Vite development server proxies API requests to the local service.
-
-## Production build
-
-```bash
-pnpm build
-pnpm start
-```
-
-In production mode, the Node.js service hosts the built web assets and opens its local address in the browser. The default health endpoint is:
-
-```text
-http://127.0.0.1:3100/api/health
-```
-
-To use another port:
-
-```bash
-PORT=3200 pnpm start
-```
-
-## Local application data
-
-By default, application-owned data is stored at:
-
-| Platform | Directory |
-| --- | --- |
-| macOS | `~/Library/Application Support/Trellis Visual Console` |
-| Windows | `%APPDATA%/Trellis Visual Console` |
-| Linux | `$XDG_CONFIG_HOME/trellis-visual-console` or `~/.config/trellis-visual-console` |
-
-Override the directory when developing or running isolated checks:
+`pnpm dev` 启动 Tauri 开发应用；Vite 只提供 WebView 开发资源，不代理 API。隔离应用数据时使用：
 
 ```bash
 TRELLIS_VISUAL_CONSOLE_DATA_DIR=/tmp/trellis-visual-console pnpm dev
 ```
 
-Deleting this application data removes only the console's registry and cached summaries. It does not modify any registered Trellis project.
+## 构建
 
-## Read-only and security boundaries
+先安装依赖和目标平台 Rust target：
 
-- The HTTP service listens only on `127.0.0.1`.
-- The API addresses projects by registered ID instead of accepting arbitrary absolute paths.
-- Document reads are restricted to indexed Trellis files and verified with realpath boundaries.
-- Unsafe path traversal and symlink escapes are rejected.
-- Rendered Markdown does not execute embedded HTML or scripts.
-- The application exposes no API for editing files, changing task state, running agents, or executing commands.
-- “Open externally” actions pass only validated project paths to the operating system.
+```bash
+pnpm install --frozen-lockfile
 
-## Project structure
+# macOS 构建机
+rustup target add aarch64-apple-darwin x86_64-apple-darwin
 
-```text
-src/server/   local HTTP service, storage, scanning, indexing, and watchers
-src/shared/   API schemas and shared contracts
-src/web/      React console and read-only content views
-docs/         product planning, technical design, and validation evidence
-.trellis/     project workflow, specifications, tasks, and developer records
+# Windows x64 构建机
+rustup target add x86_64-pc-windows-msvc
 ```
 
-## Quality checks
+`pnpm build` 生成当前平台的默认桌面安装包。需要明确架构和安装包类型时使用：
+
+```bash
+# macOS Apple Silicon，生成 arm64 DMG
+pnpm build:mac:arm64
+
+# macOS Intel，生成 x64 DMG；可在 Apple Silicon 上通过 Rust x64 target 构建
+pnpm build:mac:x64
+
+# Windows x64，生成 NSIS setup.exe；必须在 Windows x64 原生环境执行
+pnpm build:windows:x64
+```
+
+macOS 的 DMG 脚本默认使用 Finder 设置镜像窗口布局。如果构建终端没有 Finder Apple Events 权限，可使用 CI 模式跳过窗口布局步骤，安装包内容不受影响：
+
+```bash
+CI=true pnpm build:mac:arm64
+CI=true pnpm build:mac:x64
+```
+
+产物目录：
+
+| 命令 | 产物目录 |
+| --- | --- |
+| `pnpm build:mac:arm64` | `target/aarch64-apple-darwin/release/bundle/dmg/` |
+| `pnpm build:mac:x64` | `target/x86_64-apple-darwin/release/bundle/dmg/` |
+| `pnpm build:windows:x64` | `target/x86_64-pc-windows-msvc/release/bundle/nsis/` |
+
+前端单独检查可执行 `pnpm build:web`，Rust 工作区检查可执行 `pnpm check:rust`。
+
+当前支持目标：
+
+| 平台 | 目标 | 交付形式 |
+| --- | --- | --- |
+| macOS 13+ | arm64、x64 | 分架构 DMG |
+| Windows 10 22H2 / 11 | x64 | 当前用户 NSIS，WebView2 在线引导 |
+
+Windows 安装包必须在 Windows x64 原生环境构建和验收，不能用 macOS 交叉构建代替。
+
+### 未签名 macOS 内测包
+
+当前内测 DMG 没有 Apple Developer ID 签名和公证。安装前先核对交付记录中的 SHA-256，再把应用拖入“应用程序”。如果 Gatekeeper 阻止首次启动，请在 Finder 中右键应用并选择“打开”，或在“系统设置 → 隐私与安全性”中确认本次打开；不要全局关闭 Gatekeeper。正式公开分发前仍需补齐签名与公证。
+
+## 应用数据
+
+| 平台 | 目录 |
+| --- | --- |
+| macOS | `~/Library/Application Support/Trellis Visual Console` |
+| Windows | `%APPDATA%\Trellis Visual Console` |
+
+存储格式当前版本为 2。首次读取合法版本 1 数据时会先备份注册表和快照，再保留原项目 ID 与元数据完成迁移；旧快照不作为可信运行数据，由 Rust 重新索引。
+
+诊断区的“清除本地数据并退出”只删除固定应用数据目录，不删除或修改任何已登记 Trellis 项目。Windows 卸载器默认保留应用数据，用户明确选择后才删除。
+
+## 只读与隐私边界
+
+- Command 使用稳定项目 ID，正文路径必须来自快照或实时白名单。
+- 路径检查同时拒绝绝对输入、原始 `..`、符号链接和 realpath 越界。
+- Markdown 不启用原始 HTML；危险链接协议会被清理。
+- 前端没有任意文件系统或任意 opener 权限，外部打开只经过 Rust 受控入口。
+- 应用不提供编辑、命令执行、Agent 启动、远程访问或云同步能力。
+- 不采集遥测、设备标识或崩溃上传；运行期不主动访问网络。
+- 日志最多 5 个文件、每个 2 MiB，只记录受控生命周期、稳定 ID 和错误类型。
+
+## 项目结构
+
+```text
+crates/trellis-core/  传输无关的 Rust 业务 Core
+src-tauri/            Tauri 桌面适配、系统集成与打包配置
+src/shared/           前端 Zod IPC/Event 合同
+src/web/              React 只读控制台
+docs/                 架构与验证证据
+.trellis/             工作流、规范、任务与开发记录
+```
+
+## 质量检查
 
 ```bash
 pnpm lint
 pnpm typecheck
-pnpm build
+pnpm build:web
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo check --workspace --all-targets --all-features
+cargo check -p trellis-core
 git diff --check
 ```
 
-The current MVP has completed macOS system validation. Windows and Linux have received platform-neutral path and implementation review, but native file events, permissions, external opening, and process signals have not yet been verified on real machines.
+## 文档
 
-See the [Phase 6 validation report](docs/validation/phase-6-report.md) for scenarios, known coverage limits, fixes, and performance baselines.
+- [当前桌面架构](docs/planning/design.md)
+- [macOS 桌面验收记录](docs/validation/desktop-client-macos.md)
+- [迁移前 Web 阶段六报告](docs/validation/phase-6-report.md)
+- [桌面客户端任务需求](.trellis/tasks/07-20-desktop-client/prd.md)
+- [桌面客户端技术设计](.trellis/tasks/07-20-desktop-client/design.md)
+- [桌面客户端实施计划](.trellis/tasks/07-20-desktop-client/implement.md)
+- [Windows x64 原生交付任务](.trellis/tasks/07-21-desktop-client-windows-x64/prd.md)
 
-## Project documentation
+## 当前边界
 
-- [Product requirements](docs/planning/prd.md)
-- [Technical design](docs/planning/design.md)
-- [Implementation plan](docs/planning/implement.md)
-- [First-principles analysis](docs/planning/fp-analysis.md)
-- [Session handoff](docs/planning/session-handoff.md)
-- [Phase 6 validation report](docs/validation/phase-6-report.md)
-
-## Current scope
-
-The MVP is intentionally local and read-only. It does not include:
-
-- editing Specs, Tasks, or Workflow state
-- team accounts, remote access, or cloud synchronization
-- Channel, Worker, Mem, Workspace Journal, or runtime-operation panels
-- an Electron or Tauri installer
-- a required dependency on `@mindfoldhq/trellis-core`
-
-The Core SDK may be evaluated later if reusing canonical Trellis validation or workflow semantics becomes more valuable than maintaining a small local adapter.
+首版不包含 Linux、Windows ARM64、macOS Universal、自动更新、托盘、多窗口、团队账号、远程访问、云同步和应用内编辑。macOS arm64/x64 已完成构建与验收；Windows x64 原生构建和实机验收由独立 Trellis 任务继续跟踪。

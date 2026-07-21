@@ -3,24 +3,19 @@
 ## 必需规则
 
 - 使用 React 函数组件和 TypeScript 严格模式。
-- 异步副作用在 `useEffect` 清理函数中取消，避免卸载后更新状态。
-- 状态提示使用 `aria-live`，纯装饰元素使用 `aria-hidden`。
-- 用户可见文本与方法注释使用中文。
-- 当前没有复用需求时保持组件简单，不提前引入路由、全局状态、组件库或 CSS 框架。
+- 方法与关键异步边界添加详略得当的中文注释。
+- 异步 Effect 清理取消本地提交并释放事件订阅。
+- 状态提示使用 `aria-live`，装饰图标使用 `aria-hidden`。
+- Markdown 不启用 `rehype-raw`；HTTP(S) 外部链接使用 `_blank` 和 `noreferrer`。
+- 组件不直接访问 Tauri API、Node 文件系统或任意绝对路径。
 
 ## 验证门禁
 
 ```bash
 pnpm lint
 pnpm typecheck
-pnpm build
+pnpm build:web
+git diff --check
 ```
 
-默认不生成测试文件；任务明确要求时再增加与验收标准直接对应的测试。
-
-## 检查清单
-
-- 网络响应是否先按 `unknown` 校验。
-- 加载、成功、失败状态是否都有用户可见反馈。
-- 新增样式是否兼顾窄屏和基本语义结构。
-- 页面是否仍只消费 API，没有引入 Node 文件系统能力。
+默认不生成测试类或仓库测试文件。需要端到端验证时使用仓库外 Playwright IPC mock 和真实 Tauri 应用。

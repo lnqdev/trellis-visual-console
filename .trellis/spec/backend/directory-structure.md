@@ -3,83 +3,35 @@
 ## 当前布局
 
 ```text
-src/
-├── server/
-│   ├── index.ts       # Fastify 服务入口、基础路由和进程生命周期
-│   ├── projects/      # Trellis 项目发现、解析和只读内容访问
-│   ├── realtime/      # 焦点项目监听、批处理和事件发布
-│   └── storage/       # 应用自有注册表和快照持久化
-└── shared/
-    ├── health.ts          # 健康接口共享 DTO 与守卫
-    └── project-events.ts # 实时失效事件和运行时状态合同
+Cargo.toml
+crates/trellis-core/
+  src/
+    application/  应用服务、Catalog 与正文资格
+    contracts/    Serde Command/Event DTO 与稳定错误
+    projects/     扫描、索引、正文和路径安全
+    realtime/     watcher、轮询、队列与 EventSink
+    storage/      版本化存储、迁移与原子文件层
+src-tauri/
+  src/
+    commands/     Tauri Command 薄适配
+    system/       路径、日志、目录选择、外部打开和清理
+    lib.rs        Builder、AppState、插件和窗口生命周期
+    realtime.rs   EventSink 到 Tauri Event 的适配
 ```
 
-编译产物固定输出到：
+## 依赖规则
 
-```text
-dist/
-├── server/            # Node 服务
-├── shared/            # 服务运行时使用的共享模块
-└── web/               # Vite 静态资源
-```
+- 依赖方向固定为 `src-tauri -> trellis-core`。
+- Core 禁止导入 Tauri、Axum、Actix、窗口、WebView 或插件类型。
+- Core 从构造参数接收应用数据路径，通过 `EventSink` 发布事件。
+- Command adapter 只负责参数、线程调度、Core 调用和错误透传，不复制业务规则。
+- 系统对话框、opener、窗口和退出只能位于 `src-tauri`。
+- `src/shared` 是前端运行时合同，不是第二套后端实现。
+- 禁止恢复 `src/server`、Node sidecar 或 Tauri Command 调用本地 HTTP 的结构。
 
-## 模块约定
+## 公开入口
 
-- `src/server` 只放本地服务能力，不放 React 组件。
-- `src/shared` 只放前后端都能运行的纯 TypeScript 合同，不允许导入 `node:*`、React 或浏览器全局对象。
-- 当前只有一个服务入口，不为单次使用逻辑提前拆分 service、repository、utils 等抽象。
-- 后续新增扫描、解析或监听模块时，按职责放入 `src/server` 子目录，并让路由只依赖服务层公开接口。
-- `src/server/storage` 只管理应用自有数据文件，不读取或写入项目 `.trellis/`。
-- `src/server/projects` 只读访问源项目，扫描、校验、索引和登记编排按职责分文件。
-- `src/server/realtime` 只管理焦点项目运行时资源，不解析 Trellis 文件内容，也不直接写注册表或快照。
-
-当前项目发现目录：
-
-```text
-src/server/projects/
-├── project-models.ts
-├── project-paths.ts
-├── project-validator.ts
-├── project-scanner.ts
-├── trellis-indexer.ts
-├── markdown-reader.ts
-└── project-catalog.ts
-```
-
-当前存储目录：
-
-```text
-src/server/storage/
-├── application-paths.ts
-├── models.ts
-├── json-file-store.ts
-└── application-storage.ts
-```
-
-当前实时目录：
-
-```text
-src/server/realtime/
-├── project-event-hub.ts
-├── project-file-watcher.ts
-└── project-realtime-manager.ts
-```
-
-## 命名与导入
-
-- TypeScript 文件使用小写短横线或领域名；React 组件例外，使用 PascalCase。
-- Node ESM 内部相对导入必须写编译后的 `.js` 后缀，例如：
-
-```typescript
-import { SERVICE_NAME } from "../shared/health.js";
-```
-
-- 不把面向 UI 的 DTO 重复定义在服务路由中，统一放入 `src/shared`。
-
-## 现有示例
-
-- 服务入口：`src/server/index.ts`
-- 共享健康合同：`src/shared/health.ts`
-- 应用存储入口：`src/server/storage/application-storage.ts`
-- 项目目录入口：`src/server/projects/project-catalog.ts`
-- 项目实时入口：`src/server/realtime/project-realtime-manager.ts`
+- Core：`trellis_core::application::ApplicationService`。
+- 事件端口：`trellis_core::realtime::EventSink`。
+- Tauri Builder：`src-tauri/src/lib.rs`。
+- Command 注册：`src-tauri/src/commands/mod.rs`。

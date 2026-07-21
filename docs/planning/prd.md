@@ -1,5 +1,7 @@
 # Trellis 可视化管理项目
 
+> 本文是迁移前 Web MVP 的历史需求基线；当前桌面产品需求见 `.trellis/tasks/07-20-desktop-client/prd.md`。
+
 ## 目标
 
 建设一个独立仓库的本地可视化项目，集中浏览用户本机上多个 Trellis 项目的规范、任务和 Workflow 信息。

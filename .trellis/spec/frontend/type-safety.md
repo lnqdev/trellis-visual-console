@@ -1,31 +1,17 @@
 # 前端类型安全
 
-## 类型组织
+## IPC 边界
 
-- API 请求与响应 DTO 放在 `src/shared`，由服务端和 Web UI 共同导入。
-- 组件局部状态类型留在组件文件附近，例如 `App.tsx` 的 `ConnectionState`。
-- 从网络、JSON 或未来文件解析边界进入的数据先视为 `unknown`，通过共享守卫后再使用。
+- Tauri `invoke` 返回值先按 `unknown` 接收，再使用对应 Zod Schema 校验。
+- Command reject 值同样按 `unknown` 接收，先过 `ApiErrorResponseSchema`。
+- 非法成功响应转换为 `ApiClientError("invalid-command-response")`。
+- 非法错误响应转换为 `unknown-command-error`，不得展示任意对象或底层原文。
+- `ApiClientError` 只包含稳定 code、中文 message 和 details，不包含 HTTP 状态。
+- `AbortSignal` 只表达调用前后取消；IPC 过期提交由 Hook 的请求代次负责。
 
-## 当前模式
+## 共享合同
 
-```typescript
-const payload: unknown = await response.json();
-if (!isHealthResponse(payload)) {
-  throw new Error("健康检查返回格式不正确");
-}
-
-setConnection({ status: "connected", health: payload });
-```
-
-联合类型的状态分支使用 `switch` 穷尽处理，避免多个组件分散判断同一状态含义。
-
-## 禁止模式
-
-```typescript
-// 禁止：在组件里私自重定义接口并直接断言。
-const payload = (await response.json()) as { ok: boolean };
-```
-
-- 禁止 `any`。
-- 禁止对未经校验的接口响应直接做类型断言。
-- 禁止在多个消费者中重复解析同一个未类型化字段。
+- `src/shared/api.ts` 定义 Command DTO 和 Zod Schema。
+- `src/shared/project-events.ts` 定义事件字段、枚举和守卫。
+- Rust Serde DTO 字段、null/可选语义和 ISO UTC 时间必须与共享合同一致。
+- 禁止 `any`、无依据断言或绕过 Schema 直接使用 IPC 数据。
