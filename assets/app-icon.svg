@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Trellis Visual Console">
+  <rect width="1024" height="1024" rx="224" fill="#f6f8f3"/>
+  <path d="M256 254v516M512 254v516M768 254v516M256 326h512M256 512h512M256 698h512" fill="none" stroke="#18352d" stroke-linecap="round" stroke-width="54"/>
+  <path d="M343 512c0-86 70-156 156-156h26v90h-26c-36 0-66 30-66 66s30 66 66 66h26v90h-26c-86 0-156-70-156-156Z" fill="#36a269"/>
+  <path d="M499 356h27c86 0 155 70 155 156s-69 156-155 156h-27v-90h27c36 0 65-30 65-66s-29-66-65-66h-27Z" fill="#e49a3f"/>
+  <circle cx="256" cy="254" r="36" fill="#36a269"/>
+  <circle cx="768" cy="770" r="36" fill="#e49a3f"/>
+</svg>

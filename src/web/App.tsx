@@ -217,6 +217,8 @@ function renderProjectView(
           detail={detail}
           busyAction={consoleState.busyAction}
           onRefresh={() => void consoleState.refreshSelectedProject()}
+          onOpenLogs={() => void consoleState.openLogs()}
+          onClearApplicationData={() => void consoleState.clearApplicationData()}
         />
       );
   }

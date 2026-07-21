@@ -1,4 +1,5 @@
-import type { ZodType } from "zod";
+import { invoke, isTauri } from "@tauri-apps/api/core";
+import { z, type ZodType } from "zod";
 import {
   ApiErrorResponseSchema,
   DirectoryPickerResponseSchema,
@@ -11,8 +12,8 @@ import {
   ProjectScanResponseSchema,
   TaskCenterResponseSchema,
   TaskDetailResponseSchema,
-  type OpenProjectPathResponse,
   type DirectoryPickerResponse,
+  type OpenProjectPathResponse,
   type ProjectActionResponse,
   type ProjectDetailResponse,
   type ProjectDocumentResponse,
@@ -24,12 +25,11 @@ import {
   type TaskDetailResponse,
 } from "../shared/api";
 
-/** 本地 API 返回的可恢复错误。 */
+/** 桌面 Command 返回的可恢复错误。 */
 export class ApiClientError extends Error {
-  /** 创建带 HTTP 状态和稳定错误码的客户端错误。 */
+  /** 创建带稳定错误码和可选详情的客户端错误。 */
   constructor(
     message: string,
-    public readonly status: number,
     public readonly code: string,
     public readonly details: string[] = [],
   ) {
@@ -40,78 +40,42 @@ export class ApiClientError extends Error {
 
 /** 读取全部已登记项目。 */
 export function fetchProjects(signal?: AbortSignal): Promise<ProjectListResponse> {
-  return requestJson("/api/projects", ProjectListResponseSchema, createSignalOptions(signal));
+  return invokeCommand("list_projects", {}, ProjectListResponseSchema, signal);
 }
 
 /** 读取跨项目任务中心元数据。 */
 export function fetchTaskCenter(signal?: AbortSignal): Promise<TaskCenterResponse> {
-  return requestJson("/api/tasks", TaskCenterResponseSchema, createSignalOptions(signal));
+  return invokeCommand("list_tasks", {}, TaskCenterResponseSchema, signal);
 }
 
 /** 读取单个项目详情。 */
-export function fetchProject(
-  projectId: string,
-  signal?: AbortSignal,
-): Promise<ProjectDetailResponse> {
-  return requestJson(
-    `/api/projects/${encodeURIComponent(projectId)}`,
-    ProjectDetailResponseSchema,
-    createSignalOptions(signal),
-  );
+export function fetchProject(projectId: string, signal?: AbortSignal): Promise<ProjectDetailResponse> {
+  return invokeCommand("get_project", { projectId }, ProjectDetailResponseSchema, signal);
 }
 
 /** 扫描用户显式输入的本机根目录。 */
 export function scanProjects(rootPath: string): Promise<ProjectScanResponse> {
-  return requestJson("/api/projects/scan", ProjectScanResponseSchema, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ rootPath }),
-  });
+  return invokeCommand("scan_projects", { rootPath }, ProjectScanResponseSchema);
 }
 
 /** 登记一个或多个已选择项目。 */
-export function registerProjects(
-  projects: ProjectRegisterInput[],
-): Promise<ProjectRegisterResponse> {
-  return requestJson("/api/projects/register", ProjectRegisterResponseSchema, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ projects }),
-  });
+export function registerProjects(projects: ProjectRegisterInput[]): Promise<ProjectRegisterResponse> {
+  return invokeCommand("register_projects", { projects }, ProjectRegisterResponseSchema);
 }
 
 /** 打开系统目录选择对话框。 */
 export function selectDirectory(): Promise<DirectoryPickerResponse> {
-  return requestJson("/api/system/directories/select", DirectoryPickerResponseSchema, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({}),
-  });
+  return invokeCommand("select_directory", {}, DirectoryPickerResponseSchema);
 }
 
 /** 切换项目焦点状态。 */
-export function setProjectFocus(
-  projectId: string,
-  focused: boolean,
-): Promise<ProjectActionResponse> {
-  return requestJson(
-    `/api/projects/${encodeURIComponent(projectId)}/focus`,
-    ProjectActionResponseSchema,
-    {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ focused }),
-    },
-  );
+export function setProjectFocus(projectId: string, focused: boolean): Promise<ProjectActionResponse> {
+  return invokeCommand("set_project_focus", { projectId, focused }, ProjectActionResponseSchema);
 }
 
 /** 显式重新校验并索引项目。 */
 export function refreshProject(projectId: string): Promise<ProjectActionResponse> {
-  return requestJson(
-    `/api/projects/${encodeURIComponent(projectId)}/refresh`,
-    ProjectActionResponseSchema,
-    { method: "POST" },
-  );
+  return invokeCommand("refresh_project", { projectId }, ProjectActionResponseSchema);
 }
 
 /** 读取 Spec Markdown 正文。 */
@@ -120,11 +84,11 @@ export function fetchSpecDocument(
   sourcePath: string,
   signal?: AbortSignal,
 ): Promise<ProjectDocumentResponse> {
-  const query = new URLSearchParams({ path: sourcePath });
-  return requestJson(
-    `/api/projects/${encodeURIComponent(projectId)}/spec-document?${query.toString()}`,
+  return invokeCommand(
+    "read_spec_document",
+    { projectId, sourcePath },
     ProjectDocumentResponseSchema,
-    createSignalOptions(signal),
+    signal,
   );
 }
 
@@ -134,11 +98,11 @@ export function fetchTaskDetail(
   sourcePath: string,
   signal?: AbortSignal,
 ): Promise<TaskDetailResponse> {
-  const query = new URLSearchParams({ sourcePath });
-  return requestJson(
-    `/api/projects/${encodeURIComponent(projectId)}/task-detail?${query.toString()}`,
+  return invokeCommand(
+    "read_task_detail",
+    { projectId, sourcePath },
     TaskDetailResponseSchema,
-    createSignalOptions(signal),
+    signal,
   );
 }
 
@@ -149,11 +113,11 @@ export function fetchTaskDocument(
   documentPath: string,
   signal?: AbortSignal,
 ): Promise<ProjectDocumentResponse> {
-  const query = new URLSearchParams({ taskSourcePath, path: documentPath });
-  return requestJson(
-    `/api/projects/${encodeURIComponent(projectId)}/task-document?${query.toString()}`,
+  return invokeCommand(
+    "read_task_document",
+    { projectId, taskSourcePath, documentPath },
     ProjectDocumentResponseSchema,
-    createSignalOptions(signal),
+    signal,
   );
 }
 
@@ -162,46 +126,60 @@ export function openProjectPath(
   projectId: string,
   sourcePath?: string,
 ): Promise<OpenProjectPathResponse> {
-  return requestJson(
-    `/api/projects/${encodeURIComponent(projectId)}/open`,
+  return invokeCommand(
+    "open_project_path",
+    sourcePath === undefined ? { projectId } : { projectId, sourcePath },
     OpenProjectPathResponseSchema,
-    {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(sourcePath === undefined ? {} : { sourcePath }),
-    },
   );
 }
 
-/** 请求 JSON 并在网络边界使用共享 Schema 校验。 */
-async function requestJson<T>(
-  path: string,
-  schema: ZodType<T>,
-  options: RequestInit = {},
-): Promise<T> {
-  const response = await fetch(path, options);
-  const payload: unknown = await response.json();
-  if (!response.ok) {
-    const error = ApiErrorResponseSchema.safeParse(payload);
-    if (error.success) {
-      throw new ApiClientError(
-        error.data.message,
-        response.status,
-        error.data.code,
-        error.data.details ?? [],
-      );
-    }
-    throw new ApiClientError(`接口请求失败：HTTP ${response.status}`, response.status, "invalid-error-response");
-  }
-
-  const parsed = schema.safeParse(payload);
-  if (!parsed.success) {
-    throw new ApiClientError("接口返回格式不正确", response.status, "invalid-api-response");
-  }
-  return parsed.data;
+/** 打开固定应用日志目录。 */
+export function openLogDirectory(): Promise<OpenProjectPathResponse> {
+  return invokeCommand("open_log_directory", {}, OpenProjectPathResponseSchema);
 }
 
-/** 仅在存在 AbortSignal 时添加请求取消选项。 */
-function createSignalOptions(signal?: AbortSignal): RequestInit {
-  return signal === undefined ? {} : { signal };
+/** 清除固定应用数据目录并退出桌面进程。 */
+export async function clearApplicationDataAndExit(): Promise<void> {
+  await invokeCommand("clear_application_data_and_exit", { confirmed: true }, EmptyResponseSchema);
+}
+
+const EmptyResponseSchema = z.void();
+
+/** 调用桌面 Command，并在 IPC 边界校验成功值与错误值。 */
+async function invokeCommand<T>(
+  command: string,
+  args: Record<string, unknown>,
+  schema: ZodType<T>,
+  signal?: AbortSignal,
+): Promise<T> {
+  if (!isTauri()) {
+    throw new ApiClientError("当前页面不在桌面客户端中运行", "desktop-runtime-unavailable");
+  }
+  if (signal?.aborted) {
+    throw new DOMException("请求已取消", "AbortError");
+  }
+  try {
+    const payload: unknown = await invoke(command, args);
+    if (signal?.aborted) {
+      throw new DOMException("请求已取消", "AbortError");
+    }
+    const parsed = schema.safeParse(payload);
+    if (!parsed.success) {
+      throw new ApiClientError("客户端返回格式不正确", "invalid-command-response");
+    }
+    return parsed.data;
+  } catch (error) {
+    if (error instanceof ApiClientError || (error instanceof DOMException && error.name === "AbortError")) {
+      throw error;
+    }
+    const parsed = ApiErrorResponseSchema.safeParse(error);
+    if (parsed.success) {
+      throw new ApiClientError(
+        parsed.data.message,
+        parsed.data.code,
+        parsed.data.details ?? [],
+      );
+    }
+    throw new ApiClientError("桌面后端调用失败，请重试", "unknown-command-error");
+  }
 }

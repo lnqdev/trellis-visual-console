@@ -35,7 +35,7 @@ export type ProjectWatchMode = (typeof PROJECT_WATCH_MODES)[number];
 /** 项目运行时可能处于的完整监听状态。 */
 export type ProjectRuntimeWatchMode = (typeof PROJECT_RUNTIME_WATCH_MODES)[number];
 
-/** 后续 SSE 路由和 Web UI 共同复用的轻量事件合同。 */
+/** Core、桌面事件适配层和 Web UI 共同复用的轻量事件合同。 */
 export interface ProjectRealtimeEvent {
   id: string;
   type: ProjectRealtimeEventType;

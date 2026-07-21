@@ -299,6 +299,11 @@ export const DirectoryPickerResponseSchema = z.discriminatedUnion("status", [
   z.object({ status: z.literal("cancelled") }).strict(),
 ]);
 
+/** 清除应用数据并退出的二次确认请求。 */
+export const ClearApplicationDataRequestSchema = z
+  .object({ confirmed: z.literal(true) })
+  .strict();
+
 export type ApiErrorResponse = z.infer<typeof ApiErrorResponseSchema>;
 export type RegisteredProjectApi = z.infer<typeof RegisteredProjectApiSchema>;
 export type ProjectRuntimeStatusApi = z.infer<typeof ProjectRuntimeStatusApiSchema>;
@@ -332,3 +337,4 @@ export type OpenProjectPathRequest = z.infer<typeof OpenProjectPathRequestSchema
 export type OpenProjectPathResponse = z.infer<typeof OpenProjectPathResponseSchema>;
 export type DirectoryPickerRequest = z.infer<typeof DirectoryPickerRequestSchema>;
 export type DirectoryPickerResponse = z.infer<typeof DirectoryPickerResponseSchema>;
+export type ClearApplicationDataRequest = z.infer<typeof ClearApplicationDataRequestSchema>;

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
 import type {
   DirectoryPickerResponse,
   ProjectDetailResponse,
@@ -10,16 +11,15 @@ import type {
   TaskCenterItemApi,
   TaskDetailResponse,
 } from "../../shared/api";
-import {
-  isProjectRealtimeEvent,
-  type ProjectRealtimeEvent,
-} from "../../shared/project-events";
+import { isProjectRealtimeEvent } from "../../shared/project-events";
 import {
   fetchProject,
   fetchProjects,
   fetchSpecDocument,
   fetchTaskDetail,
   fetchTaskDocument,
+  clearApplicationDataAndExit,
+  openLogDirectory,
   openProjectPath,
   refreshProject,
   registerProjects,
@@ -49,8 +49,8 @@ export interface AsyncState<T> {
   error: string | null;
 }
 
-/** SSE 连接状态。 */
-export type EventStreamState = "connecting" | "connected" | "reconnecting";
+/** 桌面进程内事件通道状态。 */
+export type EventStreamState = "connecting" | "connected" | "unavailable";
 
 /** 页面顶部展示的操作反馈。 */
 export interface ConsoleNotice {
@@ -63,7 +63,7 @@ const VALID_TASK_CENTER_SCOPES: TaskCenterScope[] = ["focus", "all"];
 const VALID_TASK_CENTER_COLLECTIONS: TaskCenterCollection[] = ["active", "archived", "all"];
 const VALID_TASK_CENTER_SORTS: TaskCenterSort[] = ["updated_desc", "updated_asc"];
 
-/** 集中管理项目列表、详情、文档、URL 选择和 SSE 刷新。 */
+/** 集中管理项目列表、详情、文档、URL 选择和桌面事件刷新。 */
 export function useProjectConsole() {
   const initialSelection = useMemo(readUrlSelection, []);
   const initialProjectSelection = initialSelection.mode === "project"
@@ -415,40 +415,49 @@ export function useProjectConsole() {
   ]);
 
   useEffect(() => {
-    const eventSource = new EventSource("/api/events");
     const pendingProjectIds = pendingEventProjectIdsRef.current;
+    let disposed = false;
+    let unlisten: (() => void) | null = null;
     setEventStreamState("connecting");
-    eventSource.onopen = () => setEventStreamState("connected");
-    eventSource.onerror = () => setEventStreamState("reconnecting");
-    eventSource.onmessage = (message) => {
-      const payload = parseProjectRealtimeEvent(message.data);
-      if (payload === null) {
-        return;
-      }
-
-      pendingProjectIds.add(payload.projectId);
-      if (eventRefreshTimerRef.current !== null) {
-        window.clearTimeout(eventRefreshTimerRef.current);
-      }
-      eventRefreshTimerRef.current = window.setTimeout(() => {
-        const projectIds = new Set(pendingProjectIds);
-        pendingProjectIds.clear();
-        eventRefreshTimerRef.current = null;
-        void loadProjects(true);
-        setTaskCenterRefreshGeneration((current) => current + 1);
-        const currentProjectId = selectedProjectIdRef.current;
-        if (currentProjectId !== null && projectIds.has(currentProjectId)) {
-          void loadDetail(currentProjectId, true);
+    void listen("trellis://project-realtime", (event) => {
+      const payload: unknown = event.payload;
+      if (isProjectRealtimeEvent(payload)) {
+        pendingProjectIds.add(payload.projectId);
+        if (eventRefreshTimerRef.current !== null) {
+          window.clearTimeout(eventRefreshTimerRef.current);
         }
-      }, 150);
-    };
+        eventRefreshTimerRef.current = window.setTimeout(() => {
+          const projectIds = new Set(pendingProjectIds);
+          pendingProjectIds.clear();
+          eventRefreshTimerRef.current = null;
+          void loadProjects(true);
+          setTaskCenterRefreshGeneration((current) => current + 1);
+          const currentProjectId = selectedProjectIdRef.current;
+          if (currentProjectId !== null && projectIds.has(currentProjectId)) {
+            void loadDetail(currentProjectId, true);
+          }
+        }, 150);
+      }
+    }).then((disposeListener) => {
+      if (disposed) {
+        disposeListener();
+      } else {
+        unlisten = disposeListener;
+        setEventStreamState("connected");
+      }
+    }).catch(() => {
+      if (!disposed) {
+        setEventStreamState("unavailable");
+      }
+    });
     return () => {
+      disposed = true;
       if (eventRefreshTimerRef.current !== null) {
         window.clearTimeout(eventRefreshTimerRef.current);
         eventRefreshTimerRef.current = null;
       }
       pendingProjectIds.clear();
-      eventSource.close();
+      unlisten?.();
     };
   }, [loadDetail, loadProjects]);
 
@@ -603,6 +612,24 @@ export function useProjectConsole() {
     }
   }, []);
 
+  /** 打开桌面应用固定日志目录。 */
+  const openLogs = useCallback(async () => {
+    await runAction("open-logs", async () => {
+      await openLogDirectory();
+      setNotice({ tone: "info", message: "已打开应用日志目录" });
+    });
+  }, []);
+
+  /** 明确确认后清除应用自有数据并退出。 */
+  const clearApplicationData = useCallback(async () => {
+    const confirmed = window.confirm(
+      "将删除本地项目列表、摘要快照和应用日志并退出。已登记的 Trellis 项目不会被删除。是否继续？",
+    );
+    if (confirmed) {
+      await runAction("clear-application-data", clearApplicationDataAndExit);
+    }
+  }, []);
+
   /** 登记发现候选或手动输入的项目。 */
   const addProjects = useCallback(
     async (inputs: ProjectRegisterInput[]): Promise<ProjectRegisterResponse> => {
@@ -681,6 +708,8 @@ export function useProjectConsole() {
     openSelectedPath,
     discoverProjects,
     chooseDirectory,
+    openLogs,
+    clearApplicationData,
     addProjects,
     openDiscovery: () => setDiscoveryOpen(true),
     closeDiscovery: () => setDiscoveryOpen(false),
@@ -838,17 +867,6 @@ function readEnumValue<T extends string>(
   fallback: T,
 ): T {
   return values.includes(value as T) ? (value as T) : fallback;
-}
-
-/** 解析并校验 SSE 项目失效事件。 */
-function parseProjectRealtimeEvent(value: string): ProjectRealtimeEvent | null {
-  let payload: unknown;
-  try {
-    payload = JSON.parse(value) as unknown;
-  } catch {
-    return null;
-  }
-  return isProjectRealtimeEvent(payload) ? payload : null;
 }
 
 /** 判断错误是否来自主动请求取消。 */

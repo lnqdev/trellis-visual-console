@@ -55,8 +55,8 @@ export function ProjectSidebar({
         <Radio size={14} aria-hidden="true" />
         {eventStreamState === "connected"
           ? "实时通道已连接"
-          : eventStreamState === "reconnecting"
-            ? "实时通道重连中"
+          : eventStreamState === "unavailable"
+            ? "实时通道不可用"
             : "正在连接实时通道"}
       </div>
 
@@ -118,7 +118,7 @@ export function ProjectSidebar({
 
       <footer className="sidebar-footer">
         <span>{data.length} 个已登记项目</span>
-        <span>仅访问本机 127.0.0.1</span>
+        <span>本机只读桌面客户端</span>
       </footer>
     </aside>
   );

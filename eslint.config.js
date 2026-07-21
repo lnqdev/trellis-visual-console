@@ -5,11 +5,11 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist", "node_modules"] },
+  { ignores: ["dist", "node_modules", "target"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ["src/server/**/*.ts", "src/shared/**/*.ts", "vite.config.ts"],
+    files: ["src/shared/**/*.ts", "vite.config.ts", "eslint.config.js"],
     languageOptions: {
       globals: globals.node,
     },

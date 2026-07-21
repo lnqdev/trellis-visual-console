@@ -170,7 +170,7 @@ pre {
   background: var(--accent-soft);
 }
 
-.connection-chip--reconnecting {
+.connection-chip--unavailable {
   color: #fcd34d;
   border-color: rgb(245 158 11 / 24%);
   background: var(--warning-soft);
@@ -1858,6 +1858,13 @@ pre {
 .diagnostic-list {
   display: grid;
   gap: 10px;
+}
+
+.panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 .unavailable-banner {

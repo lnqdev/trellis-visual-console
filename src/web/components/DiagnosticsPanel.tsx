@@ -1,17 +1,35 @@
-import { AlertCircle, AlertTriangle, RefreshCw } from "lucide-react";
+import { AlertCircle, AlertTriangle, FolderOpen, RefreshCw, Trash2 } from "lucide-react";
 import type { ProjectDetailResponse } from "../../shared/api";
 
 interface DiagnosticsPanelProps {
   detail: ProjectDetailResponse;
   busyAction: string | null;
   onRefresh: () => void;
+  onOpenLogs: () => void;
+  onClearApplicationData: () => void;
 }
 
 /** 展示项目索引警告、错误和不可用恢复入口。 */
-export function DiagnosticsPanel({ detail, busyAction, onRefresh }: DiagnosticsPanelProps) {
+export function DiagnosticsPanel({
+  detail,
+  busyAction,
+  onRefresh,
+  onOpenLogs,
+  onClearApplicationData,
+}: DiagnosticsPanelProps) {
   const diagnostics = detail.snapshot?.diagnostics ?? [];
   return (
     <section className="diagnostics-page">
+      <div className="panel-actions">
+        <button className="secondary-button" type="button" disabled={busyAction !== null} onClick={onOpenLogs}>
+          <FolderOpen size={15} aria-hidden="true" />
+          打开日志目录
+        </button>
+        <button className="secondary-button" type="button" disabled={busyAction !== null} onClick={onClearApplicationData}>
+          <Trash2 size={15} aria-hidden="true" />
+          清除本地数据并退出
+        </button>
+      </div>
       {detail.project.state === "unavailable" ? (
         <div className="unavailable-banner" role="alert">
           <AlertCircle size={22} aria-hidden="true" />

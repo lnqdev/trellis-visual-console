@@ -164,7 +164,7 @@ export function ProjectDiscovery({
         <div>
           <span className="eyebrow">PROJECT DISCOVERY</span>
           <h1 id="discovery-title">添加 Trellis 项目</h1>
-          <p>可直接输入本机绝对路径，也可使用目录选择按钮。服务只扫描或登记你明确确认的位置。</p>
+          <p>可直接输入本机绝对路径，也可使用目录选择按钮。客户端只扫描或登记你明确确认的位置。</p>
         </div>
         {canClose ? (
           <button className="icon-only-button" type="button" onClick={onClose} aria-label="关闭添加项目">
