@@ -276,7 +276,10 @@ fn create_corrupt_backup_path(file_path: &Path) -> PathBuf {
 }
 
 fn open_atomic_file(file_path: &Path) -> io::Result<AtomicWriteFile> {
+    #[cfg(unix)]
     let mut options = AtomicWriteFile::options();
+    #[cfg(not(unix))]
+    let options = AtomicWriteFile::options();
     #[cfg(unix)]
     {
         use std::os::unix::fs::OpenOptionsExt;

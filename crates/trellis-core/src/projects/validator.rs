@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use crate::storage::{SnapshotDiagnostic, SnapshotSeverity};
 
-use super::paths::create_stable_project_id;
+use super::paths::{create_stable_project_id, strip_verbatim_prefix_path};
 
 struct RequiredTrellisEntry {
     name: &'static str,
@@ -158,8 +158,10 @@ impl ProjectValidator {
             valid: true,
             project: Some(ValidatedTrellisProject {
                 id,
-                project_root,
-                trellis_root,
+                // canonicalize 在 Windows 上会加 `\\?\` 前缀，剥离后保证传给下游（indexer、registry、
+                // 快照、前端显示）的路径与用户原始输入形式一致。剥离对 macOS/Linux 是空操作。
+                project_root: strip_verbatim_prefix_path(&project_root),
+                trellis_root: strip_verbatim_prefix_path(&trellis_root),
                 label,
             }),
             diagnostics,

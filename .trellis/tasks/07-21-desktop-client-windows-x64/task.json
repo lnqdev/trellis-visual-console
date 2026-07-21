@@ -3,7 +3,7 @@
   "name": "desktop-client-windows-x64",
   "title": "桌面客户端 Windows x64 原生交付",
   "description": "在 Windows x64 实体机完成 Trellis Visual Console 原生构建、NSIS 安装器与平台验收，承接 07-20-desktop-client 中后置的 Windows 交付范围。",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": null,
   "scope": null,
   "package": null,
