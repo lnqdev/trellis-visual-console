@@ -520,6 +520,47 @@ git add .trellis/tasks/07-22-cross-platform-hosted-release
 git commit -m "docs: 记录跨平台托管发布验收"
 ```
 
+### 2026-07-23 真实发布演练暂停记录
+
+当前任务保持 `in_progress`，计划于 2026-07-24 在 macOS 上取得本地签名材料后恢复。恢复时先执行本节检查，不重新准备版本、不重新创建标签，也不提前批准 `release-production`。
+
+#### 已完成状态
+
+- Gitee 与 GitHub 的 `main` 均指向 `0669e173ebae973ff63f68074d49cf1bdf7392d3`，该提交为 `chore(release): 升级到 v0.2.0-beta.5`。
+- Gitee 与 GitHub 的 `v0.2.0-beta.5` 标签均指向上述提交。
+- `v0.2.0-beta.5` 的普通质量检查已通过：<https://github.com/lnqdev/trellis-visual-console/actions/runs/29937948431>。
+- 首次跨平台发布运行：<https://github.com/lnqdev/trellis-visual-console/actions/runs/29938255644>。
+- 标签预检已通过。macOS x64 已完成 Rust/Tauri 编译、APP、DMG 和 updater 压缩包生成，最终在 Tauri updater 签名阶段失败；macOS arm64 因矩阵 `fail-fast` 被取消，Windows x64 的结果不能作为三平台验收依据；汇总上传与人工公开门禁均未执行。
+- 公开 `releases/latest.json` 仍为 `0.2.0-beta.4`，因此客户端不会发现本次失败的候选版本。
+
+#### 当前失败与 Secret 状态
+
+macOS x64 的直接错误为：
+
+```text
+failed to decode secret key:
+failed to decode base64 secret key:
+failed to convert base64 to utf8:
+invalid utf-8 sequence of 1 bytes from index 0
+```
+
+该错误直接证明 GitHub Repository Secret `TAURI_SIGNING_PRIVATE_KEY` 不是 Tauri 当前公钥所对应私钥文件的完整文本内容，或在录入时经过了错误的二次编码/文件类型转换。当前日志尚未完成私钥解密，也未进入 Gitee 上传阶段，因此不能据此断言另外两个 Secret 一定错误；`TAURI_SIGNING_PRIVATE_KEY_PASSWORD` 和 `GITEE_RELEASE_TOKEN` 均标记为“尚未被本次真实流程验证”，恢复时必须一起核对。
+
+不得把任一 Secret 的值写入仓库、任务文档、Actions 日志或聊天。
+
+#### 2026-07-24 macOS 恢复检查清单
+
+- [ ] 确认私钥文件 `/Users/wanglinqiao/.config/trellis-visual-console/updater-signing.key` 存在、权限保持 `600`，并确认同目录 `updater-signing.key.pub` 与 `src-tauri/tauri.conf.json` 中的 updater 公钥属于同一密钥对。
+- [ ] 在 macOS 本地使用该私钥和钥匙串密码执行不泄露内容的签名/解密验证，确认密码确实匹配私钥；钥匙串 service 为 `com.wanglinqiao.trellis-visual-console.updater-signing`，account 为 `wanglinqiao`。
+- [ ] 更新 GitHub Repository Secret `TAURI_SIGNING_PRIVATE_KEY`：值必须是上述私钥文件的完整原始文本，保留全部行和换行；不能填写文件路径、公钥内容、二进制内容，也不能再次手工 Base64 编码。
+- [ ] 更新或重新确认 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`：值必须是上述私钥对应密码，不能包含误复制的首尾空格或换行。
+- [ ] 独立验证 `GITEE_RELEASE_TOKEN` 仍有效并具有当前仓库 Release/Contents API 所需权限，再更新或重新确认同名 GitHub Repository Secret；验证过程不能把 token 放进 URL 或终端回显。
+- [ ] 确认 GitHub `release-production` Environment 仍配置必需审核者，三个 Secret 名称拼写与 `.github/workflows/release.yml` 完全一致。
+- [ ] 在失败运行页面选择 `Re-run jobs` -> `Re-run all jobs`，必须重跑全部任务以补齐已取消的 macOS arm64；复用现有 `v0.2.0-beta.5` 标签，禁止移动、删除或重建标签。
+- [ ] 等待 macOS arm64、macOS x64、Windows x64、汇总上传全部成功；若仍失败，先记录具体 job 和步骤，不批准公开门禁。
+- [ ] 工作流进入 `release-production` 待批准后，先匿名确认公开 `latest.json` 仍为 `0.2.0-beta.4`，并核对 Gitee 候选附件与三平台候选清单齐全，再进行人工批准。
+- [ ] 批准后确认公开清单升级为 `0.2.0-beta.5`，再继续执行 macOS arm64、macOS x64、Windows x64 的真实客户端升级矩阵。
+
 ## 回滚点
 
 - 公共模块改造导致本地脚本回归：回退任务 1 提交，不影响现有客户端和公开清单。
