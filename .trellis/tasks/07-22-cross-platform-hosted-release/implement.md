@@ -118,7 +118,7 @@ git commit -m "refactor: 提取桌面发布公共合同"
 - 新建：`releases/notes/README.md`
 - 修改：`package.json`
 
-- [ ] **步骤 1：实现只准备版本的 CLI**
+- [x] **步骤 1：实现只准备版本的 CLI**
 
 `scripts/prepare-release.mjs` 接收一个 SemVer 和一条或多条中文说明：
 
@@ -128,7 +128,7 @@ node scripts/prepare-release.mjs <版本> <中文说明...>
 
 处理顺序固定为：先解析 SemVer 并校验中文说明，再确认当前分支为干净且同步的 `main`、确认目标版本高于当前版本、调用 `writeVersionFiles`、写入 `releases/notes/v<版本>.md`、运行 `cargo check -p trellis-core` 更新 `Cargo.lock`、运行 `pnpm check:version`。脚本不得提交、创建标签、推送或执行平台构建。
 
-- [ ] **步骤 2：增加稳定脚本入口**
+- [x] **步骤 2：增加稳定脚本入口**
 
 在 `package.json` 增加：
 
@@ -139,11 +139,11 @@ node scripts/prepare-release.mjs <版本> <中文说明...>
 }
 ```
 
-- [ ] **步骤 3：记录说明文件合同**
+- [x] **步骤 3：记录说明文件合同**
 
 `releases/notes/README.md` 明确文件必须命名为 `v<SemVer>.md`、必须包含中文、必须与三个版本来源同一提交，Gitee Release 和 `latest.json.notes` 不接受 CI 临时覆盖。
 
-- [ ] **步骤 4：用临时副本验证失败路径**
+- [x] **步骤 4：用临时副本验证失败路径**
 
 不要在当前版本文件上运行成功准备流程。先运行无效输入：
 
@@ -153,7 +153,7 @@ pnpm release:prepare -- invalid-version "中文说明"
 
 预期：在任何文件变化前失败并提示版本号不是合法 SemVer。随后运行 `git status --short`，确认只有本任务计划内文件变化。
 
-- [ ] **步骤 5：提交版本准备命令**
+- [x] **步骤 5：提交版本准备命令**
 
 ```powershell
 git add package.json scripts/prepare-release.mjs releases/notes/README.md
