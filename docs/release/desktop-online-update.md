@@ -19,7 +19,7 @@ git remote set-url --add --push release https://github.com/lnqdev/trellis-visual
 git remote get-url --all --push release
 ```
 
-此时把日常命令中的 `git push origin main --follow-tags` 替换为 `git push release main --follow-tags`，一次命令同时推送 Gitee 和 GitHub；任一远端失败都按发布失败处理并修复同步状态。GitHub 仓库必须保持公开，并只使用标准 `ubuntu-24.04`、`macos-14`、`windows-2022` Runner，不使用 Larger Runner 或长期自托管机器。构建中转 Artifact 仅保留 1 天，客户端最终只从 Gitee Release 下载。
+日常发布先推送 `main`，再显式推送轻量版本标签；两条命令都会同时发送到 Gitee 和 GitHub：`git push release main`、`git push release v<版本>`。任一远端失败都按发布失败处理并修复同步状态。GitHub 仓库必须保持公开，并只使用标准 `ubuntu-24.04`、`macos-14`、`windows-2022` Runner，不使用 Larger Runner 或长期自托管机器。构建中转 Artifact 仅保留 1 天，客户端最终只从 Gitee Release 下载。
 
 在 GitHub Repository Secrets 中配置以下名称，值不得写入仓库、日志或 Artifact：
 
@@ -38,7 +38,8 @@ pnpm release:prepare -- 0.2.0-beta.5 "修复在线更新返回格式"
 git add package.json Cargo.toml Cargo.lock src-tauri/tauri.conf.json releases/notes/v0.2.0-beta.5.md
 git commit -m "chore(release): 升级到 v0.2.0-beta.5"
 git tag v0.2.0-beta.5
-git push origin main --follow-tags
+git push release main
+git push release v0.2.0-beta.5
 ```
 
 工作流会校验 GitHub 与 Gitee 提交一致、三平台签名和 SHA-256、Gitee 附件匿名下载，再由 `release-production` 门禁提交公开清单。重跑同一标签只允许复用哈希完全一致的附件。

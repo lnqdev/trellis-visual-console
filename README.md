@@ -135,7 +135,8 @@ pnpm release:prepare -- 0.2.0-beta.5 "修复在线更新返回格式"
 git add package.json Cargo.toml Cargo.lock src-tauri/tauri.conf.json releases/notes/v0.2.0-beta.5.md
 git commit -m "chore(release): 升级到 v0.2.0-beta.5"
 git tag v0.2.0-beta.5
-git push origin main --follow-tags
+git push release main
+git push release v0.2.0-beta.5
 ```
 
 标签同步到 GitHub 后，Actions 在标准 macOS/Windows Runner 上并行构建三个目标，上传 Gitee Release 并匿名校验；候选 `latest.json` 进入 `release-production` Environment，发布者批准一次后才会公开。现有 macOS 三阶段脚本只作为 CI 故障恢复工具，不自动提交或推送清单。

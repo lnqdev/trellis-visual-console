@@ -406,7 +406,8 @@ pnpm release:prepare -- 0.2.0-beta.5 "中文更新说明"
 git add package.json Cargo.toml Cargo.lock src-tauri/tauri.conf.json releases/notes/v0.2.0-beta.5.md
 git commit -m "chore(release): 升级到 v0.2.0-beta.5"
 git tag v0.2.0-beta.5
-git push origin main --follow-tags
+git push release main
+git push release v0.2.0-beta.5
 ```
 
 随后说明 GitHub 自动构建、候选 Gitee Release、匿名校验和 `release-production` 一次人工批准。删除“日常发布需要分别登录 macOS/Windows 构建机”的表述。
