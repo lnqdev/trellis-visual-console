@@ -66,7 +66,7 @@ async function prepareRelease(args) {
   await writeVersionFiles(REPOSITORY_ROOT, version);
   await writeFile(notesPath, `${notes}\n`, { encoding: "utf8", flag: "wx" });
   run("cargo", ["check", "-p", "trellis-core"]);
-  run("pnpm", ["check:version"]);
+  run(process.execPath, [join(REPOSITORY_ROOT, "scripts", "check-version-consistency.mjs")]);
 
   console.log("\n版本准备完成。请审查版本文件、Cargo.lock 与更新说明后提交并创建同版本标签：");
   console.log(`  ${notesPath}`);
