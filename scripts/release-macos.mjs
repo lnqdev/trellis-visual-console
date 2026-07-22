@@ -1,6 +1,4 @@
-import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { openAsBlob } from "node:fs";
 import {
   copyFile,
   mkdtemp,
@@ -12,10 +10,8 @@ import {
 } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import {
-  REPOSITORY_NAME,
   REPOSITORY_OWNER,
   assert,
   calculateFileSha256,
@@ -26,9 +22,15 @@ import {
   readReleaseMetadata,
   writeVersionFiles,
 } from "./release-common.mjs";
+import {
+  createCandidateManifest,
+  ensureGiteeRelease,
+  uploadReleaseArtifacts,
+  verifyAnonymousArtifact,
+  verifyManifestArtifacts,
+} from "./release-gitee.mjs";
+import { PLATFORM_SETS } from "./validate-update-manifest.mjs";
 
-const GITEE_API_BASE_URL = "https://gitee.com/api/v5";
-const GITEE_RELEASE_BASE_URL = `https://gitee.com/${REPOSITORY_OWNER}/${REPOSITORY_NAME}/releases/download`;
 const GITEE_TOKEN_SERVICE = "com.wanglinqiao.trellis-visual-console.gitee-release";
 const SIGNING_PASSWORD_SERVICE = "com.wanglinqiao.trellis-visual-console.updater-signing";
 const SCRIPT_DIRECTORY = fileURLToPath(new URL(".", import.meta.url));
@@ -322,136 +324,6 @@ async function assertVersionCommittedAndPushed(version) {
   run("pnpm", ["check:version"]);
 }
 
-/** 调用 Gitee JSON API，并隐藏请求体中的令牌。 */
-async function requestGiteeJson(path, options = {}) {
-  const response = await fetch(`${GITEE_API_BASE_URL}${path}`, {
-    method: options.method ?? "GET",
-    body: options.body,
-    signal: AbortSignal.timeout(options.timeoutMs ?? 60_000),
-  });
-  if (response.status === 404 && options.allowNotFound === true) {
-    return null;
-  }
-  const responseText = await response.text();
-  assert(response.ok, `Gitee API 请求失败：HTTP ${response.status} ${responseText.slice(0, 300)}`);
-  return responseText === "" ? null : JSON.parse(responseText);
-}
-
-/** 创建或复用目标版本的 Gitee Release。 */
-async function ensureGiteeRelease(metadata, token) {
-  const tag = `v${metadata.version}`;
-  const head = runCapture("git", ["rev-parse", "HEAD"]);
-  const encodedTag = encodeURIComponent(tag);
-  let release = await requestGiteeJson(
-    `/repos/${REPOSITORY_OWNER}/${REPOSITORY_NAME}/releases/tags/${encodedTag}`,
-    { allowNotFound: true },
-  );
-  const fields = new URLSearchParams({
-    access_token: token,
-    tag_name: tag,
-    name: `Trellis Visual Console ${tag}`,
-    body: metadata.notes,
-    prerelease: String(metadata.version.includes("-")),
-  });
-  if (release === null) {
-    fields.set("target_commitish", head);
-    release = await requestGiteeJson(
-      `/repos/${REPOSITORY_OWNER}/${REPOSITORY_NAME}/releases`,
-      { method: "POST", body: fields },
-    );
-    console.log(`已创建 Gitee Release：${tag}`);
-  } else {
-    assert(
-      release.target_commitish === head,
-      `已有 ${tag} Release 未指向当前 main 提交，已拒绝复用`,
-    );
-    release = await requestGiteeJson(
-      `/repos/${REPOSITORY_OWNER}/${REPOSITORY_NAME}/releases/${release.id}`,
-      { method: "PATCH", body: fields },
-    );
-    console.log(`已复用 Gitee Release：${tag}`);
-  }
-  return release;
-}
-
-/** 匿名下载远端附件并校验文件大小与 SHA-256。 */
-async function verifyAnonymousArtifact(url, expected) {
-  const response = await fetch(url, { redirect: "follow", signal: AbortSignal.timeout(300_000) });
-  assert(response.ok && response.body !== null, `附件无法匿名下载：${expected.name}`);
-  const hash = createHash("sha256");
-  let size = 0;
-  for await (const chunk of Readable.fromWeb(response.body)) {
-    hash.update(chunk);
-    size += chunk.length;
-  }
-  assert(size === expected.size, `附件大小不一致：${expected.name}`);
-  assert(hash.digest("hex") === expected.sha256, `附件 SHA-256 不一致：${expected.name}`);
-}
-
-/** 上传缺失附件；已存在且哈希一致时安全跳过。 */
-async function uploadReleaseArtifacts(releaseDirectory, release, metadata, token) {
-  const attachmentsPath = `/repos/${REPOSITORY_OWNER}/${REPOSITORY_NAME}/releases/${release.id}/attach_files`;
-  let attachments = await requestGiteeJson(`${attachmentsPath}?per_page=100`);
-  for (const artifact of metadata.artifacts) {
-    const existing = attachments.find((attachment) => attachment.name === artifact.name);
-    if (existing !== undefined) {
-      await verifyAnonymousArtifact(existing.browser_download_url, artifact);
-      console.log(`附件已存在且校验通过，跳过：${artifact.name}`);
-      continue;
-    }
-    const form = new FormData();
-    form.set("access_token", token);
-    form.set("file", await openAsBlob(join(releaseDirectory, artifact.name)), artifact.name);
-    await requestGiteeJson(attachmentsPath, {
-      method: "POST",
-      body: form,
-      timeoutMs: 600_000,
-    });
-    console.log(`已上传：${artifact.name}`);
-    attachments = await requestGiteeJson(`${attachmentsPath}?per_page=100`);
-  }
-  return attachments;
-}
-
-/** 生成只含当前 macOS 双架构的 Tauri 候选更新清单。 */
-async function createMacosManifest(releaseDirectory, metadata, release, attachments) {
-  const platforms = {};
-  for (const platform of PLATFORM_ARTIFACTS) {
-    const files = metadata.platforms[platform.platform];
-    const updater = attachments.find((attachment) => attachment.name === files.updater);
-    assert(updater !== undefined, `Gitee Release 缺少更新包：${files.updater}`);
-    const signature = (await readFile(join(releaseDirectory, files.signature), "utf8")).trim();
-    platforms[platform.platform] = {
-      signature,
-      url: updater.browser_download_url
-        ?? `${GITEE_RELEASE_BASE_URL}/v${metadata.version}/${encodeURIComponent(files.updater)}`,
-    };
-  }
-  const manifest = {
-    version: metadata.version,
-    notes: metadata.notes,
-    pub_date: new Date(release.created_at ?? Date.now()).toISOString(),
-    platforms,
-  };
-  const manifestPath = join(releaseDirectory, "latest.json");
-  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
-  run("node", ["scripts/validate-update-manifest.mjs", manifestPath, "--platforms", "macos"]);
-  return manifestPath;
-}
-
-/** 在公开清单前重新匿名校验清单实际引用的两个更新包。 */
-async function verifyManifestUpdaterArtifacts(manifest, metadata) {
-  for (const platform of PLATFORM_ARTIFACTS) {
-    const files = metadata.platforms[platform.platform];
-    const expected = metadata.artifacts.find((artifact) => artifact.name === files.updater);
-    assert(expected !== undefined, `发布元数据缺少更新包：${files.updater}`);
-    const manifestArtifact = manifest.platforms[platform.platform];
-    assert(manifestArtifact !== undefined, `候选清单缺少平台：${platform.platform}`);
-    await verifyAnonymousArtifact(manifestArtifact.url, expected);
-    console.log(`公开前匿名校验通过：${files.updater}`);
-  }
-}
-
 /** 上传产物、执行匿名校验并生成候选清单。 */
 async function uploadRelease(args) {
   assert(args.length === 1, "用法：pnpm release:mac:upload -- <发布目录>");
@@ -462,7 +334,11 @@ async function uploadRelease(args) {
   );
   await assertVersionCommittedAndPushed(metadata.version);
   const token = readKeychainSecret(GITEE_TOKEN_SERVICE);
-  const release = await ensureGiteeRelease(metadata, token);
+  const release = await ensureGiteeRelease(
+    metadata,
+    token,
+    runCapture("git", ["rev-parse", "HEAD"]),
+  );
   const attachments = await uploadReleaseArtifacts(
     releaseDirectory,
     release,
@@ -475,11 +351,12 @@ async function uploadRelease(args) {
     await verifyAnonymousArtifact(attachment.browser_download_url, artifact);
     console.log(`匿名校验通过：${artifact.name}`);
   }
-  const manifestPath = await createMacosManifest(
+  const manifestPath = await createCandidateManifest(
     releaseDirectory,
     metadata,
-    release,
     attachments,
+    PLATFORM_SETS.macos,
+    release.created_at,
   );
   console.log(`\n候选更新清单已生成：${manifestPath}`);
   console.log("确认 Release 页面和候选清单后，执行：");
@@ -506,7 +383,7 @@ async function publishManifest(args) {
   }
   assert(candidate.version === metadata.version, "候选清单与发布元数据版本不一致");
   run("node", ["scripts/validate-update-manifest.mjs", candidatePath, "--platforms", "macos"]);
-  await verifyManifestUpdaterArtifacts(candidate, metadata);
+  await verifyManifestArtifacts(candidate, metadata, PLATFORM_SETS.macos);
   const publicManifestPath = join(REPOSITORY_ROOT, "releases", "latest.json");
   const currentManifest = await readFile(publicManifestPath, "utf8")
     .then((content) => JSON.parse(content))

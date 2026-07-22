@@ -234,7 +234,7 @@ git commit -m "feat: 增加三平台发布产物汇总"
 - 修改：`scripts/release-ci.mjs`
 - 修改：`scripts/release-macos.mjs`
 
-- [ ] **步骤 1：提取 Gitee API 能力**
+- [x] **步骤 1：提取 Gitee API 能力**
 
 `scripts/release-gitee.mjs` 导出：
 
@@ -249,7 +249,7 @@ export async function publishManifestWithContentsApi(candidate, token) {}
 
 所有 token 只进入请求体或认证配置，不进入 URL、异常文本和日志。远端同名附件只允许同大小、同 SHA-256 复用；异内容必须失败。
 
-- [ ] **步骤 2：实现三平台候选清单**
+- [x] **步骤 2：实现三平台候选清单**
 
 `createCandidateManifest` 必须生成：
 
@@ -268,7 +268,7 @@ export async function publishManifestWithContentsApi(candidate, token) {}
 
 生成后直接调用导出的 `validateManifest(manifest, PLATFORM_SETS.all)`，不得写出缺平台候选文件。
 
-- [ ] **步骤 3：实现公开清单 Contents API 更新**
+- [x] **步骤 3：实现公开清单 Contents API 更新**
 
 `publishManifestWithContentsApi` 先读取 Gitee `main` 的当前 `releases/latest.json` 与文件 SHA，确认候选版本更高，再重新匿名校验候选引用的三个更新包，最后通过 Gitee Contents API 只提交该文件。提交消息固定为：
 
@@ -278,7 +278,7 @@ chore(release): 发布 v<版本> 三平台更新清单
 
 API 返回主线已变化、SHA 冲突或版本未递增时失败，不重试强制覆盖。
 
-- [ ] **步骤 4：补齐 CI 命令并保持本地脚本兼容**
+- [x] **步骤 4：补齐 CI 命令并保持本地脚本兼容**
 
 新增：
 
@@ -289,7 +289,7 @@ release-ci.mjs publish-manifest --directory <候选目录>
 
 token 仅从 `GITEE_RELEASE_TOKEN` 环境变量读取。`release-macos.mjs` 改为复用 `release-gitee.mjs`，本地仍从钥匙串读取 token 并传入函数。
 
-- [ ] **步骤 5：使用无 token fixture 验证前置失败**
+- [x] **步骤 5：使用无 token fixture 验证前置失败**
 
 运行：
 
@@ -300,7 +300,7 @@ node scripts/release-ci.mjs upload --directory "$env:TEMP\trellis-release-fixtur
 
 预期：在发出网络请求前失败并提示缺少 `GITEE_RELEASE_TOKEN`，日志不包含任何 Secret。
 
-- [ ] **步骤 6：提交 Gitee 发布模块**
+- [x] **步骤 6：提交 Gitee 发布模块**
 
 ```powershell
 git add scripts/release-gitee.mjs scripts/release-ci.mjs scripts/release-macos.mjs

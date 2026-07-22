@@ -4,16 +4,27 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   CHINESE_PATTERN,
+  PLATFORM_KEYS,
   REPOSITORY_NAME,
   REPOSITORY_OWNER,
   assert,
   parseSemver,
   readCurrentVersion,
+  readReleaseMetadata,
 } from "./release-common.mjs";
 import {
   aggregatePlatformMetadata,
   stagePlatformArtifacts,
 } from "./release-artifacts.mjs";
+import {
+  createCandidateManifest,
+  ensureGiteeRelease,
+  publishManifestWithContentsApi,
+  uploadReleaseArtifacts,
+  verifyAnonymousArtifact,
+  verifyManifestArtifacts,
+} from "./release-gitee.mjs";
+import { PLATFORM_SETS, validateManifest } from "./validate-update-manifest.mjs";
 
 const SCRIPT_DIRECTORY = fileURLToPath(new URL(".", import.meta.url));
 const REPOSITORY_ROOT = resolve(SCRIPT_DIRECTORY, "..");
@@ -94,6 +105,48 @@ async function validateTag(options) {
   await writeOutputs({ version, commit: sha, notes_path: `releases/notes/${tag}.md` });
 }
 
+/** 读取 CI Secret，禁止回退为参数或文件。 */
+function readGiteeToken() {
+  const token = process.env.GITEE_RELEASE_TOKEN;
+  assert(typeof token === "string" && token !== "", "缺少 GITEE_RELEASE_TOKEN");
+  return token;
+}
+
+/** 上传三平台候选附件、匿名复验并生成候选清单。 */
+async function uploadCandidate(options) {
+  const token = readGiteeToken();
+  const directory = resolve(requiredOption(options, "directory"));
+  const metadata = await readReleaseMetadata(directory, PLATFORM_KEYS);
+  const release = await ensureGiteeRelease(metadata, token);
+  const attachments = await uploadReleaseArtifacts(directory, release, metadata, token);
+  for (const artifact of metadata.artifacts) {
+    const attachment = attachments.find((candidate) => candidate.name === artifact.name);
+    assert(attachment !== undefined, `Gitee Release 缺少附件：${artifact.name}`);
+    await verifyAnonymousArtifact(attachment.browser_download_url, artifact);
+    console.log(`匿名校验通过：${artifact.name}`);
+  }
+  const manifestPath = await createCandidateManifest(
+    directory,
+    metadata,
+    attachments,
+    PLATFORM_SETS.all,
+    release.created_at,
+  );
+  console.log(`候选更新清单已生成：${manifestPath}`);
+}
+
+/** 人工门禁后重新校验候选清单并提交 Gitee main。 */
+async function publishManifest(options) {
+  const token = readGiteeToken();
+  const directory = resolve(requiredOption(options, "directory"));
+  const metadata = await readReleaseMetadata(directory, PLATFORM_KEYS);
+  const candidate = JSON.parse(await readFile(resolve(directory, "latest.json"), "utf8"));
+  validateManifest(candidate, PLATFORM_SETS.all);
+  assert(candidate.version === metadata.version, "候选清单与发布元数据版本不一致");
+  await verifyManifestArtifacts(candidate, metadata, PLATFORM_SETS.all);
+  await publishManifestWithContentsApi(candidate, token);
+}
+
 /** 展示稳定 CI 发布命令。 */
 function printHelp() {
   console.log(`跨平台托管发布脚本
@@ -105,7 +158,13 @@ function printHelp() {
   pnpm release:ci -- stage-platform --platform <平台键> --version <版本> --sha <提交> --source-root <产物根目录> --output <目录>
 
 三平台汇总：
-  pnpm release:ci -- aggregate --input <Artifact根目录> --output <候选目录>`);
+  pnpm release:ci -- aggregate --input <Artifact根目录> --output <候选目录>
+
+上传候选版本：
+  pnpm release:ci -- upload --directory <候选目录>
+
+公开更新清单：
+  pnpm release:ci -- publish-manifest --directory <候选目录>`);
 }
 
 /** 分派托管发布阶段。 */
@@ -136,6 +195,14 @@ async function main() {
       resolve(requiredOption(options, "input")),
       resolve(requiredOption(options, "output")),
     );
+    return;
+  }
+  if (command === "upload") {
+    await uploadCandidate(options);
+    return;
+  }
+  if (command === "publish-manifest") {
+    await publishManifest(options);
     return;
   }
   throw new Error(`未知发布阶段：${command}`);
