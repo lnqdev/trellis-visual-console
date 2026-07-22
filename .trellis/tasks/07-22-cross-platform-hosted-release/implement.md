@@ -167,7 +167,7 @@ git commit -m "feat: 增加托管发布版本准备命令"
 - 新建：`scripts/release-artifacts.mjs`
 - 新建：`scripts/release-ci.mjs`
 
-- [ ] **步骤 1：定义单平台元数据合同**
+- [x] **步骤 1：定义单平台元数据合同**
 
 `stage-platform` 生成 `platform-metadata.json`：
 
@@ -191,7 +191,7 @@ git commit -m "feat: 增加托管发布版本准备命令"
 
 macOS 的 `installer` 为带架构后缀的 DMG，`updater` 为 `.app.tar.gz`；Windows 的 installer/updater 指向同一个 NSIS `setup.exe`，汇总时按文件名去重。
 
-- [ ] **步骤 2：实现确定性产物发现与归档**
+- [x] **步骤 2：实现确定性产物发现与归档**
 
 在 `release-artifacts.mjs` 中提供：
 
@@ -203,7 +203,7 @@ export async function aggregatePlatformMetadata(inputRoot, outputRoot) {}
 
 每个平台只允许恰好一个符合当前版本的原始安装包、更新包和签名。发现旧版本、多候选、缺签名或空签名时失败；禁止按修改时间猜测最新文件。
 
-- [ ] **步骤 3：实现 CI 命令分派**
+- [x] **步骤 3：实现 CI 命令分派**
 
 `scripts/release-ci.mjs` 首批支持：
 
@@ -215,11 +215,11 @@ release-ci.mjs aggregate --input <Artifact根目录> --output <候选目录>
 
 未知命令、未知平台和缺参数必须打印中文用法并返回非零退出码。
 
-- [ ] **步骤 4：用临时 fixture 验证三平台汇总**
+- [x] **步骤 4：用临时 fixture 验证三平台汇总**
 
 在 `$env:TEMP` 创建三个最小非空假产物及 `.sig`，通过 `--source-root` 指向各自 fixture 目录，分别运行 `stage-platform` 和 `aggregate`。预期生成 schema 2 汇总元数据、去重的 `SHA256SUMS.txt`，且平台键恰好为三个目标。删除 Windows `.sig` 后重跑，预期在汇总前失败。生产工作流的 `--source-root` 固定指向对应 Tauri target 的 `release/bundle`，不得扫描其他目录。
 
-- [ ] **步骤 5：提交平台归档能力**
+- [x] **步骤 5：提交平台归档能力**
 
 ```powershell
 git add scripts/release-artifacts.mjs scripts/release-ci.mjs
