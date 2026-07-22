@@ -3,6 +3,7 @@
 ## 通信
 
 - 所有业务查询和系统操作通过 `src/web/api-client.ts` 的 Tauri Command。
+- 在线更新同样只通过集中客户端调用 Rust Command；组件和 Hook 不直接访问 updater 插件或任意网络。
 - 实时入口固定为 `listen("trellis://project-realtime")`。
 - 非 Tauri 页面显示稳定桌面运行时错误，不回退 HTTP。
 - Tauri 订阅失败显示“实时通道不可用”，浏览快照仍可继续。
@@ -33,6 +34,7 @@
 ## 诊断与系统操作
 
 - 诊断页提供打开日志目录和清除本地数据并退出。
+- 诊断页展示应用版本、免费内测标识、更新状态和手动检查入口；自动检查只提示，不自动下载。
 - 清理前明确说明只删除项目列表、快照和日志，不删除 Trellis 项目，并要求确认。
 - 取消确认不得发送清理 Command；确认只发送 `{ confirmed: true }`。
 - 前端不获得任意 opener 或文件系统 capability。

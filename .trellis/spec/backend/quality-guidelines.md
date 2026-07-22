@@ -7,7 +7,7 @@
 - Core 与 Tauri adapter 保持单向依赖，不复制领域规则。
 - 外部 YAML/JSON/JSONL/IPC 只在边界解析一次，消费者使用类型化结果。
 - 源项目只读，所有应用写入限定在应用数据目录。
-- 不引入第二套生产后端、本地 HTTP、遥测、自动更新或 Node sidecar。
+- 不引入第二套生产后端、本地 HTTP、遥测、前端直连更新器或 Node sidecar；在线更新只按 `desktop-updater-contract.md` 位于 Tauri adapter。
 
 ## 验证门禁
 

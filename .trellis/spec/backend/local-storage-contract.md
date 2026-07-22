@@ -2,7 +2,7 @@
 
 ## 范围
 
-修改应用数据目录、`registry.json`、`snapshots.json`、版本、迁移、原子写或清理时必须遵守本合同。源项目 `.trellis` 不是应用存储。
+修改应用数据目录、`registry.json`、`snapshots.json`、`updater-state.json`、版本、迁移、原子写或清理时必须遵守本合同。源项目 `.trellis` 不是应用存储。
 
 ## 当前合同
 
@@ -12,6 +12,7 @@
 - `TRELLIS_VISUAL_CONSOLE_DATA_DIR` 仅用于开发和隔离验证；相对值先解析为绝对路径。
 - 注册表与快照的完整读改写由一个互斥锁串行保护。
 - 保存使用 UTF-8、同目录临时文件、文件同步和原子替换。
+- adapter 独立维护 `updater-state.json` 版本 1，只保存上次自动检查时间；损坏内容隔离，更高版本拒绝覆盖，不进入 `trellis-core` 存储锁。
 - 未来版本必须停止初始化并保留原字节，禁止当作损坏恢复。
 - v2 损坏数据隔离为 `.corrupt-*`；恢复行为不得影响版本不兼容文件。
 

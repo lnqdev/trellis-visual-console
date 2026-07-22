@@ -15,3 +15,4 @@
 - `src/shared/project-events.ts` 定义事件字段、枚举和守卫。
 - Rust Serde DTO 字段、null/可选语义和 ISO UTC 时间必须与共享合同一致。
 - 禁止 `any`、无依据断言或绕过 Schema 直接使用 IPC 数据。
+- Tauri Channel 消息与 Command 返回值具有同等信任边界；每条消息先按 `unknown` 解析，任一非法消息必须使当前操作失败，不能忽略后继续报告成功。

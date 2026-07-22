@@ -6,6 +6,7 @@
 | --- | --- |
 | [目录结构](./directory-structure.md) | Rust Core 与 Tauri adapter 边界 |
 | [桌面运行合同](./desktop-runtime-contract.md) | 启动、单实例、系统集成与退出 |
+| [桌面在线更新合同](./desktop-updater-contract.md) | Updater Command、签名、状态存储、发布与升级验收 |
 | [本机存储合同](./local-storage-contract.md) | 版本 2、迁移、原子写与清理 |
 | [项目发现合同](./project-discovery-contract.md) | 扫描、索引、正文与路径安全 |
 | [实时更新合同](./project-realtime-contract.md) | watcher、轮询、队列与事件 |

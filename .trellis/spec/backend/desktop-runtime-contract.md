@@ -17,6 +17,7 @@
 - `clear_application_data_and_exit` 只在 `confirmed=true` 时执行，先关闭 Core，再删除固定应用数据目录并退出。
 - Windows 卸载器默认保留应用数据，用户明确选择后才删除 `%APPDATA%\Trellis Visual Console`。
 - 生产运行不得启动 Node、HTTP 端口、浏览器、sidecar、托盘或第二窗口。
+- 在线更新是唯一受控联网例外：只允许 Rust updater 访问配置的 HTTPS 清单和清单选中的 HTTPS 更新包；前端不获得网络或 updater capability。
 
 ## 验证
 

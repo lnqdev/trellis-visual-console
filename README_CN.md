@@ -57,12 +57,22 @@ CI=true pnpm build:mac:x64
 
 `pnpm build` 可构建当前平台默认安装包；`pnpm build:web` 只构建前端资源，不生成桌面安装包。
 
+## 在线更新
+
+`0.1.0` 用户需要从 Gitee Release 手工安装一次 `0.2.0-beta.1`。之后客户端每天最多自动检查一次公开 Gitee HTTPS 清单，不会静默下载；诊断页可随时手动检查。发现更新后先展示中文说明，用户确认后才下载并验证 Tauri 签名。
+
+macOS 安装完成后可立即或稍后重启；稍后重启不会重新下载更新包。Windows 确认安装后会退出应用并交由 NSIS 安装器完成替换。内测包未接入 Apple Developer ID、公证或 Windows 商业代码签名，系统仍可能显示 Gatekeeper 或 SmartScreen 提示。
+
+发布必须同时包含 macOS arm64、macOS x64、Windows x64 的同版本产物和签名，详情见[在线更新发布指南](docs/release/desktop-online-update.md)。
+
 ## 质量检查
 
 ```bash
 pnpm lint
 pnpm typecheck
 pnpm build:web
+pnpm check:version
+pnpm check:update-manifest -- releases/latest.example.json
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo check --workspace --all-targets --all-features

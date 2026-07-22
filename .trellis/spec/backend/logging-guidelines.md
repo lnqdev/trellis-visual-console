@@ -7,6 +7,7 @@
 - 日志 API 只接受生命周期枚举、稳定项目 ID、事件类型、监听模式、计数和错误类型。
 - 正常生命周期使用 `info`，非致命降级使用 `warn`，初始化或关闭失败使用 `error`。
 - `desktop-starting`、`desktop-ready` 和 `desktop-page-loaded` 使用同一进程时钟，可用于计算 Core 初始化和 WebView 页面加载耗时。
+- 在线更新只记录检查、发现版本、安装、关闭与重启阶段，以及 `manifest | platform | transport | network | signature | plugin` 等稳定错误类型；不记录版本下载 URL、签名、公钥、私钥或插件错误原文。
 
 ## 禁止记录
 

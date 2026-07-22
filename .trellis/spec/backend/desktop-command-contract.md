@@ -12,6 +12,8 @@ refresh_project           read_spec_document
 read_task_detail          read_task_document
 open_project_path         select_directory
 open_log_directory        clear_application_data_and_exit
+check_for_update          install_update
+restart_application
 ```
 
 - 请求对象和响应 DTO 使用 camelCase 字段，Command 名使用 snake_case。
@@ -19,6 +21,7 @@ open_log_directory        clear_application_data_and_exit
 - Command 错误不得包含 HTTP 状态、堆栈、绝对项目路径或底层错误原文。
 - 同步文件系统工作必须在线程池执行，不能阻塞窗口线程。
 - `src/shared/api.ts` 是前端 Zod 线协议合同；任何字段变更必须同步 Rust Serde DTO 并做真实序列化对照。
+- `install_update` 的 Channel payload 也属于 IPC 合同，必须逐条经过 Zod 校验；更新 DTO 详见 `desktop-updater-contract.md`。
 
 ## Event
 

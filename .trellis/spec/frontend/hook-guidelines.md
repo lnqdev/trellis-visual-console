@@ -22,3 +22,9 @@
 - 使用 `refreshGeneration + retryGeneration` 缓存已完成请求。
 - 未收到失效事件时，离开再返回任务中心复用内存响应。
 - 请求代次阻止旧响应覆盖新结果；搜索使用约 200ms 延迟。
+
+## useApplicationUpdater
+
+- 更新状态独立于项目 Core/URL 状态，组件只消费控制器，不直接导入 Tauri updater。
+- StrictMode 下自动检查只启动一次；检查、安装共用前端操作标记，Rust Command 仍负责最终互斥。
+- 关闭弹窗不得清除 `available` 或 `installed`，macOS 稍后重启不持久化更新包。

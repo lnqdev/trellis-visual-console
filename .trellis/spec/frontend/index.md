@@ -11,13 +11,15 @@
 | [Hook 规范](./hook-guidelines.md) | Command、URL、竞态和 Event 数据流 |
 | [状态管理](./state-management.md) | 本地、Core、URL 与派生状态 |
 | [只读控制台合同](./readonly-console-contract.md) | 页面行为、桌面事件与响应式验收 |
+| [应用更新合同](./application-updater-contract.md) | 更新 IPC、状态机、确认、进度与重启交互 |
 
 ## 开发前检查
 
 1. 新增 Command 消费前阅读 `type-safety.md` 和 `readonly-console-contract.md`。
 2. 新增组件前阅读 `directory-structure.md` 和 `component-guidelines.md`。
 3. 修改异步、URL 或事件同步前阅读 `hook-guidelines.md` 和 `state-management.md`。
-4. 组件不得直接导入 Tauri API，不因局部需求引入路由、全局状态或组件库。
+4. 修改在线更新 UI、Hook 或 Channel 前阅读 `application-updater-contract.md`。
+5. 组件不得直接导入 Tauri API，不因局部需求引入路由、全局状态或组件库。
 
 ## 质量检查
 
