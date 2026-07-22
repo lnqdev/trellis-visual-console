@@ -5,7 +5,7 @@
 | 规范 | 说明 |
 | --- | --- |
 | [目录结构](./directory-structure.md) | Rust Core 与 Tauri adapter 边界 |
-| [桌面运行合同](./desktop-runtime-contract.md) | 启动、单实例、系统集成与退出 |
+| [桌面运行合同](./desktop-runtime-contract.md) | 启动、打包安装、挂载清理、单实例、系统集成与退出 |
 | [桌面在线更新合同](./desktop-updater-contract.md) | Updater Command、签名、状态存储、发布与升级验收 |
 | [本机存储合同](./local-storage-contract.md) | 版本 2、迁移、原子写与清理 |
 | [项目发现合同](./project-discovery-contract.md) | 扫描、索引、正文与路径安全 |
@@ -19,11 +19,12 @@
 ## 开发前检查
 
 1. 修改 Core 或 adapter 前阅读 `directory-structure.md`。
-2. 修改启动、窗口、插件、目录选择、外部打开或退出前阅读 `desktop-runtime-contract.md`。
-3. 修改存储、迁移和数据清理前阅读 `local-storage-contract.md`。
-4. 修改扫描、索引、正文或路径前阅读 `project-discovery-contract.md`。
-5. 修改焦点、监听、事件或轮询前阅读 `project-realtime-contract.md`。
-6. 修改 Command、DTO 或错误映射前阅读 `desktop-command-contract.md` 和 `error-handling.md`。
+2. 规划或修改桌面打包、安装、挂载验收、启动、窗口、插件、目录选择、外部打开或退出前阅读 `desktop-runtime-contract.md`。
+3. 修改在线更新、版本、签名、更新清单或发布流程前阅读 `desktop-updater-contract.md`。
+4. 修改存储、迁移和数据清理前阅读 `local-storage-contract.md`。
+5. 修改扫描、索引、正文或路径前阅读 `project-discovery-contract.md`。
+6. 修改焦点、监听、事件或轮询前阅读 `project-realtime-contract.md`。
+7. 修改 Command、DTO 或错误映射前阅读 `desktop-command-contract.md` 和 `error-handling.md`。
 
 ## 质量检查
 
