@@ -442,7 +442,7 @@ git commit -m "docs: 记录三平台托管发布流程"
 
 **外部配置：**
 
-- 新建公开 GitHub 仓库 `wanglinqiao/trellis-visual-console`。
+- 新建公开 GitHub 仓库 `lnqdev/trellis-visual-console`。
 - 配置 Gitee 到 GitHub 的 `main` 与标签同步；若账号不支持，配置仓库级双远端单命令推送。
 - 配置 Repository Secrets：`TAURI_SIGNING_PRIVATE_KEY`、`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`、`GITEE_RELEASE_TOKEN`。
 - 配置受保护 Environment `release-production`，要求发布者人工审核；发布 job 通过审核后才会启动并读取仓库级 `GITEE_RELEASE_TOKEN`。
@@ -451,7 +451,7 @@ git commit -m "docs: 记录三平台托管发布流程"
 
 ```powershell
 git ls-remote https://gitee.com/wanglinqiao/trellis-visual-console.git refs/heads/main
-git ls-remote https://github.com/wanglinqiao/trellis-visual-console.git refs/heads/main
+git ls-remote https://github.com/lnqdev/trellis-visual-console.git refs/heads/main
 ```
 
 预期：两个远端 `main` 返回相同提交 SHA。

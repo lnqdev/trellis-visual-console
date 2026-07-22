@@ -15,7 +15,7 @@ Gitee `main` 继续是唯一源码主线，公开 GitHub 仓库只作为同步�
 ```bash
 git remote add release https://gitee.com/wanglinqiao/trellis-visual-console.git
 git remote set-url --add --push release https://gitee.com/wanglinqiao/trellis-visual-console.git
-git remote set-url --add --push release https://github.com/wanglinqiao/trellis-visual-console.git
+git remote set-url --add --push release https://github.com/lnqdev/trellis-visual-console.git
 git remote get-url --all --push release
 ```
 
