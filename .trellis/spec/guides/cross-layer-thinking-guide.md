@@ -77,7 +77,13 @@ For each boundary:
 JSON 与消费端 Schema 逐字段比较；不要从 Rust 类型名推断线上字段。具体合同和回归断言见
 `backend/desktop-updater-contract.md` 与 `frontend/application-updater-contract.md`。
 
-### Mistake 5: Every Consumer Parses The Same Payload
+### Mistake 5：只校验发布产物名称，不校验包内内容
+
+跨越“源码配置 -> 构建目录 -> 发布附件 -> 客户端安装”边界时，先清理明确的旧生成物，
+再从最终压缩包读取版本和架构；哈希只能证明传输一致，不能证明上传的是本次构建。
+具体断言见 `backend/desktop-updater-contract.md`。
+
+### Mistake 6: Every Consumer Parses The Same Payload
 
 **Bad**: A command reads JSONL events and casts fields inline:
 

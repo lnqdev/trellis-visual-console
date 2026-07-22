@@ -61,13 +61,13 @@ pnpm release:mac:prepare -- \
   "修复更新安装完成状态显示"
 ```
 
-脚本依次同步 `package.json`、工作区 `Cargo.toml` 和 Tauri 配置版本，更新 `Cargo.lock`，执行前端/Rust 门禁，读取仓库外签名密钥与钥匙串密码，构建 macOS arm64/x64，并把唯一命名的 DMG、更新包、签名、`SHA256SUMS.txt`、更新说明和发布元数据整理到：
+脚本依次同步 `package.json`、工作区 `Cargo.toml` 和 Tauri 配置版本，更新 `Cargo.lock`，执行前端/Rust 门禁，读取仓库外签名密钥与钥匙串密码，清理两个 target 下明确的旧 macOS updater 生成物，再以 `app,dmg` 模式构建 macOS arm64/x64。整理产物前，脚本会从每个 `.app.tar.gz` 内读取 `Info.plist` 和 Mach-O，断言内部版本与架构正确，然后才把唯一命名的 DMG、更新包、签名、`SHA256SUMS.txt`、更新说明和发布元数据整理到：
 
 ```text
 ~/Desktop/Trellis Visual Console Releases/v<版本>/
 ```
 
-任一步失败都会立即停止且不会创建 Gitee Release。修正失败原因后重新执行；固定目录中的生成产物可以安全覆盖，但脚本不会删除目录中的其他文件。
+任一步失败都会立即停止且不会创建 Gitee Release。修正失败原因后重新执行；固定目录中的生成产物可以安全覆盖，但脚本不会删除目录中的其他文件。禁止仅凭新文件名、修改时间、SHA-256 或签名存在判断版本正确：这些信息无法发现“新版本文件名包含旧版本应用”的情况。
 
 检查版本改动后提交并推送，确保 Gitee Release 标签指向包含该版本的提交：
 

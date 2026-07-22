@@ -5,6 +5,7 @@ import {
   copyFile,
   mkdir,
   readFile,
+  rm,
   stat,
   writeFile,
 } from "node:fs/promises";
@@ -233,6 +234,75 @@ function describePlatformArtifacts(version, platform) {
   };
 }
 
+/** 删除本次构建会重新生成的精确 macOS bundle 产物，禁止复用旧更新包。 */
+async function clearGeneratedMacosBundles(version) {
+  for (const platform of PLATFORM_ARTIFACTS) {
+    const description = describePlatformArtifacts(version, platform);
+    const macosBundleDirectory = resolve(description.updater.source, "..");
+    await Promise.all([
+      rm(join(macosBundleDirectory, "Trellis Visual Console.app"), {
+        recursive: true,
+        force: true,
+      }),
+      rm(description.updater.source, { force: true }),
+      rm(description.signature.source, { force: true }),
+    ]);
+  }
+}
+
+/** 执行本地工具并返回原始字节，用于检查更新压缩包内部文件。 */
+function runCaptureBuffer(command, args, input) {
+  const result = spawnSync(command, args, {
+    cwd: REPOSITORY_ROOT,
+    input,
+    maxBuffer: 128 * 1024 * 1024,
+  });
+  if (result.error !== undefined) {
+    throw result.error;
+  }
+  assert(result.status === 0, `${command} 检查更新产物失败`);
+  return result.stdout;
+}
+
+/** 读取 plist 字段，断言更新压缩包内容与目标版本、架构完全一致。 */
+async function verifyUpdaterArchive(version, platform, description) {
+  const archiveStat = await stat(description.updater.source).catch(() => null);
+  const signatureStat = await stat(description.signature.source).catch(() => null);
+  assert(archiveStat?.isFile() === true, `本次构建未生成更新包：${description.updater.source}`);
+  assert(signatureStat?.isFile() === true, `本次构建未生成更新签名：${description.signature.source}`);
+
+  const appRoot = "Trellis Visual Console.app/Contents";
+  const plist = runCaptureBuffer(
+    "tar",
+    ["-xOzf", description.updater.source, `${appRoot}/Info.plist`],
+  );
+  const archiveVersion = runCaptureBuffer(
+    "plutil",
+    ["-extract", "CFBundleShortVersionString", "raw", "-o", "-", "-"],
+    plist,
+  ).toString("utf8").trim();
+  assert(
+    archiveVersion === version,
+    `更新包内部版本错误：期望 ${version}，实际 ${archiveVersion}`,
+  );
+
+  const executable = runCaptureBuffer(
+    "tar",
+    ["-xOzf", description.updater.source, `${appRoot}/MacOS/trellis-visual-console`],
+  );
+  const executableType = runCaptureBuffer("file", ["-"], executable)
+    .toString("utf8")
+    .trim();
+  const expectedArchitecture = platform.architecture === "aarch64" ? "arm64" : "x86_64";
+  assert(
+    executableType.includes(expectedArchitecture),
+    `更新包架构错误：期望 ${expectedArchitecture}，实际 ${executableType}`,
+  );
+
+  const signature = (await readFile(description.signature.source, "utf8")).trim();
+  assert(signature.length >= 80, `更新签名内容不完整：${description.signature.source}`);
+}
+
 /** 流式计算文件 SHA-256，避免把安装包整体读入内存。 */
 async function calculateFileSha256(path) {
   const hash = createHash("sha256");
@@ -250,6 +320,7 @@ async function stageArtifacts(version, notes) {
   const artifacts = [];
   for (const platform of PLATFORM_ARTIFACTS) {
     const description = describePlatformArtifacts(version, platform);
+    await verifyUpdaterArchive(version, platform, description);
     platforms[description.platform] = {
       installer: description.installer.name,
       updater: description.updater.name,
@@ -317,6 +388,7 @@ async function prepareRelease(args) {
   run("cargo", ["clippy", "--workspace", "--all-targets", "--all-features", "--", "-D", "warnings"]);
   run("cargo", ["check", "--workspace", "--all-targets", "--all-features"]);
   const signingEnvironment = await loadSigningEnvironment();
+  await clearGeneratedMacosBundles(version);
   run("pnpm", ["build:mac:arm64"], { env: signingEnvironment });
   run("pnpm", ["build:mac:x64"], { env: signingEnvironment });
   const releaseDirectory = await stageArtifacts(version, notes);

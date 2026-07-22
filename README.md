@@ -101,8 +101,8 @@ CI=true pnpm build:mac:x64
 
 | 命令 | 产物目录 |
 | --- | --- |
-| `pnpm build:mac:arm64` | `target/aarch64-apple-darwin/release/bundle/dmg/`，以及同目录的 `.app.tar.gz` 更新包与 `.sig` |
-| `pnpm build:mac:x64` | `target/x86_64-apple-darwin/release/bundle/dmg/`，以及同目录的 `.app.tar.gz` 更新包与 `.sig` |
+| `pnpm build:mac:arm64` | DMG 位于 `target/aarch64-apple-darwin/release/bundle/dmg/`，`.app.tar.gz` 与 `.sig` 位于相同 target 的 `bundle/macos/` |
+| `pnpm build:mac:x64` | DMG 位于 `target/x86_64-apple-darwin/release/bundle/dmg/`，`.app.tar.gz` 与 `.sig` 位于相同 target 的 `bundle/macos/` |
 | `pnpm build:windows:x64` | `target/x86_64-pc-windows-msvc/release/bundle/nsis/`，以及 NSIS 更新包与 `.sig` |
 
 前端单独检查可执行 `pnpm build:web`，Rust 工作区检查可执行 `pnpm check:rust`。
