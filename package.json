@@ -1,6 +1,6 @@
 {
   "name": "trellis-visual-console",
-  "version": "0.2.0-beta.3",
+  "version": "0.2.0-beta.4",
   "private": true,
   "type": "module",
   "description": "面向个人本机使用的 Trellis 只读可视化内容中心",
@@ -21,6 +21,7 @@
     "check:update-manifest": "node scripts/validate-update-manifest.mjs",
     "release:mac": "node scripts/release-macos.mjs",
     "release:mac:prepare": "node scripts/release-macos.mjs prepare",
+    "release:mac:stage": "node scripts/release-macos.mjs stage",
     "release:mac:upload": "node scripts/release-macos.mjs upload",
     "release:mac:publish": "node scripts/release-macos.mjs publish-manifest",
     "check:rust": "cargo check --workspace --all-targets --all-features",

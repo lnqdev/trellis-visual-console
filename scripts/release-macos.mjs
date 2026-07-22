@@ -3,13 +3,14 @@ import { spawnSync } from "node:child_process";
 import { createReadStream, openAsBlob } from "node:fs";
 import {
   copyFile,
+  mkdtemp,
   mkdir,
   readFile,
   rm,
   stat,
   writeFile,
 } from "node:fs/promises";
-import { homedir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
@@ -250,20 +251,6 @@ async function clearGeneratedMacosBundles(version) {
   }
 }
 
-/** 执行本地工具并返回原始字节，用于检查更新压缩包内部文件。 */
-function runCaptureBuffer(command, args, input) {
-  const result = spawnSync(command, args, {
-    cwd: REPOSITORY_ROOT,
-    input,
-    maxBuffer: 128 * 1024 * 1024,
-  });
-  if (result.error !== undefined) {
-    throw result.error;
-  }
-  assert(result.status === 0, `${command} 检查更新产物失败`);
-  return result.stdout;
-}
-
 /** 读取 plist 字段，断言更新压缩包内容与目标版本、架构完全一致。 */
 async function verifyUpdaterArchive(version, platform, description) {
   const archiveStat = await stat(description.updater.source).catch(() => null);
@@ -272,32 +259,40 @@ async function verifyUpdaterArchive(version, platform, description) {
   assert(signatureStat?.isFile() === true, `本次构建未生成更新签名：${description.signature.source}`);
 
   const appRoot = "Trellis Visual Console.app/Contents";
-  const plist = runCaptureBuffer(
-    "tar",
-    ["-xOzf", description.updater.source, `${appRoot}/Info.plist`],
-  );
-  const archiveVersion = runCaptureBuffer(
-    "plutil",
-    ["-extract", "CFBundleShortVersionString", "raw", "-o", "-", "-"],
-    plist,
-  ).toString("utf8").trim();
-  assert(
-    archiveVersion === version,
-    `更新包内部版本错误：期望 ${version}，实际 ${archiveVersion}`,
-  );
+  const plistRelativePath = `${appRoot}/Info.plist`;
+  const executableRelativePath = `${appRoot}/MacOS/trellis-visual-console`;
+  const verificationDirectory = await mkdtemp(join(tmpdir(), "trellis-updater-"));
+  try {
+    runCapture("tar", [
+      "-xzf",
+      description.updater.source,
+      "-C",
+      verificationDirectory,
+      plistRelativePath,
+      executableRelativePath,
+    ]);
+    const archiveVersion = runCapture("plutil", [
+      "-extract",
+      "CFBundleShortVersionString",
+      "raw",
+      join(verificationDirectory, plistRelativePath),
+    ]);
+    assert(
+      archiveVersion === version,
+      `更新包内部版本错误：期望 ${version}，实际 ${archiveVersion}`,
+    );
 
-  const executable = runCaptureBuffer(
-    "tar",
-    ["-xOzf", description.updater.source, `${appRoot}/MacOS/trellis-visual-console`],
-  );
-  const executableType = runCaptureBuffer("file", ["-"], executable)
-    .toString("utf8")
-    .trim();
-  const expectedArchitecture = platform.architecture === "aarch64" ? "arm64" : "x86_64";
-  assert(
-    executableType.includes(expectedArchitecture),
-    `更新包架构错误：期望 ${expectedArchitecture}，实际 ${executableType}`,
-  );
+    const executableType = runCapture("file", [
+      join(verificationDirectory, executableRelativePath),
+    ]);
+    const expectedArchitecture = platform.architecture === "aarch64" ? "arm64" : "x86_64";
+    assert(
+      executableType.includes(expectedArchitecture),
+      `更新包架构错误：期望 ${expectedArchitecture}，实际 ${executableType}`,
+    );
+  } finally {
+    await rm(verificationDirectory, { recursive: true, force: true });
+  }
 
   const signature = (await readFile(description.signature.source, "utf8")).trim();
   assert(signature.length >= 80, `更新签名内容不完整：${description.signature.source}`);
@@ -393,6 +388,23 @@ async function prepareRelease(args) {
   run("pnpm", ["build:mac:x64"], { env: signingEnvironment });
   const releaseDirectory = await stageArtifacts(version, notes);
   console.log(`\n发布产物已准备：${releaseDirectory}`);
+  console.log("请检查版本改动并提交、推送 main，然后执行：");
+  console.log(`pnpm release:mac:upload -- ${JSON.stringify(releaseDirectory)}`);
+}
+
+/** 从已完成的双架构构建恢复产物校验与归档，不重复执行耗时构建。 */
+async function stagePreparedRelease(args) {
+  const [version, ...noteItems] = args;
+  assert(version !== undefined, "用法：pnpm release:mac:stage -- <版本> <中文说明...>");
+  parseSemver(version);
+  const currentVersion = await readCurrentVersion();
+  assert(currentVersion === version, `当前代码版本 ${currentVersion} 与待恢复版本 ${version} 不一致`);
+  const notes = createReleaseNotes(noteItems);
+  assert(process.platform === "darwin", "macOS 发布脚本只能在 macOS 上运行");
+  assert(runCapture("git", ["branch", "--show-current"]) === "main", "发布必须从 main 分支执行");
+  run("pnpm", ["check:version"]);
+  const releaseDirectory = await stageArtifacts(version, notes);
+  console.log(`\n发布产物已恢复并完成校验：${releaseDirectory}`);
   console.log("请检查版本改动并提交、推送 main，然后执行：");
   console.log(`pnpm release:mac:upload -- ${JSON.stringify(releaseDirectory)}`);
 }
@@ -645,6 +657,9 @@ function printHelp() {
 准备版本并构建：
   pnpm release:mac:prepare -- <版本> <中文说明...>
 
+构建完成但归档失败时，从现有产物恢复：
+  pnpm release:mac:stage -- <版本> <中文说明...>
+
 创建 Gitee Release、上传并匿名校验：
   pnpm release:mac:upload -- <发布目录>
 
@@ -664,6 +679,10 @@ async function main() {
   }
   if (command === "prepare") {
     await prepareRelease(args);
+    return;
+  }
+  if (command === "stage") {
+    await stagePreparedRelease(args);
     return;
   }
   if (command === "upload") {

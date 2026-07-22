@@ -16,6 +16,7 @@ install_update(onProgress: Channel<UpdateDownloadProgress>, state) -> UpdateInst
 restart_application(app, state) -> ()
 
 pnpm release:mac:prepare -- <version> <chineseNote...>
+pnpm release:mac:stage -- <version> <chineseNote...>
 pnpm release:mac:upload -- <releaseDirectory>
 pnpm release:mac:publish -- <releaseDirectory>
 ```
@@ -43,6 +44,7 @@ pnpm release:mac:publish -- <releaseDirectory>
 - 静态清单必须包含同一 SemVer、中文说明、UTC 发布时间及当前启用平台的 HTTPS URL 和签名；macOS 内测要求 arm64/x64 同时存在，未来启用 Windows 时使用三平台集合。下载 URL 必须属于当前 Gitee 仓库的 Release 路径并包含目标版本，防止清单篡改后跳转任意站点或重放旧签名包。`latest.json` 是最后发布的唯一开关。
 - macOS 内测可显式使用双架构清单校验模式；本地发布工具必须拆分准备、上传和公开清单三个阶段，敏感值只从仓库外文件或 macOS 钥匙串读取，上传后匿名校验大小与 SHA-256，且不得自动提交或推送 `latest.json`。
 - `prepare` 构建前必须删除两个 target 下明确的旧 `.app`、`.app.tar.gz` 和 `.sig` 生成物；整理前必须读取新压缩包内的 `Info.plist` 与 Mach-O，断言版本和架构分别等于目标 SemVer 与平台键。文件名、修改时间、哈希和签名存在不能替代内容检查。
+- 双架构构建已完成但校验或归档失败时，`stage` 可在版本来源一致的前提下复用现有构建；仍须从临时目录中的真实文件执行包内版本和架构断言，并在结束后清理临时目录，不得用大文件标准输入管道代替。
 
 ### 4. 校验与错误矩阵
 
@@ -63,13 +65,13 @@ pnpm release:mac:publish -- <releaseDirectory>
 | 签名材料或 Gitee 钥匙串令牌缺失 | 中文错误提示对应 service，禁止降级为明文参数或 `.env` |
 | 已有同名附件哈希不同、已有 Release 未指向当前 main 提交 | 拒绝复用并停止发布 |
 | 匿名下载状态、大小或 SHA-256 不一致 | 不生成或不公开候选清单 |
-| 本次构建未重新生成 `.app.tar.gz/.sig`，或压缩包内部版本/架构不匹配 | 准备阶段立即停止，禁止复制、上传和生成清单 |
+| 本次构建未重新生成 `.app.tar.gz/.sig`，或压缩包内部版本/架构不匹配 | 准备/恢复阶段立即停止，禁止复制、上传和生成清单 |
 
 ### 5. Good / Base / Bad Cases
 
 - Good：从同步且干净的 main 准备版本，双架构产物和签名齐全，Gitee 附件匿名下载与哈希验证通过，人工确认后才提交清单；客户端展示中文说明后由用户确认安装。
-- Base：发布阶段失败可在同一桌面发布目录重试；清单不可访问或当前无更新时，界面给出可恢复结果，项目浏览、本机数据和源项目保持不变。
-- Bad：只构建新 DMG 却把 target 中旧 `.app.tar.gz` 重命名为新版本、先发布只有一个 Mac 架构的清单、让脚本自动提交推送、把令牌或私钥写进仓库、静默覆盖不同内容的同名附件，或 macOS 稍后重启时再次下载安装包。
+- Base：双架构构建完成后校验或归档失败，修复原因并用相同版本和说明执行 `stage`；它从临时目录中的真实文件重新校验并覆盖稳定发布目录，不重复编译或访问远端。清单不可访问或当前无更新时，界面给出可恢复结果，项目浏览、本机数据和源项目保持不变。
+- Bad：把完整 Mach-O 通过标准输入交给会提前退出的 `file -`、只构建新 DMG 却把 target 中旧 `.app.tar.gz` 重命名为新版本、先发布只有一个 Mac 架构的清单、让脚本自动提交推送、把令牌或私钥写进仓库、静默覆盖不同内容的同名附件，或 macOS 稍后重启时再次下载安装包。
 
 ### 6. 必需验证与断言点
 
@@ -80,6 +82,7 @@ pnpm release:mac:publish -- <releaseDirectory>
 - Rust 回归测试必须把 `UpdateCheckResponse` 与 `UpdateDownloadProgress` 的全部变体序列化为 JSON，逐字段断言 `status`、`currentVersion`、`event`、`contentLength` 和 `downloaded` 与前端 Zod Schema 一致。
 - 本地发布脚本至少验证帮助入口、非法版本、脏工作区、缺失发布目录、三平台示例清单和 macOS 候选清单；涉及 Gitee 的真实上传只使用测试版本，并确认重复执行不会产生不同内容的同名附件。
 - macOS 双架构签名构建后，分别从 `.app.tar.gz` 解出 `Contents/Info.plist` 和主二进制；断言 `CFBundleShortVersionString` 等于目标版本，`file` 输出分别包含 `arm64`、`x86_64`，且 `.sig` 为本次清理后重新生成。
+- 模拟构建完成后的归档失败，再以相同版本和中文说明执行 `stage`；断言不触发 Tauri 构建、双架构内容检查通过、稳定发布目录完整，并且成功或失败后均不残留 `trellis-updater-*` 临时目录。主二进制必须由 `file <path>` 检查，不得通过可能产生 `EPIPE` 的大文件标准输入传递。
 - 仓库外 IPC mock 覆盖自动/手动检查、可用更新、错误、进度、立即/稍后重启和 375/768/1024/1440 零横向滚动。
 - 当前在 macOS arm64、macOS x64 环境分别从 `0.2.0-beta.1` 升级到更高版本；断言版本、架构、数据保留和主业务正确。Windows 在恢复发布前补做原生验收。
 - macOS 遵守 `desktop-runtime-contract.md` 的唯一安装副本与挂载清理；Windows 不得以 macOS 交叉构建替代原生验收。
@@ -97,6 +100,7 @@ pnpm release:mac:publish -- <releaseDirectory>
 ```text
 prepare：同步版本、门禁、清理旧 updater 产物、显式 app+dmg 双架构签名构建
 -> 解包断言版本/架构、整理到桌面稳定目录
+（若构建完成后校验/归档失败：修复原因 -> stage 相同版本与说明 -> 重新断言并整理）
 -> 人工提交并推送版本
 -> upload：Gitee Release、附件上传、匿名哈希验证、候选清单
 -> publish-manifest：重新验证并写入 latest.json
