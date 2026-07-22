@@ -6,7 +6,7 @@
 
 **架构：** Gitee `main` 继续作为源码主线，GitHub 只保存同步镜像与工作流。发布逻辑拆为通用合同、平台产物、Gitee 发布和 CI 命令四个边界；GitHub Actions 负责预检、矩阵构建、汇总上传与受保护 Environment 门禁，现有 macOS 本地脚本复用公共模块并保持原命令兼容。
 
-**技术栈：** Node.js 22、pnpm 10、Tauri 2、Rust 1.85、GitHub Actions、Gitee Open API、NSIS、Tauri Updater 签名。
+**技术栈：** Node.js 22、pnpm 10、Tauri 2、Rust 1.88、GitHub Actions、Gitee Open API、NSIS、Tauri Updater 签名。
 
 ---
 
@@ -317,7 +317,7 @@ git commit -m "feat: 增加三平台 Gitee 候选发布"
 
 - [x] **步骤 1：实现复合环境准备 Action**
 
-`setup-project/action.yml` 使用 `actions/setup-node@v4`、`pnpm/action-setup@v4`、`dtolnay/rust-toolchain` 和 `Swatinem/rust-cache@v2`，统一安装 Node 22、pnpm 10、Rust 1.85 与 `rustfmt/clippy`；当 `rust-target` 非空时安装该唯一目标，然后执行 `pnpm install --frozen-lockfile`。输入只包含 `rust-target`，不得接收 Secret。
+`setup-project/action.yml` 使用 `actions/setup-node@v4`、`pnpm/action-setup@v4`、`dtolnay/rust-toolchain` 和 `Swatinem/rust-cache@v2`，统一安装 Node 22、pnpm 10、Rust 1.88 与 `rustfmt/clippy`；当 `rust-target` 非空时安装该唯一目标，然后执行 `pnpm install --frozen-lockfile`。输入只包含 `rust-target`，不得接收 Secret。
 
 - [x] **步骤 2：实现无 Secret 质量工作流**
 
