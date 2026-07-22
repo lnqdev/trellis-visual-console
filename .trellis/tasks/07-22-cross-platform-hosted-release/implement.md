@@ -317,7 +317,7 @@ git commit -m "feat: 增加三平台 Gitee 候选发布"
 
 - [x] **步骤 1：实现复合环境准备 Action**
 
-`setup-project/action.yml` 使用 `actions/setup-node@v4`、`pnpm/action-setup@v4`、`dtolnay/rust-toolchain` 和 `Swatinem/rust-cache@v2`，统一安装 Node 22、pnpm 10、Rust 1.88 与 `rustfmt/clippy`；当 `rust-target` 非空时安装该唯一目标，然后执行 `pnpm install --frozen-lockfile`。输入只包含 `rust-target`，不得接收 Secret。
+`setup-project/action.yml` 使用 `actions/setup-node@v4`、`pnpm/action-setup@v4`、`dtolnay/rust-toolchain` 和 `Swatinem/rust-cache@v2`，统一安装 Node 22、pnpm 10、Rust 1.88 与 `rustfmt/clippy`；Linux Runner 额外安装 Tauri 编译所需的 GLib、GTK、WebKitGTK、AppIndicator 和 librsvg 开发包。当 `rust-target` 非空时安装该唯一目标，然后执行 `pnpm install --frozen-lockfile`。输入只包含 `rust-target`，不得接收 Secret。
 
 - [x] **步骤 2：实现无 Secret 质量工作流**
 
