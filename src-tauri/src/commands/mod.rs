@@ -41,7 +41,11 @@ pub struct UpdateMetadataResponse {
 
 /// 更新检查结果。
 #[derive(Debug, Clone, Serialize)]
-#[serde(tag = "status", rename_all = "camelCase")]
+#[serde(
+    tag = "status",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 pub enum UpdateCheckResponse {
     Skipped {
         current_version: String,
@@ -58,7 +62,11 @@ pub enum UpdateCheckResponse {
 
 /// 更新包下载进度事件。
 #[derive(Debug, Clone, Serialize)]
-#[serde(tag = "event", rename_all = "camelCase")]
+#[serde(
+    tag = "event",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 pub enum UpdateDownloadProgress {
     Started {
         content_length: Option<u64>,
@@ -616,4 +624,103 @@ where
                 "桌面后端任务执行失败，请重试或重启客户端",
             )
         })?
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::{UpdateCheckResponse, UpdateDownloadProgress, UpdateMetadataResponse};
+
+    /// 断言检查结果与前端 Zod 合同使用相同的 camelCase 字段。
+    #[test]
+    fn update_check_response_uses_camel_case_wire_fields() {
+        let cases = [
+            (
+                UpdateCheckResponse::Skipped {
+                    current_version: "0.2.0-beta.2".to_owned(),
+                    platform: "macos",
+                },
+                json!({
+                    "status": "skipped",
+                    "currentVersion": "0.2.0-beta.2",
+                    "platform": "macos"
+                }),
+            ),
+            (
+                UpdateCheckResponse::UpToDate {
+                    current_version: "0.2.0-beta.2".to_owned(),
+                    platform: "macos",
+                },
+                json!({
+                    "status": "upToDate",
+                    "currentVersion": "0.2.0-beta.2",
+                    "platform": "macos"
+                }),
+            ),
+            (
+                UpdateCheckResponse::Available {
+                    update: UpdateMetadataResponse {
+                        current_version: "0.2.0-beta.2".to_owned(),
+                        version: "0.2.0-beta.3".to_owned(),
+                        notes: "修复在线更新返回格式。".to_owned(),
+                        published_at: "2026-07-22T10:30:00Z".to_owned(),
+                        platform: "macos",
+                    },
+                },
+                json!({
+                    "status": "available",
+                    "update": {
+                        "currentVersion": "0.2.0-beta.2",
+                        "version": "0.2.0-beta.3",
+                        "notes": "修复在线更新返回格式。",
+                        "publishedAt": "2026-07-22T10:30:00Z",
+                        "platform": "macos"
+                    }
+                }),
+            ),
+        ];
+
+        for (response, expected) in cases {
+            assert_eq!(
+                serde_json::to_value(response).expect("检查结果应可序列化"),
+                expected
+            );
+        }
+    }
+
+    /// 断言 Channel 进度事件与前端 Zod 合同使用相同的 camelCase 字段。
+    #[test]
+    fn update_download_progress_uses_camel_case_wire_fields() {
+        let cases = [
+            (
+                UpdateDownloadProgress::Started {
+                    content_length: Some(128),
+                },
+                json!({ "event": "started", "contentLength": 128 }),
+            ),
+            (
+                UpdateDownloadProgress::Progress {
+                    downloaded: 64,
+                    content_length: Some(128),
+                },
+                json!({
+                    "event": "progress",
+                    "downloaded": 64,
+                    "contentLength": 128
+                }),
+            ),
+            (
+                UpdateDownloadProgress::DownloadFinished,
+                json!({ "event": "downloadFinished" }),
+            ),
+        ];
+
+        for (event, expected) in cases {
+            assert_eq!(
+                serde_json::to_value(event).expect("进度事件应可序列化"),
+                expected
+            );
+        }
+    }
 }

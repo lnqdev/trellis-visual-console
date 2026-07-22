@@ -1,7 +1,10 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
-const PLATFORM_KEYS = ["darwin-aarch64", "darwin-x86_64", "windows-x86_64"];
+const PLATFORM_SETS = {
+  all: ["darwin-aarch64", "darwin-x86_64", "windows-x86_64"],
+  macos: ["darwin-aarch64", "darwin-x86_64"],
+};
 const SEMVER_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u;
 const CHINESE_PATTERN = /[\u3400-\u4dbf\u4e00-\u9fff]/u;
 const BASE64_PATTERN = /^[A-Za-z0-9+/]+={0,2}$/u;
@@ -41,27 +44,40 @@ function validatePlatform(platform, artifact, version) {
   assert(signature.length >= 80 && BASE64_PATTERN.test(signature), `${platform}.signature 必须是完整的 Base64 Tauri 签名`);
 }
 
-/** 校验静态更新清单的版本、中文说明和三个平台产物。 */
-function validateManifest(manifest) {
+/** 校验静态更新清单的版本、中文说明和指定平台产物。 */
+function validateManifest(manifest, platformKeys) {
   assertExactKeys(manifest, ["notes", "platforms", "pub_date", "version"], "清单根对象");
   assert(typeof manifest.version === "string" && SEMVER_PATTERN.test(manifest.version), "version 必须是合法 SemVer");
   assert(typeof manifest.notes === "string" && manifest.notes.trim() !== "", "notes 不能为空");
   assert(CHINESE_PATTERN.test(manifest.notes), "notes 必须包含中文更新说明");
   assert(typeof manifest.pub_date === "string" && manifest.pub_date.endsWith("Z"), "pub_date 必须是 UTC RFC 3339 时间");
   assert(!Number.isNaN(Date.parse(manifest.pub_date)), "pub_date 不是有效时间");
-  assertExactKeys(manifest.platforms, PLATFORM_KEYS, "platforms");
-  for (const platform of PLATFORM_KEYS) {
+  assertExactKeys(manifest.platforms, platformKeys, "platforms");
+  for (const platform of platformKeys) {
     validatePlatform(platform, manifest.platforms[platform], manifest.version);
   }
 }
 
+/** 解析清单路径与平台集合；默认继续执行三平台正式发布校验。 */
+function parseArguments(arguments_) {
+  const args = arguments_.filter((argument) => argument !== "--");
+  const platformsIndex = args.indexOf("--platforms");
+  const platformSetName = platformsIndex === -1 ? "all" : args[platformsIndex + 1];
+  const platformKeys = PLATFORM_SETS[platformSetName];
+  assert(platformKeys !== undefined, "--platforms 仅支持 all 或 macos");
+  if (platformsIndex !== -1) {
+    args.splice(platformsIndex, 2);
+  }
+  assert(args.length === 1, "用法：pnpm check:update-manifest -- <清单路径> [--platforms all|macos]");
+  return { manifestPath: args[0], platformKeys };
+}
+
 /** 从命令行读取候选清单并执行发布前校验。 */
 async function main() {
-  const manifestPath = process.argv.slice(2).find((argument) => argument !== "--");
-  assert(manifestPath !== undefined, "用法：pnpm check:update-manifest -- <清单路径>");
+  const { manifestPath, platformKeys } = parseArguments(process.argv.slice(2));
   const absolutePath = resolve(manifestPath);
   const manifest = JSON.parse(await readFile(absolutePath, "utf8"));
-  validateManifest(manifest);
+  validateManifest(manifest, platformKeys);
   console.log(`更新清单校验通过：${absolutePath}`);
 }
 

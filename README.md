@@ -126,7 +126,15 @@ Windows 安装包必须在 Windows x64 原生环境构建和验收，不能用 m
 
 发现新版本后，客户端先展示版本与中文说明，只有用户确认才下载并验证 Tauri 签名。macOS 安装完成后可以立即重启或稍后重启；选择稍后重启时应用包已经替换，下次正常启动直接运行新版本，不会重复下载安装包。Windows 确认安装后应用会退出，由 NSIS 安装器完成替换。免费内测包仍可能出现 Gatekeeper 或 SmartScreen 提示。
 
-发布者必须同时提供 macOS arm64、macOS x64 与 Windows x64 的同版本产物、签名和中文说明，才可以更新公开清单。完整发布、密钥备份和故障冻结步骤见[桌面端在线更新发布指南](docs/release/desktop-online-update.md)。
+当前免费内测清单要求同时提供 macOS arm64、macOS x64 的同版本产物、签名和中文说明；Windows x64 在线更新发布延后到具备原生构建与验收环境之后。完整发布、密钥备份和故障冻结步骤见[桌面端在线更新发布指南](docs/release/desktop-online-update.md)。
+
+macOS 内测版本可使用本地三阶段发布脚本，产物固定整理到桌面目录，并通过 Gitee Open API 自动创建 Release、上传和匿名校验；脚本不会自动提交或推送公开清单：
+
+```bash
+pnpm release:mac:prepare -- 0.2.0-beta.3 "修复在线更新返回格式"
+pnpm release:mac:upload -- "$HOME/Desktop/Trellis Visual Console Releases/v0.2.0-beta.3"
+pnpm release:mac:publish -- "$HOME/Desktop/Trellis Visual Console Releases/v0.2.0-beta.3"
+```
 
 ## 应用数据
 
@@ -188,4 +196,4 @@ git diff --check
 
 ## 当前边界
 
-当前不包含 Linux、Windows ARM64、macOS Universal、Apple Developer ID、公证、Windows 商业代码签名、自动发布流水线、自动降级、托盘、多窗口、团队账号、远程访问、云同步和应用内编辑。在线更新仅面向免费受控内测；三个平台的真实升级验收仍须在各自原生设备完成。
+当前不包含 Linux、Windows ARM64、macOS Universal、Windows x64 在线更新发布验收、Apple Developer ID、公证、Windows 商业代码签名、无人值守托管 CI 发布流水线、自动降级、托盘、多窗口、团队账号、远程访问、云同步和应用内编辑。在线更新仅面向免费受控内测；当前真实升级验收覆盖 macOS arm64/x64。

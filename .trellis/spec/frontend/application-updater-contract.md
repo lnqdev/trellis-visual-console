@@ -28,6 +28,7 @@ interface ApplicationUpdaterController {
 
 - 组件和 Hook 不直接导入 Tauri updater；所有 Command 与 Channel 只经过 `api-client.ts`。
 - Command 成功值、结构化错误和每条 Channel 进度都从 `unknown` 经 Zod 校验；任一进度 payload 非法时整次安装返回 `invalid-command-response`。
+- Command/Channel 合同不能只核对 TypeScript 和 Rust 类型名；必须对 Rust 实际序列化的 JSON 做回归断言，特别检查结构化枚举变体中的 `currentVersion`、`contentLength` 等字段。
 - 状态机固定为 `idle -> checking -> skipped | upToDate | available | error`，以及 `available -> downloading -> installed | error`。
 - 应用挂载后只触发一次 `automatic` 检查；StrictMode 重放不得产生第二次请求。检查与安装使用前端操作标记防止双击竞态，Rust 仍是最终互斥边界。
 - 构建时从 `package.json` 注入当前版本，全局侧边栏与诊断页同时展示；网络失败、未选中项目或处于任务中心时仍能核对当前版本。
@@ -59,6 +60,7 @@ interface ApplicationUpdaterController {
 
 - `pnpm lint`、`pnpm typecheck`、`pnpm build:web` 全部通过。
 - IPC mock 分别提供合法和非法检查/进度 payload，断言只消费 Schema 输出且错误稳定。
+- 与 IPC mock 配对的 Rust 序列化测试必须断言 `current_version`、`content_length` 在线上一定是 `currentVersion`、`contentLength`，避免检查或安装已成功但前端因响应字段命名错误显示失败。
 - Playwright 在 375/768/1024/1440 断言 `documentElement.scrollWidth === innerWidth`，提示、诊断面板和弹窗无裁切或重叠。
 - 断言弹窗打开后关闭按钮获得焦点；Escape 在可关闭阶段生效，下载阶段无效。
 - 断言 macOS 稍后重启只关闭弹窗，下一次启动由已替换应用包直接进入新版本。

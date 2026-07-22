@@ -71,7 +71,13 @@ For each boundary:
 
 **Good**: Each layer only knows its neighbors
 
-### Mistake 4: Every Consumer Parses The Same Payload
+### Mistake 4：误认为 Serde 枚举字段会继承变体命名规则
+
+检查结构化 Rust 枚举是否显式配置 `rename_all_fields`，并把每个变体实际序列化为
+JSON 与消费端 Schema 逐字段比较；不要从 Rust 类型名推断线上字段。具体合同和回归断言见
+`backend/desktop-updater-contract.md` 与 `frontend/application-updater-contract.md`。
+
+### Mistake 5: Every Consumer Parses The Same Payload
 
 **Bad**: A command reads JSONL events and casts fields inline:
 

@@ -6,7 +6,7 @@
 
 - 修改更新插件、端点、公钥、版本、更新 Command、`updater-state.json`、重启流程或发布产物时必须遵守本合同。
 - 更新能力只属于 `src-tauri` 桌面适配层；`trellis-core` 不得依赖 Tauri、HTTP 客户端或更新插件。
-- 支持目标固定为 `darwin-aarch64`、`darwin-x86_64`、`windows-x86_64`，扩展目标前必须同步清单校验与真实升级矩阵。
+- 更新实现支持 `darwin-aarch64`、`darwin-x86_64`、`windows-x86_64`；当前公开内测清单只启用两个 macOS 目标，启用 Windows 发布前必须恢复三平台清单校验与真实升级矩阵。
 
 ### 2. 签名
 
@@ -14,6 +14,10 @@
 check_for_update(mode, app, state) -> UpdateCheckResponse
 install_update(onProgress: Channel<UpdateDownloadProgress>, state) -> UpdateInstallResponse
 restart_application(app, state) -> ()
+
+pnpm release:mac:prepare -- <version> <chineseNote...>
+pnpm release:mac:upload -- <releaseDirectory>
+pnpm release:mac:publish -- <releaseDirectory>
 ```
 
 - `mode`：`automatic | manual`。
@@ -21,6 +25,9 @@ restart_application(app, state) -> ()
 - `available.update`：`currentVersion`、`version`、非空中文 `notes`、RFC 3339 `publishedAt`、`platform`。
 - Channel 事件：`started { contentLength }`、`progress { downloaded, contentLength }`、`downloadFinished`。
 - `UpdateInstallResponse`：`restartRequired: boolean`。
+- Rust 内部可使用 snake_case 字段，但 Serde 枚举必须同时配置变体和变体字段的 camelCase；`rename_all` 不会自动重命名结构化枚举变体中的 `current_version`、`content_length` 等字段。
+- `release-metadata.json`：`schemaVersion`、`version`、中文 `notes`、`preparedAt`、双架构 `platforms` 和产物 `name/size/sha256`；所有文件引用必须是当前发布目录内的纯文件名。
+- 更新私钥固定来自仓库外文件或 `TAURI_SIGNING_PRIVATE_KEY`；签名密码来自钥匙串 service `com.wanglinqiao.trellis-visual-console.updater-signing`；Gitee 令牌来自钥匙串 service `com.wanglinqiao.trellis-visual-console.gitee-release`。
 
 ### 3. 合同
 
@@ -32,7 +39,8 @@ restart_application(app, state) -> ()
 - macOS 安装完成后应用包已经替换：立即重启调用受控 Command，稍后重启保持旧进程并在下次正常启动进入新版本，不持久化或重复下载更新包。
 - Windows 安装阶段通过 `on_before_exit` 同步关闭 Core 和日志后退出，由当前用户 NSIS 完成替换。
 - 构建只读取 `TAURI_SIGNING_PRIVATE_KEY` 和 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`；私钥、密码、下载 URL、签名和插件错误原文不得写入仓库或日志。
-- 静态清单必须包含同一 SemVer、中文说明、UTC 发布时间及三个标准平台的 HTTPS URL 和签名；下载 URL 必须属于当前 Gitee 仓库的 Release 路径并包含目标版本，防止清单篡改后跳转任意站点或重放旧签名包。`latest.json` 是最后发布的唯一开关。
+- 静态清单必须包含同一 SemVer、中文说明、UTC 发布时间及当前启用平台的 HTTPS URL 和签名；macOS 内测要求 arm64/x64 同时存在，未来启用 Windows 时使用三平台集合。下载 URL 必须属于当前 Gitee 仓库的 Release 路径并包含目标版本，防止清单篡改后跳转任意站点或重放旧签名包。`latest.json` 是最后发布的唯一开关。
+- macOS 内测可显式使用双架构清单校验模式；本地发布工具必须拆分准备、上传和公开清单三个阶段，敏感值只从仓库外文件或 macOS 钥匙串读取，上传后匿名校验大小与 SHA-256，且不得自动提交或推送 `latest.json`。
 
 ### 4. 校验与错误矩阵
 
@@ -49,12 +57,16 @@ restart_application(app, state) -> ()
 | 没有待更新句柄 | `update-not-available` |
 | 状态文件损坏 | 隔离为 `updater-state.corrupt-*.json` 后重新检查 |
 | 状态文件版本高于当前支持版本 | `update-state-version-unsupported`，原文件不变 |
+| 目标版本不是更高 SemVer、分支不是 main、工作区不干净或未与 origin/main 同步 | 准备/上传/公开阶段立即停止，不修改远端 Release 或公开清单 |
+| 签名材料或 Gitee 钥匙串令牌缺失 | 中文错误提示对应 service，禁止降级为明文参数或 `.env` |
+| 已有同名附件哈希不同、已有 Release 未指向当前 main 提交 | 拒绝复用并停止发布 |
+| 匿名下载状态、大小或 SHA-256 不一致 | 不生成或不公开候选清单 |
 
 ### 5. Good / Base / Bad Cases
 
-- Good：三平台同版本产物和签名齐全，匿名下载与哈希验证通过，最后提交清单；客户端展示中文说明后由用户确认安装。
-- Base：清单不可访问或当前无更新；界面给出可恢复结果，项目浏览、本机数据和源项目保持不变。
-- Bad：先发布只有一个平台的清单、把私钥写进仓库、自动静默下载，或 macOS 稍后重启时再次下载安装包。
+- Good：从同步且干净的 main 准备版本，双架构产物和签名齐全，Gitee 附件匿名下载与哈希验证通过，人工确认后才提交清单；客户端展示中文说明后由用户确认安装。
+- Base：发布阶段失败可在同一桌面发布目录重试；清单不可访问或当前无更新时，界面给出可恢复结果，项目浏览、本机数据和源项目保持不变。
+- Bad：先发布只有一个 Mac 架构的清单、让脚本自动提交推送、把令牌或私钥写进仓库、静默覆盖不同内容的同名附件，或 macOS 稍后重启时再次下载安装包。
 
 ### 6. 必需验证与断言点
 
@@ -62,8 +74,10 @@ restart_application(app, state) -> ()
 - 运行 `pnpm check:update-manifest -- <候选清单>`，断言平台键、SemVer、中文说明、UTC 时间、HTTPS、版本化 URL 和 Base64 签名均合法。
 - 迁移对象存储或 CDN 前必须同时更新运行时批准域名/路径和清单校验器，并先完成匿名下载、重定向与签名验证；不能只替换清单地址。
 - 运行完整 Rust/前端门禁，并用 `cargo tree -p trellis-core` 断言 Core 不包含 Tauri 或 updater。
+- Rust 回归测试必须把 `UpdateCheckResponse` 与 `UpdateDownloadProgress` 的全部变体序列化为 JSON，逐字段断言 `status`、`currentVersion`、`event`、`contentLength` 和 `downloaded` 与前端 Zod Schema 一致。
+- 本地发布脚本至少验证帮助入口、非法版本、脏工作区、缺失发布目录、三平台示例清单和 macOS 候选清单；涉及 Gitee 的真实上传只使用测试版本，并确认重复执行不会产生不同内容的同名附件。
 - 仓库外 IPC mock 覆盖自动/手动检查、可用更新、错误、进度、立即/稍后重启和 375/768/1024/1440 零横向滚动。
-- 在 macOS arm64、macOS x64、Windows x64 原生环境分别从 `0.2.0-beta.1` 升级到更高版本；断言版本、架构、数据保留和主业务正确。
+- 当前在 macOS arm64、macOS x64 环境分别从 `0.2.0-beta.1` 升级到更高版本；断言版本、架构、数据保留和主业务正确。Windows 在恢复发布前补做原生验收。
 - macOS 遵守 `desktop-runtime-contract.md` 的唯一安装副本与挂载清理；Windows 不得以 macOS 交叉构建替代原生验收。
 
 ### 7. Wrong vs Correct
@@ -77,6 +91,10 @@ restart_application(app, state) -> ()
 #### Correct
 
 ```text
-统一版本 -> 三平台原生构建与签名 -> 匿名下载和哈希验证
--> 校验候选清单 -> 最后发布 latest.json -> 客户端确认后下载并强制验签
+prepare：同步版本、门禁、双架构签名构建、桌面稳定目录
+-> 人工提交并推送版本
+-> upload：Gitee Release、附件上传、匿名哈希验证、候选清单
+-> publish-manifest：重新验证并写入 latest.json
+-> 人工检查、提交并推送清单
+-> 客户端确认后下载并强制验签
 ```

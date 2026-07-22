@@ -4,7 +4,7 @@
 
 - 首个过渡版本固定为 `0.2.0-beta.1`。现有 `0.1.0` 客户端没有更新器，必须从 Gitee Release 手工下载安装一次。
 - `0.2.0-beta.1` 之后只发布版本号更高的更新，不支持自动降级或回退。
-- macOS arm64、macOS x64、Windows x64 必须使用同一版本同时发布。任一目标缺失时，禁止提交 `releases/latest.json`。
+- 当前免费内测清单只发布 macOS arm64、macOS x64，两者必须使用同一版本。任一 Mac 目标缺失时，禁止提交 `releases/latest.json`；Windows x64 留待具备原生构建和验收环境后加入。
 - Gitee Release 和 `latest.json` 必须允许匿名读取。客户端不携带 Gitee 账号、令牌或 URL 查询参数。
 - Tauri 更新签名是强制安全边界；免费内测只是不购买 Apple Developer ID、公证和 Windows 商业代码签名。
 
@@ -31,7 +31,83 @@ unset TAURI_SIGNING_PRIVATE_KEY TAURI_SIGNING_PRIVATE_KEY_PASSWORD
 
 在第一次发布前，把私钥文件与密码分别制作离线加密备份，并验证能够恢复。不要把两者放在同一个未加密磁盘、网盘目录或 Git 仓库。私钥丢失后，已安装客户端无法在线信任新密钥，只能再次发布手工过渡安装包。
 
-## 构建三个目标
+### Gitee 发布令牌
+
+本地发布脚本使用 Gitee Open API 创建 Release 和上传附件。前往 `https://gitee.com/profile/personal_access_tokens` 创建只用于本仓库发布的私人令牌，授予仓库（`projects`）读写权限，然后只存入 macOS 登录钥匙串：
+
+```bash
+read -r -s "GITEE_RELEASE_TOKEN?请输入 Gitee 发布令牌："
+security add-generic-password -U \
+  -a "$USER" \
+  -s com.wanglinqiao.trellis-visual-console.gitee-release \
+  -w "$GITEE_RELEASE_TOKEN"
+unset GITEE_RELEASE_TOKEN
+```
+
+令牌不得写入仓库、`.env`、命令参数或发布目录。脚本只在 Gitee API 请求体中使用令牌，不会打印其内容。令牌泄露时应立即在 Gitee 撤销并重新生成，不影响已经安装客户端的 Tauri 更新信任根。
+
+## macOS 自动化发布
+
+macOS 内测发布分为三个可重试阶段。脚本不会自动创建 Git 提交或推送，公开清单仍是最后的人工确认门禁。
+
+### 1. 准备与构建
+
+先确保当前处于已与 `origin/main` 同步的干净 `main`，然后输入目标版本和一条或多条中文更新说明：
+
+```bash
+pnpm release:mac:prepare -- \
+  0.2.0-beta.3 \
+  "修复在线更新检查返回格式" \
+  "修复更新安装完成状态显示"
+```
+
+脚本依次同步 `package.json`、工作区 `Cargo.toml` 和 Tauri 配置版本，更新 `Cargo.lock`，执行前端/Rust 门禁，读取仓库外签名密钥与钥匙串密码，构建 macOS arm64/x64，并把唯一命名的 DMG、更新包、签名、`SHA256SUMS.txt`、更新说明和发布元数据整理到：
+
+```text
+~/Desktop/Trellis Visual Console Releases/v<版本>/
+```
+
+任一步失败都会立即停止且不会创建 Gitee Release。修正失败原因后重新执行；固定目录中的生成产物可以安全覆盖，但脚本不会删除目录中的其他文件。
+
+检查版本改动后提交并推送，确保 Gitee Release 标签指向包含该版本的提交：
+
+```bash
+git add package.json Cargo.toml Cargo.lock src-tauri/tauri.conf.json
+git commit -m "chore(release): 升级到 v0.2.0-beta.3"
+git push origin main
+```
+
+### 2. 创建 Release 并上传
+
+```bash
+pnpm release:mac:upload -- \
+  "$HOME/Desktop/Trellis Visual Console Releases/v0.2.0-beta.3"
+```
+
+上传阶段要求工作区干净、本地 `main` 与 `origin/main` 一致且代码版本等于发布目录版本。脚本自动创建或复用同版本 Gitee Release，上传七个附件，并逐个匿名下载校验文件大小和 SHA-256。重试时，远端同名附件只有哈希完全一致才会跳过；内容不同会停止，禁止静默覆盖。
+
+全部附件通过后，脚本在发布目录生成并校验 Mac-only 候选 `latest.json`。该文件还没有打开客户端更新发现。
+
+### 3. 发布更新清单
+
+在浏览器确认 Gitee Release 与候选清单后执行：
+
+```bash
+pnpm release:mac:publish -- \
+  "$HOME/Desktop/Trellis Visual Console Releases/v0.2.0-beta.3"
+```
+
+该命令要求候选版本高于当前公开版本，重新校验后写入仓库 `releases/latest.json`，但不会提交或推送。检查 diff 后再打开更新：
+
+```bash
+git add releases/latest.json
+git commit -m "chore(release): 发布 v0.2.0-beta.3 Mac 更新清单"
+git push origin main
+```
+
+最后匿名访问 `https://gitee.com/wanglinqiao/trellis-visual-console/raw/main/releases/latest.json`，确认内容与桌面发布目录中的候选文件一致。
+
+## 三平台手工发布补充
 
 先把 `package.json`、工作区 `Cargo.toml` 和 `src-tauri/tauri.conf.json` 更新为同一 SemVer，然后执行：
 
@@ -61,7 +137,7 @@ Windows 使用：
 Get-FileHash -Algorithm SHA256 <产物路径>
 ```
 
-## 发布 Gitee Release
+### 手工发布 Gitee Release
 
 1. 创建标签 `v<版本>` 和同名 Gitee Release，发布说明必须是非空中文，并包含 Gatekeeper、SmartScreen 与一次性迁移说明。
 2. 上传三个目标的手工安装包、更新包、`.sig` 和 SHA-256 记录。
@@ -86,6 +162,6 @@ Get-FileHash -Algorithm SHA256 <产物路径>
 
 ## 冻结与向前修复
 
-发现严重问题后，立即从 `main` 撤下 `releases/latest.json`，或恢复为客户端不会视为更高版本的最后安全清单，阻止尚未升级的客户端继续发现问题版本。已经升级的客户端不做静默降级；修复后发布版本号更高、三个目标齐全的新版本，再按完整流程重新打开清单。
+发现严重问题后，立即从 `main` 撤下 `releases/latest.json`，或恢复为客户端不会视为更高版本的最后安全清单，阻止尚未升级的客户端继续发现问题版本。已经升级的客户端不做静默降级；修复后发布版本号更高、当前目标齐全的新版本，再按完整流程重新打开清单。
 
 Gitee 不可用时保持清单冻结，不切换到未验证镜像。未来迁移对象存储或 CDN 时，必须同时更新 Tauri 端点、Rust 侧批准的下载域名/路径和清单校验器，并重新完成匿名下载、重定向与签名验证；平台键、签名信任根和发布顺序保持不变。
