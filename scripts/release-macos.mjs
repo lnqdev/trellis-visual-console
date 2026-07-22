@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { createReadStream, openAsBlob } from "node:fs";
+import { openAsBlob } from "node:fs";
 import {
   copyFile,
   mkdtemp,
@@ -11,18 +11,26 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
-import { basename, join, resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
+import {
+  REPOSITORY_NAME,
+  REPOSITORY_OWNER,
+  assert,
+  calculateFileSha256,
+  compareSemver,
+  createReleaseNotes,
+  parseSemver,
+  readCurrentVersion,
+  readReleaseMetadata,
+  writeVersionFiles,
+} from "./release-common.mjs";
 
-const REPOSITORY_OWNER = "wanglinqiao";
-const REPOSITORY_NAME = "trellis-visual-console";
 const GITEE_API_BASE_URL = "https://gitee.com/api/v5";
 const GITEE_RELEASE_BASE_URL = `https://gitee.com/${REPOSITORY_OWNER}/${REPOSITORY_NAME}/releases/download`;
 const GITEE_TOKEN_SERVICE = "com.wanglinqiao.trellis-visual-console.gitee-release";
 const SIGNING_PASSWORD_SERVICE = "com.wanglinqiao.trellis-visual-console.updater-signing";
-const SEMVER_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u;
-const CHINESE_PATTERN = /[\u3400-\u4dbf\u4e00-\u9fff]/u;
 const SCRIPT_DIRECTORY = fileURLToPath(new URL(".", import.meta.url));
 const REPOSITORY_ROOT = resolve(SCRIPT_DIRECTORY, "..");
 const RELEASE_ROOT = join(homedir(), "Desktop", "Trellis Visual Console Releases");
@@ -45,13 +53,6 @@ const PLATFORM_ARTIFACTS = [
     target: "x86_64-apple-darwin",
   },
 ];
-
-/** 断言发布前置条件，并提供可直接处理的中文错误。 */
-function assert(condition, message) {
-  if (!condition) {
-    throw new Error(message);
-  }
-}
 
 /** 执行发布子命令并把输出直接交给当前终端。 */
 function run(command, args, options = {}) {
@@ -95,83 +96,6 @@ function readKeychainSecret(service) {
   return result.stdout.trim();
 }
 
-/** 解析 SemVer 为可比较的核心版本与预发布标识。 */
-function parseSemver(version) {
-  const match = SEMVER_PATTERN.exec(version);
-  assert(match !== null, `版本号不是合法 SemVer：${version}`);
-  return {
-    core: [Number(match[1]), Number(match[2]), Number(match[3])],
-    prerelease: match[4]?.split(".") ?? [],
-  };
-}
-
-/** 按 SemVer 规则比较两个版本；大于时返回正数。 */
-function compareSemver(left, right) {
-  const parsedLeft = parseSemver(left);
-  const parsedRight = parseSemver(right);
-  for (let index = 0; index < parsedLeft.core.length; index += 1) {
-    if (parsedLeft.core[index] !== parsedRight.core[index]) {
-      return parsedLeft.core[index] - parsedRight.core[index];
-    }
-  }
-  if (parsedLeft.prerelease.length === 0 || parsedRight.prerelease.length === 0) {
-    return parsedLeft.prerelease.length === parsedRight.prerelease.length
-      ? 0
-      : parsedLeft.prerelease.length === 0
-        ? 1
-        : -1;
-  }
-  const length = Math.max(parsedLeft.prerelease.length, parsedRight.prerelease.length);
-  for (let index = 0; index < length; index += 1) {
-    const leftPart = parsedLeft.prerelease[index];
-    const rightPart = parsedRight.prerelease[index];
-    if (leftPart === undefined || rightPart === undefined) {
-      return leftPart === rightPart ? 0 : leftPart === undefined ? -1 : 1;
-    }
-    if (leftPart === rightPart) {
-      continue;
-    }
-    const leftNumeric = /^\d+$/u.test(leftPart);
-    const rightNumeric = /^\d+$/u.test(rightPart);
-    if (leftNumeric && rightNumeric) {
-      return Number(leftPart) - Number(rightPart);
-    }
-    if (leftNumeric !== rightNumeric) {
-      return leftNumeric ? -1 : 1;
-    }
-    return leftPart.localeCompare(rightPart, "en");
-  }
-  return 0;
-}
-
-/** 读取当前 package.json 版本。 */
-async function readCurrentVersion() {
-  const packageJson = JSON.parse(
-    await readFile(join(REPOSITORY_ROOT, "package.json"), "utf8"),
-  );
-  assert(typeof packageJson.version === "string", "package.json 缺少版本号");
-  return packageJson.version;
-}
-
-/** 使用结构化 JSON 和受限 TOML 区块同步三个版本来源。 */
-async function writeVersionFiles(version) {
-  const packageJsonPath = join(REPOSITORY_ROOT, "package.json");
-  const tauriConfigPath = join(REPOSITORY_ROOT, "src-tauri", "tauri.conf.json");
-  const cargoTomlPath = join(REPOSITORY_ROOT, "Cargo.toml");
-  const packageJson = JSON.parse(await readFile(packageJsonPath, "utf8"));
-  const tauriConfig = JSON.parse(await readFile(tauriConfigPath, "utf8"));
-  const cargoToml = await readFile(cargoTomlPath, "utf8");
-  const workspacePackagePattern = /(\[workspace\.package\][\s\S]*?^version\s*=\s*")[^"]+("\s*$)/mu;
-  assert(workspacePackagePattern.test(cargoToml), "Cargo.toml 缺少 workspace.package.version");
-  packageJson.version = version;
-  tauriConfig.version = version;
-  await Promise.all([
-    writeFile(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`, "utf8"),
-    writeFile(tauriConfigPath, `${JSON.stringify(tauriConfig, null, 2)}\n`, "utf8"),
-    writeFile(cargoTomlPath, cargoToml.replace(workspacePackagePattern, `$1${version}$2`), "utf8"),
-  ]);
-}
-
 /** 校验准备阶段从干净且已同步的 main 分支开始。 */
 function assertCleanSynchronizedMain() {
   assert(process.platform === "darwin", "macOS 发布脚本只能在 macOS 上运行");
@@ -196,16 +120,6 @@ async function loadSigningEnvironment() {
     TAURI_SIGNING_PRIVATE_KEY: privateKey,
     TAURI_SIGNING_PRIVATE_KEY_PASSWORD: password,
   };
-}
-
-/** 生成固定格式的中文 Release 和应用内更新说明。 */
-function createReleaseNotes(noteItems) {
-  assert(noteItems.length > 0, "至少需要一条中文更新说明");
-  for (const note of noteItems) {
-    assert(note.trim() !== "" && CHINESE_PATTERN.test(note), `更新说明必须包含中文：${note}`);
-  }
-  const bullets = noteItems.map((note) => `- ${note.trim()}`).join("\n");
-  return `## 更新内容\n\n${bullets}\n\n## 内测安装提示\n\nmacOS 首次打开如被 Gatekeeper 拦截，请在“系统设置 > 隐私与安全性”中确认打开。本版本不包含 Apple Developer ID 签名或公证。`;
 }
 
 /** 返回一个架构的 Tauri 原始产物与唯一发布文件名。 */
@@ -298,15 +212,6 @@ async function verifyUpdaterArchive(version, platform, description) {
   assert(signature.length >= 80, `更新签名内容不完整：${description.signature.source}`);
 }
 
-/** 流式计算文件 SHA-256，避免把安装包整体读入内存。 */
-async function calculateFileSha256(path) {
-  const hash = createHash("sha256");
-  for await (const chunk of createReadStream(path)) {
-    hash.update(chunk);
-  }
-  return hash.digest("hex");
-}
-
 /** 把双架构产物复制到桌面稳定目录并写入可恢复的发布元数据。 */
 async function stageArtifacts(version, notes) {
   const releaseDirectory = join(RELEASE_ROOT, `v${version}`);
@@ -368,11 +273,11 @@ async function prepareRelease(args) {
   const [version, ...noteItems] = args;
   assert(version !== undefined, "用法：pnpm release:mac:prepare -- <版本> <中文说明...>");
   parseSemver(version);
-  const currentVersion = await readCurrentVersion();
+  const currentVersion = await readCurrentVersion(REPOSITORY_ROOT);
   assert(compareSemver(version, currentVersion) > 0, `目标版本必须高于当前版本 ${currentVersion}`);
   const notes = createReleaseNotes(noteItems);
   assertCleanSynchronizedMain();
-  await writeVersionFiles(version);
+  await writeVersionFiles(REPOSITORY_ROOT, version);
   run("cargo", ["check", "-p", "trellis-core"]);
   run("pnpm", ["install", "--frozen-lockfile"]);
   run("pnpm", ["check:version"]);
@@ -397,7 +302,7 @@ async function stagePreparedRelease(args) {
   const [version, ...noteItems] = args;
   assert(version !== undefined, "用法：pnpm release:mac:stage -- <版本> <中文说明...>");
   parseSemver(version);
-  const currentVersion = await readCurrentVersion();
+  const currentVersion = await readCurrentVersion(REPOSITORY_ROOT);
   assert(currentVersion === version, `当前代码版本 ${currentVersion} 与待恢复版本 ${version} 不一致`);
   const notes = createReleaseNotes(noteItems);
   assert(process.platform === "darwin", "macOS 发布脚本只能在 macOS 上运行");
@@ -409,48 +314,10 @@ async function stagePreparedRelease(args) {
   console.log(`pnpm release:mac:upload -- ${JSON.stringify(releaseDirectory)}`);
 }
 
-/** 读取并验证准备阶段生成的发布元数据。 */
-async function readReleaseMetadata(releaseDirectory) {
-  const metadataPath = join(releaseDirectory, "release-metadata.json");
-  const metadataText = await readFile(metadataPath, "utf8").catch(() => null);
-  assert(metadataText !== null, `发布目录缺少 release-metadata.json：${releaseDirectory}`);
-  let metadata;
-  try {
-    metadata = JSON.parse(metadataText);
-  } catch {
-    throw new Error(`发布元数据不是合法 JSON：${metadataPath}`);
-  }
-  assert(metadata.schemaVersion === 1, "发布元数据版本不受支持");
-  parseSemver(metadata.version);
-  assert(typeof metadata.notes === "string" && CHINESE_PATTERN.test(metadata.notes), "发布元数据缺少中文说明");
-  assert(Array.isArray(metadata.artifacts) && metadata.artifacts.length > 0, "发布元数据缺少产物");
-  for (const artifact of metadata.artifacts) {
-    assert(
-      typeof artifact.name === "string" && basename(artifact.name) === artifact.name,
-      "发布元数据包含不安全的产物文件名",
-    );
-    assert(Number.isSafeInteger(artifact.size) && artifact.size > 0, `产物大小不正确：${artifact.name}`);
-    assert(/^[a-f0-9]{64}$/u.test(artifact.sha256), `产物 SHA-256 不正确：${artifact.name}`);
-  }
-  const artifactNames = new Set(metadata.artifacts.map((artifact) => artifact.name));
-  for (const platform of PLATFORM_ARTIFACTS) {
-    const files = metadata.platforms?.[platform.platform];
-    assert(files !== undefined, `发布元数据缺少平台：${platform.platform}`);
-    for (const field of ["installer", "updater", "signature"]) {
-      const name = files[field];
-      assert(
-        typeof name === "string" && basename(name) === name && artifactNames.has(name),
-        `发布元数据的平台文件不正确：${platform.platform}.${field}`,
-      );
-    }
-  }
-  return metadata;
-}
-
 /** 校验上传阶段使用的版本已经提交并推送到 origin/main。 */
 async function assertVersionCommittedAndPushed(version) {
   assertCleanSynchronizedMain();
-  const currentVersion = await readCurrentVersion();
+  const currentVersion = await readCurrentVersion(REPOSITORY_ROOT);
   assert(currentVersion === version, `当前代码版本 ${currentVersion} 与发布目录版本 ${version} 不一致`);
   run("pnpm", ["check:version"]);
 }
@@ -589,7 +456,10 @@ async function verifyManifestUpdaterArtifacts(manifest, metadata) {
 async function uploadRelease(args) {
   assert(args.length === 1, "用法：pnpm release:mac:upload -- <发布目录>");
   const releaseDirectory = resolve(args[0]);
-  const metadata = await readReleaseMetadata(releaseDirectory);
+  const metadata = await readReleaseMetadata(
+    releaseDirectory,
+    PLATFORM_ARTIFACTS.map((platform) => platform.platform),
+  );
   await assertVersionCommittedAndPushed(metadata.version);
   const token = readKeychainSecret(GITEE_TOKEN_SERVICE);
   const release = await ensureGiteeRelease(metadata, token);
@@ -620,7 +490,10 @@ async function uploadRelease(args) {
 async function publishManifest(args) {
   assert(args.length === 1, "用法：pnpm release:mac:publish -- <发布目录>");
   const releaseDirectory = resolve(args[0]);
-  const metadata = await readReleaseMetadata(releaseDirectory);
+  const metadata = await readReleaseMetadata(
+    releaseDirectory,
+    PLATFORM_ARTIFACTS.map((platform) => platform.platform),
+  );
   await assertVersionCommittedAndPushed(metadata.version);
   const candidatePath = join(releaseDirectory, "latest.json");
   const candidateText = await readFile(candidatePath, "utf8").catch(() => null);

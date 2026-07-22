@@ -1,7 +1,8 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const PLATFORM_SETS = {
+export const PLATFORM_SETS = {
   all: ["darwin-aarch64", "darwin-x86_64", "windows-x86_64"],
   macos: ["darwin-aarch64", "darwin-x86_64"],
 };
@@ -45,7 +46,7 @@ function validatePlatform(platform, artifact, version) {
 }
 
 /** 校验静态更新清单的版本、中文说明和指定平台产物。 */
-function validateManifest(manifest, platformKeys) {
+export function validateManifest(manifest, platformKeys) {
   assertExactKeys(manifest, ["notes", "platforms", "pub_date", "version"], "清单根对象");
   assert(typeof manifest.version === "string" && SEMVER_PATTERN.test(manifest.version), "version 必须是合法 SemVer");
   assert(typeof manifest.notes === "string" && manifest.notes.trim() !== "", "notes 不能为空");
@@ -81,7 +82,9 @@ async function main() {
   console.log(`更新清单校验通过：${absolutePath}`);
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : "更新清单校验失败");
-  process.exitCode = 1;
-});
+if (process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : "更新清单校验失败");
+    process.exitCode = 1;
+  });
+}

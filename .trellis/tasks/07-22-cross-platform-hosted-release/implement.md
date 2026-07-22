@@ -35,7 +35,7 @@
 - 修改：`scripts/release-macos.mjs`
 - 修改：`scripts/validate-update-manifest.mjs`
 
-- [ ] **步骤 1：定义公共导出接口**
+- [x] **步骤 1：定义公共导出接口**
 
 在 `scripts/release-common.mjs` 中实现并导出以下接口，函数错误均使用可操作的中文信息：
 
@@ -60,7 +60,7 @@ export async function readReleaseMetadata(directory, expectedPlatforms) {}
 
 `readReleaseMetadata` 必须拒绝路径穿越文件名、非正整数大小、非 64 位小写 SHA-256、缺平台和平台文件未登记等情况。元数据 `schemaVersion` 保持兼容本地 macOS 的版本 1，并允许后续 CI 使用版本 2。
 
-- [ ] **步骤 2：用临时 Node 断言验证公共接口**
+- [x] **步骤 2：用临时 Node 断言验证公共接口**
 
 运行：
 
@@ -70,7 +70,7 @@ node --input-type=module -e "import { compareSemver, createReleaseNotes } from '
 
 预期：退出码为 `0`，终端不输出 Secret。
 
-- [ ] **步骤 3：让清单校验器同时提供模块与 CLI 接口**
+- [x] **步骤 3：让清单校验器同时提供模块与 CLI 接口**
 
 从 `scripts/validate-update-manifest.mjs` 导出：
 
@@ -85,11 +85,11 @@ export function validateManifest(manifest, platformKeys) {}
 
 仅当 `import.meta.url` 对应当前入口脚本时运行 CLI `main()`，保证 `pnpm check:update-manifest` 行为不变。
 
-- [ ] **步骤 4：改造本地 macOS 脚本复用公共函数**
+- [x] **步骤 4：改造本地 macOS 脚本复用公共函数**
 
 删除 `scripts/release-macos.mjs` 中重复的常量、SemVer、说明、版本写入、哈希和元数据基础校验，改为从 `release-common.mjs` 导入。macOS 钥匙串、Mach-O/Info.plist 校验和三阶段交互仍留在原文件。
 
-- [ ] **步骤 5：执行兼容性检查**
+- [x] **步骤 5：执行兼容性检查**
 
 运行：
 
@@ -103,7 +103,7 @@ pnpm typecheck
 
 预期：两个清单校验分别通过，macOS 帮助仍列出四个原命令，lint/typecheck 退出码为 `0`。
 
-- [ ] **步骤 6：提交公共合同改造**
+- [x] **步骤 6：提交公共合同改造**
 
 ```powershell
 git add scripts/release-common.mjs scripts/release-macos.mjs scripts/validate-update-manifest.mjs
