@@ -1,0 +1,15 @@
+{
+  "version": "0.2.0-beta.2",
+  "notes": "## 更新内容\n\n- 支持桌面客户端在线更新。\n- 显示当前应用版本。\n- 保持本地 Trellis 项目只读。",
+  "pub_date": "2026-07-22T10:14:03.590Z",
+  "platforms": {
+    "darwin-aarch64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTEQxdjdqZURTRUluY0xPR1ZhQUgyWDNoalVPbWUzSWN2b0xrdVlPSXdlcjZLbStFb1d3Nlcva3dDMTFXVnpWRDNIWklIMDhKZnZXeFBxV3hlVXprVkIxUnR5enRLandNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0NzE0MzE2CWZpbGU6VHJlbGxpcyBWaXN1YWwgQ29uc29sZS5hcHAudGFyLmd6ClBndzZsdEV0NndYWlFBeXF3TGpWWXZndEtqS3ZEWWJyeVBHWUdINzdtbWVjQ0dUa01ZM0NVZXBKdXEwUUIvVTg0b09NTXVJYTNmdllSYmdFbzQrckNBPT0K",
+      "url": "https://gitee.com/wanglinqiao/trellis-visual-console/releases/download/v0.2.0-beta.2/Trellis.Visual.Console_0.2.0-beta.2_aarch64.app.tar.gz"
+    },
+    "darwin-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTEQxdjdqZURTRUE1alFOZ09Cc0ptcy95WGNqa0JqS2c4Mnd4R1JOTFRZZEgwaWJ6Qk1RQm0vWGJJRTYvc3lOYkN1bG9Oc1M1UjN5K3Z0bVk3TitQN1pNL3Z2bEVMVEE4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0NzE0MzcyCWZpbGU6VHJlbGxpcyBWaXN1YWwgQ29uc29sZS5hcHAudGFyLmd6CnZwWFY2eW9QM2IrVWt5T1FPaVpGckU1SHRtSG1KMi9GL0IrNTZZWXNTVmsrYVd3bFdUMDd3cmZ0M0ZXOG1sWGVJbFQ5dUpIY3NET29hajdxa1ByVkJRPT0K",
+      "url": "https://gitee.com/wanglinqiao/trellis-visual-console/releases/download/v0.2.0-beta.2/Trellis.Visual.Console_0.2.0-beta.2_x64.app.tar.gz"
+    }
+  }
+}
