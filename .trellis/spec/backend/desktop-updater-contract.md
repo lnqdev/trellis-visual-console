@@ -6,7 +6,7 @@
 
 - 修改更新插件、端点、公钥、版本、更新 Command、`updater-state.json`、重启流程或发布产物时必须遵守本合同。
 - 更新能力只属于 `src-tauri` 桌面适配层；`trellis-core` 不得依赖 Tauri、HTTP 客户端或更新插件。
-- 更新实现支持 `darwin-aarch64`、`darwin-x86_64`、`windows-x86_64`；当前公开内测清单只启用两个 macOS 目标，启用 Windows 发布前必须恢复三平台清单校验与真实升级矩阵。
+- 更新实现和公开内测清单支持 `darwin-aarch64`、`darwin-x86_64`、`windows-x86_64`；三个目标必须使用同一 SemVer、源码提交、中文说明、签名和 HTTPS Release 地址。
 
 ### 2. 签名
 
@@ -19,6 +19,8 @@ pnpm release:mac:prepare -- <version> <chineseNote...>
 pnpm release:mac:stage -- <version> <chineseNote...>
 pnpm release:mac:upload -- <releaseDirectory>
 pnpm release:mac:publish -- <releaseDirectory>
+pnpm release:prepare -- <version> <chineseNote...>
+pnpm release:ci -- <validate-tag|stage-platform|aggregate|upload|publish-manifest> ...
 ```
 
 - `mode`：`automatic | manual`。
@@ -27,8 +29,8 @@ pnpm release:mac:publish -- <releaseDirectory>
 - Channel 事件：`started { contentLength }`、`progress { downloaded, contentLength }`、`downloadFinished`。
 - `UpdateInstallResponse`：`restartRequired: boolean`。
 - Rust 内部可使用 snake_case 字段，但 Serde 枚举必须同时配置变体和变体字段的 camelCase；`rename_all` 不会自动重命名结构化枚举变体中的 `current_version`、`content_length` 等字段。
-- `release-metadata.json`：`schemaVersion`、`version`、中文 `notes`、`preparedAt`、双架构 `platforms` 和产物 `name/size/sha256`；所有文件引用必须是当前发布目录内的纯文件名。
-- 更新私钥固定来自仓库外文件或 `TAURI_SIGNING_PRIVATE_KEY`；签名密码来自钥匙串 service `com.wanglinqiao.trellis-visual-console.updater-signing`；Gitee 令牌来自钥匙串 service `com.wanglinqiao.trellis-visual-console.gitee-release`。
+- `release-metadata.json`：`schemaVersion`、`version`、中文 `notes`、`preparedAt`、三平台 `platforms` 和产物 `name/size/sha256`；CI 平台元数据还必须记录唯一源码 `commit` 和 `platform`，所有文件引用必须是当前发布目录内的纯文件名。
+- 更新私钥固定来自仓库外文件或 `TAURI_SIGNING_PRIVATE_KEY`；签名密码来自钥匙串 service `com.wanglinqiao.trellis-visual-console.updater-signing` 或 GitHub Secret；Gitee 令牌来自钥匙串 service `com.wanglinqiao.trellis-visual-console.gitee-release` 或 GitHub Secret，禁止明文参数和 `.env`。
 - macOS 构建必须显式使用 `--bundles app,dmg`；只使用 `--bundles dmg` 可能生成新 DMG 却保留上个版本的 `.app.tar.gz/.sig`。
 
 ### 3. 合同
@@ -41,8 +43,10 @@ pnpm release:mac:publish -- <releaseDirectory>
 - macOS 安装完成后应用包已经替换：立即重启调用受控 Command，稍后重启保持旧进程并在下次正常启动进入新版本，不持久化或重复下载更新包。
 - Windows 安装阶段通过 `on_before_exit` 同步关闭 Core 和日志后退出，由当前用户 NSIS 完成替换。
 - 构建只读取 `TAURI_SIGNING_PRIVATE_KEY` 和 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`；私钥、密码、下载 URL、签名和插件错误原文不得写入仓库或日志。
-- 静态清单必须包含同一 SemVer、中文说明、UTC 发布时间及当前启用平台的 HTTPS URL 和签名；macOS 内测要求 arm64/x64 同时存在，未来启用 Windows 时使用三平台集合。下载 URL 必须属于当前 Gitee 仓库的 Release 路径并包含目标版本，防止清单篡改后跳转任意站点或重放旧签名包。`latest.json` 是最后发布的唯一开关。
-- macOS 内测可显式使用双架构清单校验模式；本地发布工具必须拆分准备、上传和公开清单三个阶段，敏感值只从仓库外文件或 macOS 钥匙串读取，上传后匿名校验大小与 SHA-256，且不得自动提交或推送 `latest.json`。
+- 静态清单必须包含同一 SemVer、中文说明、UTC 发布时间及三个目标的 HTTPS URL 和签名；下载 URL 必须属于当前 Gitee 仓库的 Release 路径并包含目标版本，防止清单篡改后跳转任意站点或重放旧签名包。`latest.json` 是最后发布的唯一开关。
+- Gitee `main` 是唯一源码主线，公开 GitHub 仓库只作为同步镜像和 CI 控制面；发布标签固定为 `v<SemVer>`，标签提交必须属于 Gitee `main`，三个版本来源一致，并包含非空中文 `releases/notes/v<版本>.md`。
+- 日常发布由公开 GitHub Actions 在标准 Runner 上完成；本地发布工具拆分准备、上传和公开清单三个阶段，仅作为故障恢复。敏感值只从仓库外文件、macOS 钥匙串或 GitHub Secret 读取，上传后匿名校验大小与 SHA-256，公开清单必须经过 `release-production` 人工门禁。
+- 三平台产物必须齐套后才能生成候选清单；同一标签重试只允许复用名称、大小和 SHA-256 全部一致的 Gitee 附件。标准 Runner 无法完成构建时必须停止并重新评审，禁止静默切换 Larger Runner、长期自托管机器或缺平台清单。
 - `prepare` 构建前必须删除两个 target 下明确的旧 `.app`、`.app.tar.gz` 和 `.sig` 生成物；整理前必须读取新压缩包内的 `Info.plist` 与 Mach-O，断言版本和架构分别等于目标 SemVer 与平台键。文件名、修改时间、哈希和签名存在不能替代内容检查。
 - 双架构构建已完成但校验或归档失败时，`stage` 可在版本来源一致的前提下复用现有构建；仍须从临时目录中的真实文件执行包内版本和架构断言，并在结束后清理临时目录，不得用大文件标准输入管道代替。
 
@@ -61,7 +65,7 @@ pnpm release:mac:publish -- <releaseDirectory>
 | 没有待更新句柄 | `update-not-available` |
 | 状态文件损坏 | 隔离为 `updater-state.corrupt-*.json` 后重新检查 |
 | 状态文件版本高于当前支持版本 | `update-state-version-unsupported`，原文件不变 |
-| 目标版本不是更高 SemVer、分支不是 main、工作区不干净或未与 origin/main 同步 | 准备/上传/公开阶段立即停止，不修改远端 Release 或公开清单 |
+| 目标版本不是更高 SemVer、标签提交与 Gitee 主线不一致、工作区不干净或未与 origin/main 同步 | 准备/上传/公开阶段立即停止，不修改远端 Release 或公开清单 |
 | 签名材料或 Gitee 钥匙串令牌缺失 | 中文错误提示对应 service，禁止降级为明文参数或 `.env` |
 | 已有同名附件哈希不同、已有 Release 未指向当前 main 提交 | 拒绝复用并停止发布 |
 | 匿名下载状态、大小或 SHA-256 不一致 | 不生成或不公开候选清单 |
@@ -69,7 +73,7 @@ pnpm release:mac:publish -- <releaseDirectory>
 
 ### 5. Good / Base / Bad Cases
 
-- Good：从同步且干净的 main 准备版本，双架构产物和签名齐全，Gitee 附件匿名下载与哈希验证通过，人工确认后才提交清单；客户端展示中文说明后由用户确认安装。
+- Good：从 Gitee `main` 提交版本文件和标签，GitHub Actions 校验同一提交后并行构建三平台，Gitee 附件匿名下载与哈希验证通过，人工门禁批准后才提交清单；客户端展示中文说明后由用户确认安装。
 - Base：双架构构建完成后校验或归档失败，修复原因并用相同版本和说明执行 `stage`；它从临时目录中的真实文件重新校验并覆盖稳定发布目录，不重复编译或访问远端。清单不可访问或当前无更新时，界面给出可恢复结果，项目浏览、本机数据和源项目保持不变。
 - Bad：把完整 Mach-O 通过标准输入交给会提前退出的 `file -`、只构建新 DMG 却把 target 中旧 `.app.tar.gz` 重命名为新版本、先发布只有一个 Mac 架构的清单、让脚本自动提交推送、把令牌或私钥写进仓库、静默覆盖不同内容的同名附件，或 macOS 稍后重启时再次下载安装包。
 
@@ -98,12 +102,9 @@ pnpm release:mac:publish -- <releaseDirectory>
 #### Correct
 
 ```text
-prepare：同步版本、门禁、清理旧 updater 产物、显式 app+dmg 双架构签名构建
--> 解包断言版本/架构、整理到桌面稳定目录
-（若构建完成后校验/归档失败：修复原因 -> stage 相同版本与说明 -> 重新断言并整理）
--> 人工提交并推送版本
--> upload：Gitee Release、附件上传、匿名哈希验证、候选清单
--> publish-manifest：重新验证并写入 latest.json
--> 人工检查、提交并推送清单
+Gitee main：提交版本文件、中文说明和 v<SemVer> 标签
+-> GitHub Actions：标签提交校验、macOS 双架构/Windows x64 并行签名构建
+-> aggregate/upload：Gitee Release、附件上传、匿名哈希验证、候选清单
+-> release-production：人工批准后 Contents API 写入 latest.json
 -> 客户端确认后下载并强制验签
 ```

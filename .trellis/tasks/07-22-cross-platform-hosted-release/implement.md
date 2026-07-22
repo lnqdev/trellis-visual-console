@@ -397,7 +397,7 @@ git commit -m "ci: 增加跨平台托管发布工作流"
 - 修改：`docs/release/desktop-online-update.md`
 - 修改：`.trellis/spec/backend/desktop-updater-contract.md`
 
-- [ ] **步骤 1：改写日常发布流程**
+- [x] **步骤 1：改写日常发布流程**
 
 文档中的主流程固定为：
 
@@ -411,19 +411,19 @@ git push origin main --follow-tags
 
 随后说明 GitHub 自动构建、候选 Gitee Release、匿名校验和 `release-production` 一次人工批准。删除“日常发布需要分别登录 macOS/Windows 构建机”的表述。
 
-- [ ] **步骤 2：记录 GitHub/Gitee 配置**
+- [x] **步骤 2：记录 GitHub/Gitee 配置**
 
 列出公开 GitHub 镜像、Gitee 推送镜像优先方案、双远端单命令回退方案、三个 Secret 名称、`release-production` 审核者、标准 Runner 与 Artifact 一天保留期。不得在文档中记录 Secret 值。
 
-- [ ] **步骤 3：保留故障恢复边界**
+- [x] **步骤 3：保留故障恢复边界**
 
 保留本地 macOS 三阶段脚本说明，但明确仅为故障恢复；三平台正式清单不能在缺少 Windows 产物时公开。冻结和向前修复规则保持不变。
 
-- [ ] **步骤 4：更新 Trellis 长期合同**
+- [x] **步骤 4：更新 Trellis 长期合同**
 
 在 `.trellis/spec/backend/desktop-updater-contract.md` 记录：Gitee 主线、GitHub 镜像、标签提交合同、三平台齐套、Secret 边界、匿名复验、人工清单门禁、幂等重试和禁止付费 Runner 静默降级。
 
-- [ ] **步骤 5：运行文档一致性搜索**
+- [x] **步骤 5：运行文档一致性搜索**
 
 ```powershell
 rg -n "Windows x64 在线更新发布延后|无人值守托管 CI.*范围外|只发布 macOS|两台构建机" README.md docs/release .trellis/spec
@@ -431,7 +431,7 @@ rg -n "Windows x64 在线更新发布延后|无人值守托管 CI.*范围外|只
 
 预期：不再存在与新合同冲突的旧描述；故障恢复章节可以保留“本地 macOS”字样。
 
-- [ ] **步骤 6：提交文档**
+- [x] **步骤 6：提交文档**
 
 ```powershell
 git add README.md docs/release/desktop-online-update.md .trellis/spec/backend/desktop-updater-contract.md

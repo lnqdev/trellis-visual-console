@@ -4,9 +4,44 @@
 
 - 首个过渡版本固定为 `0.2.0-beta.1`。现有 `0.1.0` 客户端没有更新器，必须从 Gitee Release 手工下载安装一次。
 - `0.2.0-beta.1` 之后只发布版本号更高的更新，不支持自动降级或回退。
-- 当前免费内测清单只发布 macOS arm64、macOS x64，两者必须使用同一版本。任一 Mac 目标缺失时，禁止提交 `releases/latest.json`；Windows x64 留待具备原生构建和验收环境后加入。
+- 当前免费内测清单同时发布 macOS arm64、macOS x64、Windows x64，三者必须使用同一版本。任一目标缺失时，禁止提交 `releases/latest.json`。
 - Gitee Release 和 `latest.json` 必须允许匿名读取。客户端不携带 Gitee 账号、令牌或 URL 查询参数。
 - Tauri 更新签名是强制安全边界；免费内测只是不购买 Apple Developer ID、公证和 Windows 商业代码签名。
+
+## GitHub Actions 日常发布
+
+Gitee `main` 继续是唯一源码主线，公开 GitHub 仓库只作为同步镜像和 CI 控制面。优先配置 Gitee 到 GitHub 的 `main`/标签推送镜像；若账号不支持，在本机一次性增加包含两个推送地址的 `release` 远端：
+
+```bash
+git remote add release https://gitee.com/wanglinqiao/trellis-visual-console.git
+git remote set-url --add --push release https://gitee.com/wanglinqiao/trellis-visual-console.git
+git remote set-url --add --push release https://github.com/wanglinqiao/trellis-visual-console.git
+git remote get-url --all --push release
+```
+
+此时把日常命令中的 `git push origin main --follow-tags` 替换为 `git push release main --follow-tags`，一次命令同时推送 Gitee 和 GitHub；任一远端失败都按发布失败处理并修复同步状态。GitHub 仓库必须保持公开，并只使用标准 `ubuntu-24.04`、`macos-14`、`windows-2022` Runner，不使用 Larger Runner 或长期自托管机器。构建中转 Artifact 仅保留 1 天，客户端最终只从 Gitee Release 下载。
+
+在 GitHub Repository Secrets 中配置以下名称，值不得写入仓库、日志或 Artifact：
+
+```text
+TAURI_SIGNING_PRIVATE_KEY
+TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+GITEE_RELEASE_TOKEN
+```
+
+创建受保护的 `release-production` Environment，并将发布者加入必需审核者。前三个构建和候选上传成功后，工作流暂停等待一次批准；批准前 Gitee Release 可以存在，但公开 `releases/latest.json` 不变。
+
+日常发布只需在 Gitee `main` 提交版本文件、`releases/notes/v<版本>.md` 和同版本标签：
+
+```bash
+pnpm release:prepare -- 0.2.0-beta.5 "修复在线更新返回格式"
+git add package.json Cargo.toml Cargo.lock src-tauri/tauri.conf.json releases/notes/v0.2.0-beta.5.md
+git commit -m "chore(release): 升级到 v0.2.0-beta.5"
+git tag v0.2.0-beta.5
+git push origin main --follow-tags
+```
+
+工作流会校验 GitHub 与 Gitee 提交一致、三平台签名和 SHA-256、Gitee 附件匿名下载，再由 `release-production` 门禁提交公开清单。重跑同一标签只允许复用哈希完全一致的附件。
 
 ## 密钥与本机环境
 
@@ -46,7 +81,7 @@ unset GITEE_RELEASE_TOKEN
 
 令牌不得写入仓库、`.env`、命令参数或发布目录。脚本只在 Gitee API 请求体中使用令牌，不会打印其内容。令牌泄露时应立即在 Gitee 撤销并重新生成，不影响已经安装客户端的 Tauri 更新信任根。
 
-## macOS 自动化发布
+## macOS 本地故障恢复发布
 
 macOS 内测发布分为三个可重试阶段。脚本不会自动创建 Git 提交或推送，公开清单仍是最后的人工确认门禁。
 
@@ -115,7 +150,7 @@ git push origin main
 
 最后匿名访问 `https://gitee.com/wanglinqiao/trellis-visual-console/raw/main/releases/latest.json`，确认内容与桌面发布目录中的候选文件一致。
 
-## 三平台手工发布补充
+## 三平台手工故障恢复补充
 
 先把 `package.json`、工作区 `Cargo.toml` 和 `src-tauri/tauri.conf.json` 更新为同一 SemVer，然后执行：
 
