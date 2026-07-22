@@ -315,11 +315,11 @@ git commit -m "feat: 增加三平台 Gitee 候选发布"
 - 新建：`.github/workflows/quality.yml`
 - 新建：`.github/workflows/release.yml`
 
-- [ ] **步骤 1：实现复合环境准备 Action**
+- [x] **步骤 1：实现复合环境准备 Action**
 
 `setup-project/action.yml` 使用 `actions/setup-node@v4`、`pnpm/action-setup@v4`、`dtolnay/rust-toolchain` 和 `Swatinem/rust-cache@v2`，统一安装 Node 22、pnpm 10、Rust 1.85 与 `rustfmt/clippy`；当 `rust-target` 非空时安装该唯一目标，然后执行 `pnpm install --frozen-lockfile`。输入只包含 `rust-target`，不得接收 Secret。
 
-- [ ] **步骤 2：实现无 Secret 质量工作流**
+- [x] **步骤 2：实现无 Secret 质量工作流**
 
 `quality.yml` 仅授予 `contents: read`，在公开镜像 `main` 推送和 Pull Request 上使用 `ubuntu-24.04`，依次运行：
 
@@ -333,7 +333,7 @@ cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo check --workspace --all-targets --all-features
 ```
 
-- [ ] **步骤 3：实现标签预检任务**
+- [x] **步骤 3：实现标签预检任务**
 
 `release.yml` 只响应 `v*` 标签，配置：
 
@@ -347,7 +347,7 @@ concurrency:
 
 `validate` 使用 `ubuntu-24.04`，调用 `release-ci.mjs validate-tag`，验证 Gitee 同名标签、Gitee `main` 可达关系、三个版本来源和说明文件，并输出 `version`、`commit`。
 
-- [ ] **步骤 4：实现三目标标准 Runner 构建**
+- [x] **步骤 4：实现三目标标准 Runner 构建**
 
 两个 macOS matrix 项使用 `macos-14`，目标分别为 `aarch64-apple-darwin`、`x86_64-apple-darwin`；Windows 使用 `windows-2022` 与 `x86_64-pc-windows-msvc`。构建环境只注入：
 
@@ -359,7 +359,7 @@ CI: "true"
 
 每项构建后调用 `stage-platform`，再使用 `actions/upload-artifact@v4` 上传，配置 `retention-days: 1` 和 `if-no-files-found: error`。禁止使用 `*-xlarge`、`larger-runner` 或自托管标签。
 
-- [ ] **步骤 5：实现汇总上传与人工门禁**
+- [x] **步骤 5：实现汇总上传与人工门禁**
 
 `aggregate` 依赖三个构建任务，使用 `ubuntu-24.04` 下载 Artifact、执行 `aggregate` 与 `upload`，只在该任务注入 `GITEE_RELEASE_TOKEN`。候选目录再次作为保留一天的 Artifact 上传。
 
@@ -371,7 +371,7 @@ environment: release-production
 
 下载候选 Artifact 后运行 `publish-manifest`。GitHub 仓库必须把 `release-production` 配置为需要人工审核；未批准时该 job 不会启动，也不会修改 Gitee 清单。
 
-- [ ] **步骤 6：检查工作流结构和 Secret 边界**
+- [x] **步骤 6：检查工作流结构和 Secret 边界**
 
 运行：
 
@@ -382,7 +382,7 @@ rg -n "xlarge|self-hosted" .github
 
 预期：仅出现标准 Runner；Artifact 保留期均为 `1`；签名 Secret 只在构建任务，Gitee Token 只在汇总/公开任务，`release-production` 只在公开任务；第二条命令无匹配。
 
-- [ ] **步骤 7：提交工作流**
+- [x] **步骤 7：提交工作流**
 
 ```powershell
 git add .github

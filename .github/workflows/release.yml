@@ -1,0 +1,181 @@
+name: 跨平台发布
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: 标签预检
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.validate.outputs.version }}
+      commit: ${{ steps.validate.outputs.commit }}
+      notes_path: ${{ steps.validate.outputs.notes_path }}
+    steps:
+      - name: Checkout tagged commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+      - name: Setup project
+        uses: ./.github/actions/setup-project
+      - name: Validate Gitee tag and release inputs
+        id: validate
+        shell: bash
+        run: pnpm release:ci -- validate-tag --tag "${GITHUB_REF_NAME}" --sha "${GITHUB_SHA}"
+
+  build-macos:
+    name: 构建 macOS ${{ matrix.platform }}
+    needs: validate
+    runs-on: macos-14
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - platform: darwin-aarch64
+            target: aarch64-apple-darwin
+            command: pnpm build:mac:arm64
+          - platform: darwin-x86_64
+            target: x86_64-apple-darwin
+            command: pnpm build:mac:x64
+    env:
+      CI: "true"
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+    steps:
+      - name: Checkout tagged commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.validate.outputs.commit }}
+      - name: Setup project
+        uses: ./.github/actions/setup-project
+        with:
+          rust-target: ${{ matrix.target }}
+      - name: Check version
+        run: pnpm check:version
+      - name: Build updater bundle
+        shell: bash
+        run: ${{ matrix.command }}
+      - name: Stage signed artifacts
+        shell: bash
+        run: >-
+          pnpm release:ci -- stage-platform
+          --platform "${{ matrix.platform }}"
+          --version "${{ needs.validate.outputs.version }}"
+          --sha "${{ needs.validate.outputs.commit }}"
+          --source-root "target/${{ matrix.target }}/release/bundle"
+          --output "ci-artifacts/${{ matrix.platform }}"
+      - name: Upload platform artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.platform }}
+          path: ci-artifacts/${{ matrix.platform }}
+          if-no-files-found: error
+          retention-days: 1
+
+  build-windows:
+    name: 构建 Windows x64
+    needs: validate
+    runs-on: windows-2022
+    env:
+      CI: "true"
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+    steps:
+      - name: Checkout tagged commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.validate.outputs.commit }}
+      - name: Setup project
+        uses: ./.github/actions/setup-project
+        with:
+          rust-target: x86_64-pc-windows-msvc
+      - name: Check version
+        shell: bash
+        run: pnpm check:version
+      - name: Build updater bundle
+        shell: bash
+        run: pnpm build:windows:x64
+      - name: Stage signed artifacts
+        shell: bash
+        run: >-
+          pnpm release:ci -- stage-platform
+          --platform windows-x86_64
+          --version "${{ needs.validate.outputs.version }}"
+          --sha "${{ needs.validate.outputs.commit }}"
+          --source-root "target/x86_64-pc-windows-msvc/release/bundle"
+          --output "ci-artifacts/windows-x86_64"
+      - name: Upload platform artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-windows-x86_64
+          path: ci-artifacts/windows-x86_64
+          if-no-files-found: error
+          retention-days: 1
+
+  aggregate:
+    name: 汇总并上传候选 Release
+    needs: [validate, build-macos, build-windows]
+    runs-on: ubuntu-24.04
+    env:
+      GITEE_RELEASE_TOKEN: ${{ secrets.GITEE_RELEASE_TOKEN }}
+    steps:
+      - name: Checkout tagged commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.validate.outputs.commit }}
+      - name: Setup project
+        uses: ./.github/actions/setup-project
+      - name: Download platform artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: ci-artifacts
+          merge-multiple: false
+      - name: Aggregate platform metadata
+        shell: bash
+        run: pnpm release:ci -- aggregate --input ci-artifacts --output candidate
+      - name: Upload Gitee Release and verify anonymously
+        shell: bash
+        run: pnpm release:ci -- upload --directory candidate
+      - name: Upload candidate for approval job
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-candidate
+          path: candidate
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: 人工批准后公开更新清单
+    needs: [validate, aggregate]
+    runs-on: ubuntu-24.04
+    environment: release-production
+    env:
+      GITEE_RELEASE_TOKEN: ${{ secrets.GITEE_RELEASE_TOKEN }}
+    steps:
+      - name: Checkout tagged commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.validate.outputs.commit }}
+      - name: Download candidate
+        uses: actions/download-artifact@v4
+        with:
+          name: release-candidate
+          path: candidate
+      - name: Publish latest.json through Gitee Contents API
+        shell: bash
+        run: pnpm release:ci -- publish-manifest --directory candidate
