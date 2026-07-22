@@ -1,10 +1,13 @@
 use std::fs;
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 use std::sync::Arc;
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use serde::{Deserialize, Serialize};
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Manager, State};
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 use tauri_plugin_updater::{Error as UpdaterError, UpdaterExt};
@@ -195,10 +198,10 @@ pub async fn select_directory(
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
         let _ = (app, state);
-        return Err(CommandError::new(
+        Err(CommandError::new(
             "directory-picker-unsupported",
             "当前操作系统暂不支持目录选择，请手工输入路径",
-        ));
+        ))
     }
     #[cfg(any(target_os = "macos", target_os = "windows"))]
     {
@@ -602,8 +605,10 @@ const fn current_platform() -> &'static str {
     }
 }
 
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 struct DirectoryPickerGuard(Arc<AtomicBool>);
 
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 impl Drop for DirectoryPickerGuard {
     fn drop(&mut self) {
         self.0.store(false, Ordering::SeqCst);
