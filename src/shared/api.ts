@@ -304,6 +304,70 @@ export const ClearApplicationDataRequestSchema = z
   .object({ confirmed: z.literal(true) })
   .strict();
 
+/** 桌面更新检查触发方式。 */
+export const UpdateCheckModeSchema = z.enum(["automatic", "manual"]);
+
+/** 在线更新支持的平台。 */
+export const ApplicationPlatformSchema = z.enum(["macos", "windows", "unsupported"]);
+
+/** 可用更新展示信息。 */
+export const ApplicationUpdateMetadataSchema = z
+  .object({
+    currentVersion: NonEmptyStringSchema,
+    version: NonEmptyStringSchema,
+    notes: NonEmptyStringSchema,
+    publishedAt: IsoDateTimeSchema,
+    platform: ApplicationPlatformSchema,
+  })
+  .strict();
+
+/** 更新检查响应。 */
+export const UpdateCheckResponseSchema = z.discriminatedUnion("status", [
+  z
+    .object({
+      status: z.literal("skipped"),
+      currentVersion: NonEmptyStringSchema,
+      platform: ApplicationPlatformSchema,
+    })
+    .strict(),
+  z
+    .object({
+      status: z.literal("upToDate"),
+      currentVersion: NonEmptyStringSchema,
+      platform: ApplicationPlatformSchema,
+    })
+    .strict(),
+  z
+    .object({
+      status: z.literal("available"),
+      update: ApplicationUpdateMetadataSchema,
+    })
+    .strict(),
+]);
+
+/** 更新包下载进度。 */
+export const UpdateDownloadProgressSchema = z.discriminatedUnion("event", [
+  z
+    .object({
+      event: z.literal("started"),
+      contentLength: z.number().int().nonnegative().nullable(),
+    })
+    .strict(),
+  z
+    .object({
+      event: z.literal("progress"),
+      downloaded: z.number().int().nonnegative(),
+      contentLength: z.number().int().nonnegative().nullable(),
+    })
+    .strict(),
+  z.object({ event: z.literal("downloadFinished") }).strict(),
+]);
+
+/** 更新安装完成响应。 */
+export const UpdateInstallResponseSchema = z
+  .object({ restartRequired: z.boolean() })
+  .strict();
+
 export type ApiErrorResponse = z.infer<typeof ApiErrorResponseSchema>;
 export type RegisteredProjectApi = z.infer<typeof RegisteredProjectApiSchema>;
 export type ProjectRuntimeStatusApi = z.infer<typeof ProjectRuntimeStatusApiSchema>;
@@ -338,3 +402,9 @@ export type OpenProjectPathResponse = z.infer<typeof OpenProjectPathResponseSche
 export type DirectoryPickerRequest = z.infer<typeof DirectoryPickerRequestSchema>;
 export type DirectoryPickerResponse = z.infer<typeof DirectoryPickerResponseSchema>;
 export type ClearApplicationDataRequest = z.infer<typeof ClearApplicationDataRequestSchema>;
+export type UpdateCheckMode = z.infer<typeof UpdateCheckModeSchema>;
+export type ApplicationPlatform = z.infer<typeof ApplicationPlatformSchema>;
+export type ApplicationUpdateMetadata = z.infer<typeof ApplicationUpdateMetadataSchema>;
+export type UpdateCheckResponse = z.infer<typeof UpdateCheckResponseSchema>;
+export type UpdateDownloadProgress = z.infer<typeof UpdateDownloadProgressSchema>;
+export type UpdateInstallResponse = z.infer<typeof UpdateInstallResponseSchema>;

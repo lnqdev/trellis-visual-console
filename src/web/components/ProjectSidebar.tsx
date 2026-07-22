@@ -13,6 +13,7 @@ import type { AsyncState, ConsoleMode, EventStreamState } from "../hooks/useProj
 
 interface ProjectSidebarProps {
   projects: AsyncState<ProjectListItem[]>;
+  applicationVersion: string;
   mode: ConsoleMode;
   selectedProjectId: string | null;
   eventStreamState: EventStreamState;
@@ -25,6 +26,7 @@ interface ProjectSidebarProps {
 /** 展示焦点、历史和不可用项目分组导航。 */
 export function ProjectSidebar({
   projects,
+  applicationVersion,
   mode,
   selectedProjectId,
   eventStreamState,
@@ -48,6 +50,7 @@ export function ProjectSidebar({
         <div>
           <strong>Trellis Console</strong>
           <span>LOCAL · READ ONLY</span>
+          <span className="brand-version">当前版本 v{applicationVersion}</span>
         </div>
       </div>
 

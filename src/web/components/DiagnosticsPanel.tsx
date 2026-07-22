@@ -1,5 +1,7 @@
 import { AlertCircle, AlertTriangle, FolderOpen, RefreshCw, Trash2 } from "lucide-react";
 import type { ProjectDetailResponse } from "../../shared/api";
+import type { ApplicationUpdaterController } from "../hooks/useApplicationUpdater";
+import { ApplicationUpdatePanel } from "./ApplicationUpdate";
 
 interface DiagnosticsPanelProps {
   detail: ProjectDetailResponse;
@@ -7,6 +9,7 @@ interface DiagnosticsPanelProps {
   onRefresh: () => void;
   onOpenLogs: () => void;
   onClearApplicationData: () => void;
+  updater: ApplicationUpdaterController;
 }
 
 /** 展示项目索引警告、错误和不可用恢复入口。 */
@@ -16,6 +19,7 @@ export function DiagnosticsPanel({
   onRefresh,
   onOpenLogs,
   onClearApplicationData,
+  updater,
 }: DiagnosticsPanelProps) {
   const diagnostics = detail.snapshot?.diagnostics ?? [];
   return (
@@ -30,6 +34,7 @@ export function DiagnosticsPanel({
           清除本地数据并退出
         </button>
       </div>
+      <ApplicationUpdatePanel updater={updater} />
       {detail.project.state === "unavailable" ? (
         <div className="unavailable-banner" role="alert">
           <AlertCircle size={22} aria-hidden="true" />

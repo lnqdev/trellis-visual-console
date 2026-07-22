@@ -20,9 +20,13 @@ workspace = true
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+atomic-write-file = "0.3.0"
+serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-single-instance = "2"
+tauri-plugin-updater = "2.10.1"
+time = { version = "0.3", features = ["formatting", "parsing"] }
 trellis-core = { path = "../crates/trellis-core" }

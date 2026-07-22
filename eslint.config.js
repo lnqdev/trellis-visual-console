@@ -9,7 +9,7 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ["src/shared/**/*.ts", "vite.config.ts", "eslint.config.js"],
+    files: ["src/shared/**/*.ts", "scripts/**/*.mjs", "vite.config.ts", "eslint.config.js"],
     languageOptions: {
       globals: globals.node,
     },

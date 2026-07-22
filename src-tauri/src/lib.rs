@@ -12,12 +12,14 @@ mod realtime;
 mod system;
 
 use system::logging::AppLogger;
+use system::updater::UpdateManager;
 
 /// 桌面适配层共享状态。
 pub struct AppState {
     core: Result<Arc<ApplicationService>, CommandError>,
     data_directory: Result<PathBuf, CommandError>,
     logger: Arc<AppLogger>,
+    update_manager: Arc<UpdateManager>,
     directory_picker_active: Arc<AtomicBool>,
     closing: AtomicBool,
 }
@@ -25,13 +27,19 @@ pub struct AppState {
 impl AppState {
     /// 返回已初始化的 Core，或向 Command 透传稳定初始化错误。
     pub fn core(&self) -> Result<Arc<ApplicationService>, CommandError> {
+        self.ensure_active()?;
+        self.core.clone()
+    }
+
+    /// 确保桌面进程尚未进入关闭或重启阶段。
+    pub fn ensure_active(&self) -> Result<(), CommandError> {
         if self.closing.load(Ordering::SeqCst) {
             return Err(CommandError::new(
                 "application-closing",
                 "客户端正在关闭，已拒绝新的操作",
             ));
         }
-        self.core.clone()
+        Ok(())
     }
 
     /// 返回关闭流程使用的 Core，不受新任务拒绝状态影响。
@@ -47,6 +55,11 @@ impl AppState {
     /// 返回固定日志入口。
     pub fn logger(&self) -> Arc<AppLogger> {
         Arc::clone(&self.logger)
+    }
+
+    /// 返回桌面更新管理器。
+    pub fn update_manager(&self) -> Arc<UpdateManager> {
+        Arc::clone(&self.update_manager)
     }
 
     /// 返回跨异步任务共享的目录选择忙碌标记。
@@ -77,8 +90,10 @@ pub fn run() {
         ))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             let data_directory = resolve_application_data_directory();
+            let update_manager = Arc::new(UpdateManager::new(data_directory.clone()));
             let log_directory = data_directory.as_ref().map_or_else(
                 |_| std::env::temp_dir().join("trellis-visual-console-logs"),
                 |directory| directory.join("logs"),
@@ -111,6 +126,7 @@ pub fn run() {
                 core,
                 data_directory,
                 logger,
+                update_manager,
                 directory_picker_active: Arc::new(AtomicBool::new(false)),
                 closing: AtomicBool::new(false),
             });
@@ -137,6 +153,9 @@ pub fn run() {
             commands::select_directory,
             commands::open_project_path,
             commands::open_log_directory,
+            commands::check_for_update,
+            commands::install_update,
+            commands::restart_application,
             commands::clear_application_data_and_exit,
         ])
         .on_window_event(|window, event| {

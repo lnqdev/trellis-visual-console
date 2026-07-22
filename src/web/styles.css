@@ -151,6 +151,12 @@ pre {
   letter-spacing: 0.13em;
 }
 
+.brand-row .brand-version {
+  color: #bfdbfe;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  letter-spacing: 0;
+}
+
 .connection-chip {
   display: flex;
   align-items: center;
@@ -910,6 +916,51 @@ pre {
   border: 0;
   color: inherit;
   background: transparent;
+}
+
+.update-notice {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 1px solid rgb(96 165 250 / 32%);
+  border-radius: 8px;
+  color: #dbeafe;
+  background: rgb(30 58 95 / 55%);
+}
+
+.update-notice > div,
+.update-notice > div > span {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.update-notice > div {
+  gap: 10px;
+}
+
+.update-notice > div > span {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.update-notice strong,
+.update-notice small {
+  overflow-wrap: anywhere;
+}
+
+.update-notice strong {
+  font-size: 13px;
+}
+
+.update-notice small {
+  color: #93c5fd;
+  font-size: 11px;
 }
 
 .project-workspace,
@@ -1860,6 +1911,217 @@ pre {
   gap: 10px;
 }
 
+.application-update-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 18px;
+  padding: 16px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.application-update-heading {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.application-update-icon {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 8px;
+  color: #86efac;
+  background: var(--accent-soft);
+}
+
+.application-update-heading h2 {
+  margin-bottom: 4px;
+  font-size: 15px;
+}
+
+.application-update-heading p {
+  margin-bottom: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.application-update-meta {
+  display: flex;
+  gap: 18px;
+  margin-bottom: 0;
+}
+
+.application-update-meta > div {
+  display: grid;
+  gap: 5px;
+}
+
+.application-update-meta dt {
+  color: var(--subtle);
+  font-size: 10px;
+}
+
+.application-update-meta dd {
+  margin-bottom: 0;
+  font-size: 12px;
+}
+
+.application-update-meta code {
+  color: #bfdbfe;
+}
+
+.beta-badge {
+  display: inline-flex;
+  min-height: 22px;
+  align-items: center;
+  padding: 3px 7px;
+  border-radius: 6px;
+  color: #fde68a;
+  background: var(--warning-soft);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.application-update-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.update-dialog-backdrop {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgb(2 6 23 / 76%);
+}
+
+.update-dialog {
+  width: min(640px, 100%);
+  max-height: min(760px, calc(100vh - 40px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 24px 80px rgb(0 0 0 / 38%);
+}
+
+.update-dialog > header,
+.update-dialog > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+}
+
+.update-dialog > header {
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--surface-strong);
+}
+
+.update-dialog > header span {
+  display: block;
+  margin-bottom: 4px;
+  color: #86efac;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.update-dialog > header h2 {
+  margin-bottom: 0;
+  font-size: 19px;
+  overflow-wrap: anywhere;
+}
+
+.update-dialog > footer {
+  justify-content: flex-end;
+  border-top: 1px solid var(--border-soft);
+}
+
+.update-release-notes {
+  min-height: 0;
+  padding: 16px 18px 0;
+  overflow: hidden;
+}
+
+.update-release-notes > strong {
+  display: block;
+  margin-bottom: 9px;
+  font-size: 12px;
+}
+
+.update-release-notes .markdown-body {
+  min-height: 110px;
+  max-height: 330px;
+  padding: 14px;
+  overflow: auto;
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  background: rgb(11 19 36 / 55%);
+  font-size: 12px;
+}
+
+.update-progress,
+.update-platform-note,
+.update-dialog-error {
+  margin: 14px 18px 0;
+}
+
+.update-progress > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.update-progress strong {
+  color: #bfdbfe;
+}
+
+.update-progress progress {
+  width: 100%;
+  height: 8px;
+  display: block;
+  overflow: hidden;
+  border: 0;
+  border-radius: 4px;
+  accent-color: var(--accent);
+}
+
+.update-platform-note,
+.update-dialog-error {
+  padding: 11px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.update-platform-note {
+  color: #fde68a;
+  background: var(--warning-soft);
+}
+
+.update-dialog-error {
+  color: #fecaca;
+  background: var(--danger-soft);
+}
+
 .panel-actions {
   display: flex;
   flex-wrap: wrap;
@@ -2206,6 +2468,15 @@ pre {
     grid-template-columns: 1fr;
   }
 
+  .application-update-panel {
+    grid-template-columns: 1fr auto;
+  }
+
+  .application-update-meta {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
   .package-card,
   .metric-grid {
     grid-column: 1;
@@ -2252,6 +2523,53 @@ pre {
 
   .project-groups {
     grid-template-columns: minmax(240px, 1fr);
+  }
+
+  .update-notice,
+  .application-update-panel {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .update-notice > button,
+  .application-update-actions,
+  .application-update-actions > button {
+    width: 100%;
+  }
+
+  .application-update-meta {
+    grid-column: 1;
+    grid-row: auto;
+    justify-content: space-between;
+  }
+
+  .update-dialog-backdrop {
+    padding: 10px;
+  }
+
+  .update-dialog {
+    max-height: calc(100vh - 20px);
+  }
+
+  .update-dialog > header,
+  .update-dialog > footer {
+    padding: 13px;
+  }
+
+  .update-dialog > footer {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .update-release-notes {
+    padding: 13px 13px 0;
+  }
+
+  .update-progress,
+  .update-platform-note,
+  .update-dialog-error {
+    margin-right: 13px;
+    margin-left: 13px;
   }
 
   .project-header h1,

@@ -1,6 +1,6 @@
 {
   "name": "trellis-visual-console",
-  "version": "0.1.0",
+  "version": "0.2.0-beta.1",
   "private": true,
   "type": "module",
   "description": "面向个人本机使用的 Trellis 只读可视化内容中心",
@@ -17,6 +17,8 @@
     "build:mac:x64": "tauri build --target x86_64-apple-darwin --bundles dmg",
     "build:windows:x64": "tauri build --target x86_64-pc-windows-msvc --bundles nsis",
     "build:web": "vite build",
+    "check:version": "node scripts/check-version-consistency.mjs",
+    "check:update-manifest": "node scripts/validate-update-manifest.mjs",
     "check:rust": "cargo check --workspace --all-targets --all-features",
     "tauri": "tauri",
     "lint": "eslint .",
