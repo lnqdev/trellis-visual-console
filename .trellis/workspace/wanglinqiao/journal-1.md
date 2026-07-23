@@ -403,3 +403,41 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 13: 完成跨平台托管发布
+
+**Date**: 2026-07-23
+**Task**: 完成跨平台托管发布
+**Branch**: `main`
+
+### Summary
+
+完成 macOS arm64/x64 与 Windows x64 托管构建、Gitee 候选发布和人工门禁，公开 v0.2.0-beta.6 三平台清单，修复发布任务缺少 pnpm 初始化并记录最终验收。
+
+### Main Changes
+
+- Detailed change bullets were not supplied; see the summary above.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e5b8491` | (see git log) |
+| `9bfcc69` | (see git log) |
+| `a49ddd7` | (see git log) |
+| `5765c61` | (see git log) |
+| `5f8d1c3` | (see git log) |
+| `8956089` | (see git log) |
+
+### Testing
+
+- Validation was not recorded for this session.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
