@@ -21,6 +21,7 @@ pnpm release:mac:upload -- <releaseDirectory>
 pnpm release:mac:publish -- <releaseDirectory>
 pnpm release:prepare -- <version> <chineseNote...>
 pnpm release:ci -- <validate-tag|stage-platform|aggregate|upload|publish-manifest> ...
+normalizeReleaseNotes(notes) -> LF-normalized notes
 ```
 
 - `mode`：`automatic | manual`。
@@ -45,6 +46,7 @@ pnpm release:ci -- <validate-tag|stage-platform|aggregate|upload|publish-manifes
 - 构建只读取 `TAURI_SIGNING_PRIVATE_KEY` 和 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`；私钥、密码、下载 URL、签名和插件错误原文不得写入仓库或日志。
 - 静态清单必须包含同一 SemVer、中文说明、UTC 发布时间及三个目标的 HTTPS URL 和签名；下载 URL 必须属于当前 Gitee 仓库的 Release 路径并包含目标版本，防止清单篡改后跳转任意站点或重放旧签名包。`latest.json` 是最后发布的唯一开关。
 - Gitee `main` 是唯一源码主线，公开 GitHub 仓库只作为同步镜像和 CI 控制面；发布标签固定为 `v<SemVer>`，标签提交必须属于 Gitee `main`，三个版本来源一致，并包含非空中文 `releases/notes/v<版本>.md`。
+- 版本说明进入标签校验和平台元数据前必须通过 `normalizeReleaseNotes` 把 CRLF、CR 统一为 LF 并去除首尾空白；不得把 Runner checkout 后的原始换行直接写入 `platform-metadata.json`，否则 Windows 与 macOS 会把同一说明误判为不一致。
 - 日常发布由公开 GitHub Actions 在标准 Runner 上完成；本地发布工具拆分准备、上传和公开清单三个阶段，仅作为故障恢复。敏感值只从仓库外文件、macOS 钥匙串或 GitHub Secret 读取，上传后匿名校验大小与 SHA-256，公开清单必须经过 `release-production` 人工门禁。
 - 三平台产物必须齐套后才能生成候选清单；同一标签重试只允许复用名称、大小和 SHA-256 全部一致的 Gitee 附件。标准 Runner 无法完成构建时必须停止并重新评审，禁止静默切换 Larger Runner、长期自托管机器或缺平台清单。
 - `prepare` 构建前必须删除两个 target 下明确的旧 `.app`、`.app.tar.gz` 和 `.sig` 生成物；整理前必须读取新压缩包内的 `Info.plist` 与 Mach-O，断言版本和架构分别等于目标 SemVer 与平台键。文件名、修改时间、哈希和签名存在不能替代内容检查。
@@ -69,13 +71,14 @@ pnpm release:ci -- <validate-tag|stage-platform|aggregate|upload|publish-manifes
 | 签名材料或 Gitee 钥匙串令牌缺失 | 中文错误提示对应 service，禁止降级为明文参数或 `.env` |
 | 已有同名附件哈希不同、已有 Release 未指向当前 main 提交 | 拒绝复用并停止发布 |
 | 匿名下载状态、大小或 SHA-256 不一致 | 不生成或不公开候选清单 |
+| 三平台说明仅换行风格不同 | 归一化为 LF 后继续汇总；归一化后正文仍不同则报“三平台更新说明不一致” |
 | 本次构建未重新生成 `.app.tar.gz/.sig`，或压缩包内部版本/架构不匹配 | 准备/恢复阶段立即停止，禁止复制、上传和生成清单 |
 
 ### 5. Good / Base / Bad Cases
 
 - Good：从 Gitee `main` 提交版本文件和标签，GitHub Actions 校验同一提交后并行构建三平台，Gitee 附件匿名下载与哈希验证通过，人工门禁批准后才提交清单；客户端展示中文说明后由用户确认安装。
 - Base：双架构构建完成后校验或归档失败，修复原因并用相同版本和说明执行 `stage`；它从临时目录中的真实文件重新校验并覆盖稳定发布目录，不重复编译或访问远端。清单不可访问或当前无更新时，界面给出可恢复结果，项目浏览、本机数据和源项目保持不变。
-- Bad：把完整 Mach-O 通过标准输入交给会提前退出的 `file -`、只构建新 DMG 却把 target 中旧 `.app.tar.gz` 重命名为新版本、先发布只有一个 Mac 架构的清单、让脚本自动提交推送、把令牌或私钥写进仓库、静默覆盖不同内容的同名附件，或 macOS 稍后重启时再次下载安装包。
+- Bad：把完整 Mach-O 通过标准输入交给会提前退出的 `file -`、把 Runner checkout 后的原始 CRLF/LF 直接写入平台元数据、只构建新 DMG 却把 target 中旧 `.app.tar.gz` 重命名为新版本、先发布只有一个 Mac 架构的清单、让脚本自动提交推送、把令牌或私钥写进仓库、静默覆盖不同内容的同名附件，或 macOS 稍后重启时再次下载安装包。
 
 ### 6. 必需验证与断言点
 
@@ -85,6 +88,7 @@ pnpm release:ci -- <validate-tag|stage-platform|aggregate|upload|publish-manifes
 - 运行完整 Rust/前端门禁，并用 `cargo tree -p trellis-core` 断言 Core 不包含 Tauri 或 updater。
 - Rust 回归测试必须把 `UpdateCheckResponse` 与 `UpdateDownloadProgress` 的全部变体序列化为 JSON，逐字段断言 `status`、`currentVersion`、`event`、`contentLength` 和 `downloaded` 与前端 Zod Schema 一致。
 - 本地发布脚本至少验证帮助入口、非法版本、脏工作区、缺失发布目录、三平台示例清单和 macOS 候选清单；涉及 Gitee 的真实上传只使用测试版本，并确认重复执行不会产生不同内容的同名附件。
+- 使用仓库外临时 fixture 分别以 LF、CRLF、CR 写入相同中文说明，依次执行三平台 `stage-platform` 与 `aggregate`；断言三个 `platform-metadata.json` 和最终 `release-metadata.json` 的 `notes` 完全相同且只包含 LF。
 - macOS 双架构签名构建后，分别从 `.app.tar.gz` 解出 `Contents/Info.plist` 和主二进制；断言 `CFBundleShortVersionString` 等于目标版本，`file` 输出分别包含 `arm64`、`x86_64`，且 `.sig` 为本次清理后重新生成。
 - 模拟构建完成后的归档失败，再以相同版本和中文说明执行 `stage`；断言不触发 Tauri 构建、双架构内容检查通过、稳定发布目录完整，并且成功或失败后均不残留 `trellis-updater-*` 临时目录。主二进制必须由 `file <path>` 检查，不得通过可能产生 `EPIPE` 的大文件标准输入传递。
 - 仓库外 IPC mock 覆盖自动/手动检查、可用更新、错误、进度、立即/稍后重启和 375/768/1024/1440 零横向滚动。

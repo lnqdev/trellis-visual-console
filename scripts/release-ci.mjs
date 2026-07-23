@@ -8,6 +8,7 @@ import {
   REPOSITORY_NAME,
   REPOSITORY_OWNER,
   assert,
+  normalizeReleaseNotes,
   parseSemver,
   readCurrentVersion,
   readReleaseMetadata,
@@ -88,7 +89,9 @@ async function validateTag(options) {
   assert(/^[a-f0-9]{40}$/u.test(sha), `提交 SHA 不正确：${String(sha)}`);
   assert(await readCurrentVersion(REPOSITORY_ROOT) === version, "标签版本与源码版本不一致");
   const notesPath = resolve(REPOSITORY_ROOT, "releases", "notes", `${tag}.md`);
-  const notes = (await readFile(notesPath, "utf8").catch(() => "")).trim();
+  const notes = normalizeReleaseNotes(
+    await readFile(notesPath, "utf8").catch(() => ""),
+  );
   assert(notes !== "" && CHINESE_PATTERN.test(notes), `版本更新说明缺失或不含中文：${notesPath}`);
 
   const tagRefs = runGit([

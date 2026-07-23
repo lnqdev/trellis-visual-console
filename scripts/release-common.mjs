@@ -81,6 +81,11 @@ export function createReleaseNotes(noteItems) {
   return `## 更新内容\n\n${bullets}\n\n## 内测安装提示\n\nmacOS 首次打开如被 Gatekeeper 拦截，请在“系统设置 > 隐私与安全性”中确认打开；Windows 未签名内测包可能显示 SmartScreen 提示。本版本不包含 Apple Developer ID、公证或 Windows 商业代码签名。`;
 }
 
+/** 归一化版本说明换行，避免不同 Runner 的 checkout 策略改变发布元数据。 */
+export function normalizeReleaseNotes(notes) {
+  return notes.replace(/\r\n?/gu, "\n").trim();
+}
+
 /** 读取当前 package.json 版本。 */
 export async function readCurrentVersion(repositoryRoot) {
   const packageJson = JSON.parse(

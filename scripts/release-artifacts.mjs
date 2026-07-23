@@ -16,6 +16,7 @@ import {
   PLATFORM_KEYS,
   assert,
   calculateFileSha256,
+  normalizeReleaseNotes,
   parseSemver,
 } from "./release-common.mjs";
 
@@ -141,7 +142,9 @@ export async function stagePlatformArtifacts(options) {
   assert(/^[a-f0-9]{40}$/u.test(commit), `提交 SHA 不正确：${commit}`);
   assert(PLATFORM_KEYS.includes(platform), `不支持的发布平台：${platform}`);
   const notesPath = join(repositoryRoot, "releases", "notes", `v${version}.md`);
-  const notes = (await readFile(notesPath, "utf8").catch(() => "")).trim();
+  const notes = normalizeReleaseNotes(
+    await readFile(notesPath, "utf8").catch(() => ""),
+  );
   assert(notes !== "" && CHINESE_PATTERN.test(notes), `版本更新说明缺失或不含中文：${notesPath}`);
 
   const description = describePlatformArtifacts(sourceRoot, version, platform);
