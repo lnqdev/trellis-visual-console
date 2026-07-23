@@ -1,3 +1,8 @@
+/**
+ * @author wanglinqiao
+ * Date 2026/7/23
+ * Time 17:46
+ */
 import {
   CircleOff,
   FolderClock,
@@ -6,9 +11,11 @@ import {
   Plus,
   Radio,
   RefreshCw,
+  RotateCcw,
 } from "lucide-react";
 import type { ProjectListItem } from "../../shared/api";
 import { formatDateTime, formatWatchMode } from "../formatters";
+import type { ApplicationUpdaterController } from "../hooks/useApplicationUpdater";
 import type { AsyncState, ConsoleMode, EventStreamState } from "../hooks/useProjectConsole";
 
 interface ProjectSidebarProps {
@@ -17,6 +24,7 @@ interface ProjectSidebarProps {
   mode: ConsoleMode;
   selectedProjectId: string | null;
   eventStreamState: EventStreamState;
+  updater: ApplicationUpdaterController;
   onSelectProject: (projectId: string) => void;
   onOpenTaskCenter: () => void;
   onOpenDiscovery: () => void;
@@ -30,6 +38,7 @@ export function ProjectSidebar({
   mode,
   selectedProjectId,
   eventStreamState,
+  updater,
   onSelectProject,
   onOpenTaskCenter,
   onOpenDiscovery,
@@ -40,6 +49,8 @@ export function ProjectSidebar({
   const history = data.filter((item) => item.project.state === "history");
   const unavailable = data.filter((item) => item.project.state === "unavailable");
   const activeProjectId = mode === "project" ? selectedProjectId : null;
+  const { phase } = updater.state;
+  const isCheckBusy = phase === "checking" || phase === "downloading";
 
   return (
     <aside className="project-sidebar" aria-label="项目导航">
@@ -50,7 +61,30 @@ export function ProjectSidebar({
         <div>
           <strong>Trellis Console</strong>
           <span>LOCAL · READ ONLY</span>
-          <span className="brand-version">当前版本 v{applicationVersion}</span>
+          {/* 版本号行：有新版本或待重启时在右侧显示操作按钮 */}
+          <span className="brand-version-row">
+            <span className="brand-version">当前版本 v{applicationVersion}</span>
+            {phase === "available" ? (
+              <button
+                className="brand-update-button brand-update-button--update"
+                type="button"
+                onClick={updater.openDialog}
+                title="发现新版本，点击查看更新说明"
+              >
+                更新
+              </button>
+            ) : phase === "installed" ? (
+              <button
+                className="brand-update-button brand-update-button--restart"
+                type="button"
+                onClick={updater.openDialog}
+                title="更新已安装，点击选择重启时机"
+              >
+                <RotateCcw size={10} aria-hidden="true" />
+                重启
+              </button>
+            ) : null}
+          </span>
         </div>
       </div>
 
@@ -120,8 +154,24 @@ export function ProjectSidebar({
       </nav>
 
       <footer className="sidebar-footer">
-        <span>{data.length} 个已登记项目</span>
-        <span>本机只读桌面客户端</span>
+        <div className="sidebar-footer-info">
+          <span>{data.length} 个已登记项目</span>
+          <span>本机只读桌面客户端</span>
+        </div>
+        {/* 弱化的检查更新入口，替代原诊断面板中的对应按钮 */}
+        <button
+          className="sidebar-check-update-button"
+          type="button"
+          disabled={isCheckBusy}
+          onClick={() => void updater.check("manual")}
+        >
+          <RefreshCw
+            className={phase === "checking" ? "spin" : undefined}
+            size={11}
+            aria-hidden="true"
+          />
+          {phase === "checking" ? "正在检查…" : "检查更新"}
+        </button>
       </footer>
     </aside>
   );

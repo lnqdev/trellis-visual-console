@@ -14,7 +14,7 @@ use trellis_core::contracts::CommandError;
 
 const UPDATE_STATE_VERSION: u32 = 1;
 const UPDATE_STATE_FILE: &str = "updater-state.json";
-const AUTOMATIC_CHECK_INTERVAL: Duration = Duration::hours(24);
+const AUTOMATIC_CHECK_INTERVAL: Duration = Duration::minutes(30);
 
 /// 桌面更新检查时间文件。
 #[derive(Debug, Serialize, Deserialize)]

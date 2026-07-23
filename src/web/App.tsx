@@ -8,7 +8,7 @@ import {
   X,
 } from "lucide-react";
 import type { ProjectDetailResponse } from "../shared/api";
-import { ApplicationUpdateDialog, ApplicationUpdateNotice } from "./components/ApplicationUpdate";
+import { ApplicationUpdateDialog } from "./components/ApplicationUpdate";
 import { DiagnosticsPanel } from "./components/DiagnosticsPanel";
 import { ProjectDiscovery } from "./components/ProjectDiscovery";
 import { ProjectHeader } from "./components/ProjectHeader";
@@ -18,7 +18,7 @@ import { SpecBrowser } from "./components/SpecBrowser";
 import { TaskBrowser } from "./components/TaskBrowser";
 import { TaskCenter } from "./components/TaskCenter";
 import { WorkflowPanel } from "./components/WorkflowPanel";
-import { useApplicationUpdater, type ApplicationUpdaterController } from "./hooks/useApplicationUpdater";
+import { useApplicationUpdater } from "./hooks/useApplicationUpdater";
 import { useProjectConsole, type ProjectView } from "./hooks/useProjectConsole";
 
 const PROJECT_VIEWS: Array<{
@@ -47,6 +47,7 @@ export function App() {
         mode={consoleState.mode}
         selectedProjectId={consoleState.selectedProjectId}
         eventStreamState={consoleState.eventStreamState}
+        updater={updater}
         onSelectProject={consoleState.selectProject}
         onOpenTaskCenter={consoleState.openTaskCenter}
         onOpenDiscovery={consoleState.openDiscovery}
@@ -54,7 +55,6 @@ export function App() {
       />
 
       <main className="workspace-shell">
-        <ApplicationUpdateNotice updater={updater} />
         {consoleState.notice !== null ? (
           <div className={`global-notice global-notice--${consoleState.notice.tone}`} aria-live="polite">
             <span>{consoleState.notice.message}</span>
@@ -103,7 +103,7 @@ export function App() {
             </button>
           </section>
         ) : consoleState.detail.data !== null ? (
-          <ProjectWorkspace detail={consoleState.detail.data} consoleState={consoleState} updater={updater} />
+          <ProjectWorkspace detail={consoleState.detail.data} consoleState={consoleState} />
         ) : null}
       </main>
       <ApplicationUpdateDialog updater={updater} />
@@ -114,11 +114,10 @@ export function App() {
 interface ProjectWorkspaceProps {
   detail: ProjectDetailResponse;
   consoleState: ReturnType<typeof useProjectConsole>;
-  updater: ApplicationUpdaterController;
 }
 
 /** 组合单项目头部、主导航和当前内容视图。 */
-function ProjectWorkspace({ detail, consoleState, updater }: ProjectWorkspaceProps) {
+function ProjectWorkspace({ detail, consoleState }: ProjectWorkspaceProps) {
   return (
     <div className="project-workspace">
       <ProjectHeader
@@ -162,7 +161,7 @@ function ProjectWorkspace({ detail, consoleState, updater }: ProjectWorkspacePro
       </nav>
 
       <div className="view-content">
-        {renderProjectView(detail, consoleState, updater)}
+        {renderProjectView(detail, consoleState)}
       </div>
     </div>
   );
@@ -172,7 +171,6 @@ function ProjectWorkspace({ detail, consoleState, updater }: ProjectWorkspacePro
 function renderProjectView(
   detail: ProjectDetailResponse,
   consoleState: ReturnType<typeof useProjectConsole>,
-  updater: ApplicationUpdaterController,
 ) {
   if (detail.snapshot === null && consoleState.view !== "diagnostics") {
     return <div className="content-state">项目没有可用快照，请先刷新或查看诊断。</div>;
@@ -227,7 +225,6 @@ function renderProjectView(
           onRefresh={() => void consoleState.refreshSelectedProject()}
           onOpenLogs={() => void consoleState.openLogs()}
           onClearApplicationData={() => void consoleState.clearApplicationData()}
-          updater={updater}
         />
       );
   }

@@ -57,6 +57,9 @@ const INITIAL_STATE: ApplicationUpdaterState = {
   dialogOpen: false,
 };
 
+/** 自动检查间隔，与后端 AUTOMATIC_CHECK_INTERVAL 保持一致。 */
+const AUTOMATIC_CHECK_INTERVAL_MS = 30 * 60 * 1000;
+
 /** 管理自动检查、用户确认、下载进度和更新后重启。 */
 export function useApplicationUpdater(): ApplicationUpdaterController {
   const mountedRef = useRef(true);
@@ -124,12 +127,18 @@ export function useApplicationUpdater(): ApplicationUpdaterController {
 
   useEffect(() => {
     mountedRef.current = true;
+    // 启动时立即触发一次自动检查
     if (!automaticCheckStartedRef.current) {
       automaticCheckStartedRef.current = true;
       void check("automatic");
     }
+    // 每 30 分钟定时触发自动检查，确保桌面端长时间运行时也能及时发现新版本
+    const intervalId = setInterval(() => {
+      void check("automatic");
+    }, AUTOMATIC_CHECK_INTERVAL_MS);
     return () => {
       mountedRef.current = false;
+      clearInterval(intervalId);
     };
   }, [check]);
 

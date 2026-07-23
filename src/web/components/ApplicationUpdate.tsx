@@ -1,4 +1,4 @@
-import { Download, RefreshCw, RotateCcw, ShieldCheck, X } from "lucide-react";
+import { Download, RefreshCw, RotateCcw, X } from "lucide-react";
 import { useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -7,65 +7,6 @@ import { formatDateTime } from "../formatters";
 
 interface ApplicationUpdateProps {
   updater: ApplicationUpdaterController;
-}
-
-/** 在工作区顶部非阻断提示可用更新或待重启状态。 */
-export function ApplicationUpdateNotice({ updater }: ApplicationUpdateProps) {
-  const { state } = updater;
-  if (state.phase !== "available" && state.phase !== "installed") {
-    return null;
-  }
-  return (
-    <div className="update-notice" aria-live="polite">
-      <div>
-        {state.phase === "available" ? <Download size={18} aria-hidden="true" /> : <RotateCcw size={18} aria-hidden="true" />}
-        <span>
-          <strong>{state.phase === "available" ? `发现 ${state.update?.version ?? "新版本"}` : "更新已安装"}</strong>
-          <small>{state.phase === "available" ? "查看更新说明后决定是否安装" : "重启应用后使用新版本"}</small>
-        </span>
-      </div>
-      <button className="secondary-button" type="button" onClick={updater.openDialog}>
-        {state.phase === "available" ? "查看更新" : "立即重启"}
-      </button>
-    </div>
-  );
-}
-
-/** 在诊断页展示应用版本、内测边界和更新检查入口。 */
-export function ApplicationUpdatePanel({ updater }: ApplicationUpdateProps) {
-  const { state } = updater;
-  return (
-    <section className="application-update-panel" aria-labelledby="application-update-title">
-      <div className="application-update-heading">
-        <span className="application-update-icon"><ShieldCheck size={19} aria-hidden="true" /></span>
-        <div>
-          <h2 id="application-update-title">应用更新</h2>
-          <p>{describeUpdateState(state.phase, state.error)}</p>
-        </div>
-      </div>
-      <dl className="application-update-meta">
-        <div><dt>当前版本</dt><dd><code>{state.currentVersion ?? "读取中"}</code></dd></div>
-        <div><dt>发布通道</dt><dd><span className="beta-badge">免费内测</span></dd></div>
-      </dl>
-      <div className="application-update-actions">
-        {state.phase === "available" || state.phase === "installed" ? (
-          <button className="primary-button" type="button" onClick={updater.openDialog}>
-            {state.phase === "available" ? <Download size={15} aria-hidden="true" /> : <RotateCcw size={15} aria-hidden="true" />}
-            {state.phase === "available" ? "查看更新" : "立即重启"}
-          </button>
-        ) : null}
-        <button
-          className="secondary-button"
-          type="button"
-          disabled={state.phase === "checking" || state.phase === "downloading"}
-          onClick={() => void updater.check("manual")}
-        >
-          <RefreshCw className={state.phase === "checking" ? "spin" : undefined} size={15} aria-hidden="true" />
-          {state.phase === "checking" ? "正在检查" : "检查更新"}
-        </button>
-      </div>
-    </section>
-  );
 }
 
 /** 展示更新说明、下载进度和 macOS 重启选择。 */
@@ -200,22 +141,6 @@ export function ApplicationUpdateDialog({ updater }: ApplicationUpdateProps) {
       </section>
     </div>
   );
-}
-
-/** 返回诊断页的简短更新状态。 */
-function describeUpdateState(phase: string, error: string | null): string {
-  if (error !== null) {
-    return error;
-  }
-  switch (phase) {
-    case "checking": return "正在从 Gitee 检查最新内测版本";
-    case "upToDate": return "当前已是最新内测版本";
-    case "available": return "发现新版本，安装前可查看中文更新说明";
-    case "downloading": return "正在下载、验签并安装更新";
-    case "installed": return "更新已安装，重启后生效";
-    case "skipped": return "24 小时内已自动检查，可随时手动检查";
-    default: return "启动后每 24 小时最多自动检查一次，不会静默下载";
-  }
 }
 
 /** 返回更新弹窗标题。 */
