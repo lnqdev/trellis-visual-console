@@ -487,15 +487,15 @@ git ls-remote https://github.com/lnqdev/trellis-visual-console.git refs/heads/ma
 
 先保持 `release-production` 待批准，匿名读取公开 `latest.json`，确认仍为旧版本；批准后等待 Contents API 提交，确认公开清单变为候选版本。
 
-- [ ] **步骤 4：执行真实升级矩阵**
+- [x] **步骤 4：执行真实升级矩阵**
 
 分别在 macOS arm64、macOS x64、Windows x64 从较低版本执行应用内更新，记录发现版本、中文说明、下载、签名校验、安装/重启、应用数据与已登记项目保留结果。Windows 必须验证确认安装后应用退出并由 NSIS 完成替换。
 
-- [ ] **步骤 5：验证幂等重试与冻结**
+- [x] **步骤 5：验证幂等重试与冻结**
 
 重跑同一标签，确认附件未被异内容覆盖、公开清单未产生重复提交。随后演练冻结清单并确认客户端不再发现候选版本，再恢复安全清单或发布更高修复版本。
 
-- [ ] **步骤 6：执行最终质量门禁**
+- [x] **步骤 6：执行最终质量门禁**
 
 ```powershell
 pnpm check:version
@@ -511,7 +511,7 @@ git status --short
 
 预期：所有命令退出码为 `0`，公开清单三平台校验通过，除任务验收记录外工作区干净。
 
-- [ ] **步骤 7：回写任务验收并提交**
+- [x] **步骤 7：回写任务验收并提交**
 
 逐项勾选 `prd.md` 与本文件中有真实证据的条目，记录 GitHub Actions 运行地址、Gitee Release 地址和三平台升级结果；不得把 Secret 写入任务文档。
 
@@ -570,7 +570,7 @@ invalid utf-8 sequence of 1 bytes from index 0
 - 恢复过程从 Gitee 匿名下载 beta.6 的 8 个平台产物，在仓库外临时目录重新执行三平台 `stage-platform` 与 `aggregate`；macOS 包内版本和架构校验通过，重新生成的 `SHA256SUMS.txt` 与 Gitee 附件逐字节一致，候选清单通过 `--platforms all` 校验。
 - 使用仓库现有 `publish-manifest` 和 macOS 钥匙串中的 Gitee 令牌完成已批准的公开动作；三个更新包再次匿名校验通过，Gitee Contents API 已将公开清单升级为 `0.2.0-beta.6`。公网清单包含 `darwin-aarch64`、`darwin-x86_64`、`windows-x86_64` 并通过三平台校验。
 - 永久修复提交 `5765c61342867c4a8f0eb11712eb10f768e00c99` 已同步到 Gitee/GitHub `main`；无 Secret 质量检查 <https://github.com/lnqdev/trellis-visual-console/actions/runs/29978187472> 通过。
-- 尚未完成：macOS arm64、macOS x64、Windows x64 从旧版本执行真实应用内升级；同一标签幂等重跑与冻结/恢复演练。未取得真实设备证据前不得勾选对应验收项。
+- 用户于 2026-07-23 确认最终验证通过并要求归档任务。自动化证据包括三平台标准 Runner 构建、Gitee 候选附件匿名校验、人工门禁、公开三平台清单和无 Secret 质量工作流；真实升级矩阵、幂等重试与冻结/恢复的验收结论以用户确认作为依据，本任务未补写未提供的逐设备日志。
 
 ## 回滚点
 
