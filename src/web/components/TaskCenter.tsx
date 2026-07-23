@@ -123,75 +123,81 @@ export function TaskCenter({
       </div>
 
       <div className="task-center-filters">
-        <label className="task-center-search">
-          <span>搜索</span>
-          <span className="task-center-search-control">
-            <Search size={15} aria-hidden="true" />
-            <input
-              type="search"
-              aria-label="搜索"
-              value={state.selection.query}
-              placeholder="项目、标题、ID、状态、阶段、负责人或包"
-              onChange={(event) => state.updateSelection({ query: event.target.value })}
-            />
-          </span>
-        </label>
-        <FilterSelect
-          label="项目"
-          value={state.selection.projectId}
-          options={state.filterOptions.projects.map((project) => ({
-            value: project.project.id,
-            label: project.project.label,
-          }))}
-          onChange={(projectId) => state.updateSelection({ projectId })}
-        />
-        <FilterSelect
-          label="状态"
-          value={state.selection.status}
-          options={state.filterOptions.statuses}
-          onChange={(status) => state.updateSelection({ status })}
-        />
-        <FilterSelect
-          label="阶段"
-          value={state.selection.phase}
-          options={toTextOptions(state.filterOptions.phases)}
-          onChange={(phase) => state.updateSelection({ phase })}
-        />
-        <FilterSelect
-          label="负责人"
-          value={state.selection.assignee}
-          options={toTextOptions(state.filterOptions.assignees)}
-          onChange={(assignee) => state.updateSelection({ assignee })}
-        />
-        <FilterSelect
-          label="包"
-          value={state.selection.packageName}
-          options={toTextOptions(state.filterOptions.packages)}
-          onChange={(packageName) => state.updateSelection({ packageName })}
-        />
-        <label>
-          <span>排序</span>
-          <select
-            aria-label="排序"
-            value={state.selection.sort}
-            onChange={(event) => state.updateSelection({
-              sort: event.target.value === "updated_asc" ? "updated_asc" : "updated_desc",
-            })}
+        {/* 第一行：搜索输入 + 排序 + 清除 */}
+        <div className="task-center-filters-primary">
+          <label className="task-center-search">
+            <span>搜索</span>
+            <span className="task-center-search-control">
+              <Search size={15} aria-hidden="true" />
+              <input
+                type="search"
+                aria-label="搜索"
+                value={state.selection.query}
+                placeholder="项目、标题、ID、状态、阶段、负责人或包"
+                onChange={(event) => state.updateSelection({ query: event.target.value })}
+              />
+            </span>
+          </label>
+          <label className="task-center-sort">
+            <span>排序</span>
+            <select
+              aria-label="排序"
+              value={state.selection.sort}
+              onChange={(event) => state.updateSelection({
+                sort: event.target.value === "updated_asc" ? "updated_asc" : "updated_desc",
+              })}
+            >
+              <option value="updated_desc">最近更新优先</option>
+              <option value="updated_asc">最早更新优先</option>
+            </select>
+          </label>
+          <button
+            className="task-center-reset"
+            type="button"
+            title="清除搜索和筛选"
+            disabled={!hasFilters}
+            onClick={state.clearSelection}
           >
-            <option value="updated_desc">最近更新优先</option>
-            <option value="updated_asc">最早更新优先</option>
-          </select>
-        </label>
-        <button
-          className="task-center-reset"
-          type="button"
-          title="清除搜索和筛选"
-          disabled={!hasFilters}
-          onClick={state.clearSelection}
-        >
-          <RotateCcw size={15} aria-hidden="true" />
-          清除条件
-        </button>
+            <RotateCcw size={15} aria-hidden="true" />
+            清除条件
+          </button>
+        </div>
+        {/* 第二行：五个维度筛选下拉 */}
+        <div className="task-center-filters-secondary">
+          <FilterSelect
+            label="项目"
+            value={state.selection.projectId}
+            options={state.filterOptions.projects.map((project) => ({
+              value: project.project.id,
+              label: project.project.label,
+            }))}
+            onChange={(projectId) => state.updateSelection({ projectId })}
+          />
+          <FilterSelect
+            label="状态"
+            value={state.selection.status}
+            options={state.filterOptions.statuses}
+            onChange={(status) => state.updateSelection({ status })}
+          />
+          <FilterSelect
+            label="阶段"
+            value={state.selection.phase}
+            options={toTextOptions(state.filterOptions.phases)}
+            onChange={(phase) => state.updateSelection({ phase })}
+          />
+          <FilterSelect
+            label="负责人"
+            value={state.selection.assignee}
+            options={toTextOptions(state.filterOptions.assignees)}
+            onChange={(assignee) => state.updateSelection({ assignee })}
+          />
+          <FilterSelect
+            label="包"
+            value={state.selection.packageName}
+            options={toTextOptions(state.filterOptions.packages)}
+            onChange={(packageName) => state.updateSelection({ packageName })}
+          />
+        </div>
       </div>
 
       <div className="task-center-summary" aria-label="当前任务汇总">
