@@ -448,7 +448,7 @@ git commit -m "docs: 记录三平台托管发布流程"
 - 配置 Repository Secrets：`TAURI_SIGNING_PRIVATE_KEY`、`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`、`GITEE_RELEASE_TOKEN`。
 - 配置受保护 Environment `release-production`，要求发布者人工审核；发布 job 通过审核后才会启动并读取仓库级 `GITEE_RELEASE_TOKEN`。
 
-- [ ] **步骤 1：验证公开镜像提交一致**
+- [x] **步骤 1：验证公开镜像提交一致**
 
 ```powershell
 git ls-remote https://gitee.com/wanglinqiao/trellis-visual-console.git refs/heads/main
@@ -457,11 +457,11 @@ git ls-remote https://github.com/lnqdev/trellis-visual-console.git refs/heads/ma
 
 预期：两个远端 `main` 返回相同提交 SHA。
 
-- [ ] **步骤 2：验证工作流和 Environment 可见**
+- [x] **步骤 2：验证工作流和 Environment 可见**
 
 在 GitHub Actions 页面确认 `质量检查`、`跨平台发布` 两个工作流已被解析；在 Settings 中确认仓库公开、`release-production` 有必需审核者，Secret 只显示名称且无法回读内容。
 
-- [ ] **步骤 3：运行无 Secret 普通质量工作流**
+- [x] **步骤 3：运行无 Secret 普通质量工作流**
 
 同步当前 `main` 后确认 `quality.yml` 全部通过，日志中不存在 Secret 名称对应的值，也未创建 Gitee Release。
 
@@ -475,15 +475,15 @@ git ls-remote https://github.com/lnqdev/trellis-visual-console.git refs/heads/ma
 - Gitee Release 与 `releases/latest.json`
 - macOS arm64、macOS x64、Windows x64 已安装客户端
 
-- [ ] **步骤 1：准备测试版本提交与标签**
+- [x] **步骤 1：准备测试版本提交与标签**
 
 使用高于当前公开版本的 beta 版本运行 `pnpm release:prepare`，审查版本文件和中文说明，提交并推送 Gitee `main` 与版本标签，等待 GitHub 镜像同步。
 
-- [ ] **步骤 2：验证三目标构建与候选发布**
+- [x] **步骤 2：验证三目标构建与候选发布**
 
 确认三个构建 job 均使用标准 Runner，产物版本、架构和签名正确；确认 Gitee Release 附件全部可匿名下载，候选清单恰好包含三个平台。
 
-- [ ] **步骤 3：验证人工门禁**
+- [x] **步骤 3：验证人工门禁**
 
 先保持 `release-production` 待批准，匿名读取公开 `latest.json`，确认仍为旧版本；批准后等待 Contents API 提交，确认公开清单变为候选版本。
 
@@ -569,6 +569,7 @@ invalid utf-8 sequence of 1 bytes from index 0
 - `.github/workflows/release.yml` 已在 `publish` job 的 checkout 后补充 `Setup project`。同一运行重跑仍会使用标签提交中的旧工作流，因此没有移动、删除或重建 `v0.2.0-beta.6` 标签。
 - 恢复过程从 Gitee 匿名下载 beta.6 的 8 个平台产物，在仓库外临时目录重新执行三平台 `stage-platform` 与 `aggregate`；macOS 包内版本和架构校验通过，重新生成的 `SHA256SUMS.txt` 与 Gitee 附件逐字节一致，候选清单通过 `--platforms all` 校验。
 - 使用仓库现有 `publish-manifest` 和 macOS 钥匙串中的 Gitee 令牌完成已批准的公开动作；三个更新包再次匿名校验通过，Gitee Contents API 已将公开清单升级为 `0.2.0-beta.6`。公网清单包含 `darwin-aarch64`、`darwin-x86_64`、`windows-x86_64` 并通过三平台校验。
+- 永久修复提交 `5765c61342867c4a8f0eb11712eb10f768e00c99` 已同步到 Gitee/GitHub `main`；无 Secret 质量检查 <https://github.com/lnqdev/trellis-visual-console/actions/runs/29978187472> 通过。
 - 尚未完成：macOS arm64、macOS x64、Windows x64 从旧版本执行真实应用内升级；同一标签幂等重跑与冻结/恢复演练。未取得真实设备证据前不得勾选对应验收项。
 
 ## 回滚点
