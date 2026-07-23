@@ -128,18 +128,23 @@ Windows 安装包必须在 Windows x64 原生环境构建和验收，不能用 m
 
 当前免费内测清单要求同时提供 macOS arm64、macOS x64、Windows x64 的同版本产物、签名和中文说明；完整发布、密钥备份和故障冻结步骤见[桌面端在线更新发布指南](docs/release/desktop-online-update.md)。
 
-日常发布使用公开 GitHub 镜像上的 GitHub Actions：
+发包分为两种方式：
+
+- **三平台正式在线发布（推荐）**：使用公开 GitHub 镜像和 GitHub Actions，同时生成 macOS arm64、macOS x64、Windows x64，并在人工批准后更新公开清单。
+- **macOS 本地双架构打包**：只用于 CI 故障排查、Mac 安装包预验收或手工提供 DMG；不得用 Mac-only 候选覆盖当前三平台 `latest.json`。
+
+三平台正式发布执行：
 
 ```bash
-pnpm release:prepare -- 0.2.0-beta.5 "修复在线更新返回格式"
-git add package.json Cargo.toml Cargo.lock src-tauri/tauri.conf.json releases/notes/v0.2.0-beta.5.md
-git commit -m "chore(release): 升级到 v0.2.0-beta.5"
-git tag v0.2.0-beta.5
+pnpm release:prepare -- 0.2.0-beta.7 "本次发布的中文更新说明"
+git add package.json Cargo.toml Cargo.lock src-tauri/tauri.conf.json releases/notes/v0.2.0-beta.7.md
+git commit -m "chore(release): 升级到 v0.2.0-beta.7"
+git tag v0.2.0-beta.7
 git push release main
-git push release v0.2.0-beta.5
+git push release v0.2.0-beta.7
 ```
 
-标签同步到 GitHub 后，Actions 在标准 macOS/Windows Runner 上并行构建三个目标，上传 Gitee Release 并匿名校验；候选 `latest.json` 进入 `release-production` Environment，发布者批准一次后才会公开。现有 macOS 三阶段脚本只作为 CI 故障恢复工具，不自动提交或推送清单。
+标签同步到 GitHub 后，Actions 在标准 macOS/Windows Runner 上并行构建三个目标，上传 Gitee Release 并匿名校验；候选 `latest.json` 进入 `release-production` Environment，发布者批准一次后才会公开。本地 Mac 打包使用 `pnpm release:mac:prepare -- <版本> <中文说明...>`，产物写入桌面稳定目录；当前不得执行 `release:mac:upload` 或 `release:mac:publish` 完成正式发布。完整步骤见[桌面端在线更新发布指南](docs/release/desktop-online-update.md)。
 
 ## 应用数据
 

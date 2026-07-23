@@ -17,8 +17,6 @@ restart_application(app, state) -> ()
 
 pnpm release:mac:prepare -- <version> <chineseNote...>
 pnpm release:mac:stage -- <version> <chineseNote...>
-pnpm release:mac:upload -- <releaseDirectory>
-pnpm release:mac:publish -- <releaseDirectory>
 pnpm release:prepare -- <version> <chineseNote...>
 pnpm release:ci -- <validate-tag|stage-platform|aggregate|upload|publish-manifest> ...
 normalizeReleaseNotes(notes) -> LF-normalized notes
@@ -47,7 +45,10 @@ normalizeReleaseNotes(notes) -> LF-normalized notes
 - 静态清单必须包含同一 SemVer、中文说明、UTC 发布时间及三个目标的 HTTPS URL 和签名；下载 URL 必须属于当前 Gitee 仓库的 Release 路径并包含目标版本，防止清单篡改后跳转任意站点或重放旧签名包。`latest.json` 是最后发布的唯一开关。
 - Gitee `main` 是唯一源码主线，公开 GitHub 仓库只作为同步镜像和 CI 控制面；发布标签固定为 `v<SemVer>`，标签提交必须属于 Gitee `main`，三个版本来源一致，并包含非空中文 `releases/notes/v<版本>.md`。
 - 版本说明进入标签校验和平台元数据前必须通过 `normalizeReleaseNotes` 把 CRLF、CR 统一为 LF 并去除首尾空白；不得把 Runner checkout 后的原始换行直接写入 `platform-metadata.json`，否则 Windows 与 macOS 会把同一说明误判为不一致。
-- 日常发布由公开 GitHub Actions 在标准 Runner 上完成；本地发布工具拆分准备、上传和公开清单三个阶段，仅作为故障恢复。敏感值只从仓库外文件、macOS 钥匙串或 GitHub Secret 读取，上传后匿名校验大小与 SHA-256，公开清单必须经过 `release-production` 人工门禁。
+- 发包只有两个受支持入口：日常正式发布由公开 GitHub Actions 在标准 Runner 上完成三平台构建、上传和公开；macOS 本地工具只生成、校验双架构安装包，用于故障排查、预验收或手工 DMG，不负责公开在线更新。
+- 任一准备方式保留版本提交时都必须包含 `releases/notes/v<版本>.md`。本地 `release:mac:prepare` 尚未自动生成该文件，提交前必须把桌面发布目录中的 `RELEASE_NOTES.md` 复制到该路径，保证后续标签预检和托管发布使用同一说明。
+- 当前公开清单要求三平台齐套。本地兼容命令 `release:mac:upload` 和 `release:mac:publish` 只能生成或写入 Mac-only 候选，因此在补齐三平台合并与强制校验前禁止用于正式发布；计划交给 CI 构建的同版本也禁止先上传本地同名附件。
+- 敏感值只从仓库外文件、macOS 钥匙串或 GitHub Secret 读取，上传后匿名校验大小与 SHA-256，公开清单必须经过 `release-production` 人工门禁。
 - GitHub Actions 的每个 job 都运行在全新的隔离 Runner 上，不继承前置 job 安装的 Node、pnpm、Rust 或依赖。任何执行 `pnpm` 的 job 都必须在 checkout 后先调用 `./.github/actions/setup-project`；公开 job 的稳定顺序为 `checkout -> setup-project -> download candidate -> publish-manifest`，不能因为 `aggregate` 已完成环境初始化而省略公开 job 的初始化。
 - 同一 Actions 运行的 `Re-run failed jobs` 固定使用触发提交中的工作流定义；后续 `main` 上的工作流修复不会注入旧标签运行。公开 job 因环境初始化缺失而失败时，公开清单必须保持旧版本；恢复只能使用包含修复的新工作流入口，或在不移动旧标签的前提下用现有发布脚本重建并验证同一候选目录后执行已批准的公开动作。
 - 三平台产物必须齐套后才能生成候选清单；同一标签重试只允许复用名称、大小和 SHA-256 全部一致的 Gitee 附件。标准 Runner 无法完成构建时必须停止并重新评审，禁止静默切换 Larger Runner、长期自托管机器或缺平台清单。
@@ -77,12 +78,13 @@ normalizeReleaseNotes(notes) -> LF-normalized notes
 | job 执行 `pnpm` 前未调用 `setup-project` | Runner 报 `pnpm: command not found` 并失败；候选 Release 可保留，公开清单不得变化 |
 | 修复工作流后直接重跑旧标签的失败 job | 仍使用旧标签提交中的工作流定义；禁止移动标签，改用包含修复的新入口或验证后的本地恢复流程 |
 | 本次构建未重新生成 `.app.tar.gz/.sig`，或压缩包内部版本/架构不匹配 | 准备/恢复阶段立即停止，禁止复制、上传和生成清单 |
+| 本地 Mac-only 候选尝试上传同版本 CI 附件或覆盖三平台公开清单 | 立即停止；保留本地 DMG 做验收，由三平台托管流程完成上传和公开 |
 
 ### 5. Good / Base / Bad Cases
 
-- Good：从 Gitee `main` 提交版本文件和标签，GitHub Actions 每个 job 独立 checkout 并初始化项目环境，校验同一提交后并行构建三平台，Gitee 附件匿名下载与哈希验证通过，人工门禁批准后才提交清单；客户端展示中文说明后由用户确认安装。
-- Base：双架构构建完成后校验或归档失败，修复原因并用相同版本和说明执行 `stage`；它从临时目录中的真实文件重新校验并覆盖稳定发布目录，不重复编译或访问远端。公开 job 缺少工具链时保留已验证候选 Release 和旧公开清单，修复工作流后通过新入口或验证后的本地恢复完成同一候选发布。
-- Bad：假设前置 job 的 pnpm 会出现在公开 job、修复 `main` 后直接重跑旧标签并期待工作流自动更新、把完整 Mach-O 通过标准输入交给会提前退出的 `file -`、把 Runner checkout 后的原始 CRLF/LF 直接写入平台元数据、只构建新 DMG 却把 target 中旧 `.app.tar.gz` 重命名为新版本、先发布只有一个 Mac 架构的清单、让脚本自动提交推送、把令牌或私钥写进仓库、静默覆盖不同内容的同名附件，或 macOS 稍后重启时再次下载安装包。
+- Good：正式发布从 Gitee `main` 提交版本文件、仓库内中文说明和标签，GitHub Actions 校验同一提交后并行构建三平台，Gitee 附件匿名下载与哈希验证通过，人工门禁批准后才提交清单；本地 Mac 打包只把验证通过的 DMG 留在桌面稳定目录。
+- Base：双架构本地构建完成后校验或归档失败，修复原因并用相同版本和说明执行 `stage`；它从临时目录中的真实文件重新校验并覆盖稳定发布目录，不重复编译或访问远端。公开 job 缺少工具链时保留已验证候选 Release 和旧公开清单，修复工作流后通过新入口完成三平台发布。
+- Bad：把 Mac-only 本地候选上传为计划中的同版本 CI 附件或覆盖三平台公开清单、假设前置 job 的 pnpm 会出现在公开 job、修复 `main` 后直接重跑旧标签并期待工作流自动更新、把完整 Mach-O 通过标准输入交给会提前退出的 `file -`、把 Runner checkout 后的原始 CRLF/LF 直接写入平台元数据、只构建新 DMG 却把 target 中旧 `.app.tar.gz` 重命名为新版本、让脚本自动提交推送、把令牌或私钥写进仓库、静默覆盖不同内容的同名附件，或 macOS 稍后重启时再次下载安装包。
 
 ### 6. 必需验证与断言点
 
@@ -116,6 +118,13 @@ Gitee main：提交版本文件、中文说明和 v<SemVer> 标签
 -> aggregate/upload：Gitee Release、附件上传、匿名哈希验证、候选清单
 -> release-production：人工批准后 Contents API 写入 latest.json
 -> 客户端确认后下载并强制验签
+```
+
+```text
+本地 Mac：release:mac:prepare（失败后可 stage）
+-> 校验双架构 DMG/updater/签名/SHA-256
+-> 手工安装验收或提供 DMG
+-> 停止，不上传 Mac-only 候选，不修改 latest.json
 ```
 
 ```yaml

@@ -8,7 +8,24 @@
 - Gitee Release 和 `latest.json` 必须允许匿名读取。客户端不携带 Gitee 账号、令牌或 URL 查询参数。
 - Tauri 更新签名是强制安全边界；免费内测只是不购买 Apple Developer ID、公证和 Windows 商业代码签名。
 
-## GitHub Actions 日常发布
+## 两种发包方式总览
+
+| 方式 | 用途 | 生成平台 | 是否更新公开 `latest.json` |
+| --- | --- | --- | --- |
+| 方式一：GitHub Actions 三平台正式发布 | 日常版本发布和应用内在线更新 | macOS arm64、macOS x64、Windows x64 | 是，三平台齐套并经人工批准后自动提交 |
+| 方式二：macOS 本地双架构打包 | CI 故障排查、安装包预验收、手工提供 DMG | macOS arm64、macOS x64 | 否，不得用 Mac-only 候选覆盖三平台公开清单 |
+
+必须区分三个动作：
+
+1. **打包**：生成安装包、updater、签名和 SHA-256，客户端看不到该版本。
+2. **上传候选 Release**：附件已经在 Gitee，但只要 `latest.json` 没变，客户端仍看不到该版本。
+3. **公开在线更新**：三平台候选通过校验并写入 `releases/latest.json`，客户端才会发现新版本。
+
+日常正式发包固定使用方式一。方式二只证明 macOS 产物可构建、可安装，不是三平台正式发布的替代方案。
+
+## 方式一：GitHub Actions 三平台正式发布（推荐）
+
+### 1. 一次性配置
 
 Gitee `main` 继续是唯一源码主线，公开 GitHub 仓库只作为同步镜像和 CI 控制面。优先配置 Gitee 到 GitHub 的 `main`/标签推送镜像；若账号不支持，在本机一次性增加包含两个推送地址的 `release` 远端：
 
@@ -31,18 +48,69 @@ GITEE_RELEASE_TOKEN
 
 创建受保护的 `release-production` Environment，并将发布者加入必需审核者。前三个构建和候选上传成功后，工作流暂停等待一次批准；批准前 Gitee Release 可以存在，但公开 `releases/latest.json` 不变。
 
-日常发布只需在 Gitee `main` 提交版本文件、`releases/notes/v<版本>.md` 和同版本标签：
+### 2. 准备版本提交
+
+先确认本地 `main` 干净并与 Gitee 同步，再生成版本文件和仓库内唯一更新说明：
 
 ```bash
-pnpm release:prepare -- 0.2.0-beta.5 "修复在线更新返回格式"
-git add package.json Cargo.toml Cargo.lock src-tauri/tauri.conf.json releases/notes/v0.2.0-beta.5.md
-git commit -m "chore(release): 升级到 v0.2.0-beta.5"
-git tag v0.2.0-beta.5
-git push release main
-git push release v0.2.0-beta.5
+git status --short
+git pull --ff-only origin main
+pnpm release:prepare -- 0.2.0-beta.7 "本次发布的中文更新说明"
+pnpm check:version
+git status --short
+git diff -- package.json Cargo.toml Cargo.lock src-tauri/tauri.conf.json
+sed -n '1,120p' releases/notes/v0.2.0-beta.7.md
 ```
 
-工作流会校验 GitHub 与 Gitee 提交一致、三平台签名和 SHA-256、Gitee 附件匿名下载，再由 `release-production` 门禁提交公开清单。重跑同一标签只允许复用哈希完全一致的附件。
+确认差异只包含目标版本和对应说明后提交：
+
+```bash
+git add package.json Cargo.toml Cargo.lock src-tauri/tauri.conf.json releases/notes/v0.2.0-beta.7.md
+git commit -m "chore(release): 升级到 v0.2.0-beta.7"
+git tag v0.2.0-beta.7
+```
+
+标签创建错误时，在尚未推送前删除本地标签并重新创建；标签一旦推送，不得移动或覆盖。
+
+### 3. 同步两个远端并触发构建
+
+先推送提交，再推送同一版本标签：
+
+```bash
+git push release main
+git push release v0.2.0-beta.7
+```
+
+任一远端推送失败都先修复同步状态，不创建新标签、不移动已推送标签。GitHub 的“跨平台发布”工作流随后依次执行：
+
+```text
+标签预检
+-> macOS arm64 / macOS x64 / Windows x64 并行签名构建
+-> 汇总三平台产物
+-> 上传 Gitee Release 并匿名校验
+-> 等待 release-production 人工批准
+-> 提交三平台 latest.json 到 Gitee main
+```
+
+### 4. 人工批准与发布后验证
+
+在 GitHub 仓库打开 `Actions -> 跨平台发布 -> 当前版本运行记录`，确认三个构建任务、汇总任务和 Gitee 匿名校验全部成功。工作流停在 `人工批准后公开更新清单` 时，点击 `Review deployments`，选择 `release-production` 后批准。不得在平台缺失、附件哈希不一致或说明错误时批准。
+
+批准后检查公开清单必须是目标版本且恰好包含三个平台：
+
+```bash
+curl -fsSL \
+  https://gitee.com/wanglinqiao/trellis-visual-console/raw/main/releases/latest.json \
+  | jq '{version, platforms: (.platforms | keys)}'
+```
+
+期望平台为 `darwin-aarch64`、`darwin-x86_64`、`windows-x86_64`。随后同步 GitHub Actions 通过 Contents API 写入的 Gitee 提交：
+
+```bash
+git pull --ff-only origin main
+```
+
+最后在已安装客户端中手动检查更新，核对目标版本、中文说明、安装/重启结果和当前版本显示。重跑同一标签只允许复用哈希完全一致的附件。
 
 ## 密钥与本机环境
 
@@ -67,9 +135,9 @@ unset TAURI_SIGNING_PRIVATE_KEY TAURI_SIGNING_PRIVATE_KEY_PASSWORD
 
 在第一次发布前，把私钥文件与密码分别制作离线加密备份，并验证能够恢复。不要把两者放在同一个未加密磁盘、网盘目录或 Git 仓库。私钥丢失后，已安装客户端无法在线信任新密钥，只能再次发布手工过渡安装包。
 
-### Gitee 发布令牌
+### Gitee 发布令牌（本地打包不需要）
 
-本地发布脚本使用 Gitee Open API 创建 Release 和上传附件。前往 `https://gitee.com/profile/personal_access_tokens` 创建只用于本仓库发布的私人令牌，授予仓库（`projects`）读写权限，然后只存入 macOS 登录钥匙串：
+方式二只生成和验证本地 macOS 产物，不访问 Gitee，因此不需要令牌。仓库仍保留历史本地上传兼容命令；只有经过单独评审、准备执行三平台高级事故恢复时，才前往 `https://gitee.com/profile/personal_access_tokens` 创建只用于本仓库发布的私人令牌，授予仓库（`projects`）读写权限，并只存入 macOS 登录钥匙串：
 
 ```bash
 read -r -s "GITEE_RELEASE_TOKEN?请输入 Gitee 发布令牌："
@@ -82,9 +150,11 @@ unset GITEE_RELEASE_TOKEN
 
 令牌不得写入仓库、`.env`、命令参数或发布目录。脚本只在 Gitee API 请求体中使用令牌，不会打印其内容。令牌泄露时应立即在 Gitee 撤销并重新生成，不影响已经安装客户端的 Tauri 更新信任根。
 
-## macOS 本地故障恢复发布
+## 方式二：macOS 本地双架构打包
 
-macOS 内测发布分为三个可重试阶段。脚本不会自动创建 Git 提交或推送，公开清单仍是最后的人工确认门禁。
+该方式只生成和验证 macOS arm64/x64 安装包，适用于 CI 故障定位、正式发布前的 Mac 预验收，或手工提供 DMG。它不能单独完成当前三平台在线发布。
+
+以下命令全部在 macOS 上执行。正式打包前确认仓库外更新私钥、钥匙串密码和两个 Rust target 仍然可用。
 
 ### 1. 准备与构建
 
@@ -92,9 +162,8 @@ macOS 内测发布分为三个可重试阶段。脚本不会自动创建 Git 提
 
 ```bash
 pnpm release:mac:prepare -- \
-  0.2.0-beta.3 \
-  "修复在线更新检查返回格式" \
-  "修复更新安装完成状态显示"
+  0.2.0-beta.7 \
+  "本次发布的中文更新说明"
 ```
 
 脚本依次同步 `package.json`、工作区 `Cargo.toml` 和 Tauri 配置版本，更新 `Cargo.lock`，执行前端/Rust 门禁，读取仓库外签名密钥与钥匙串密码，清理两个 target 下明确的旧 macOS updater 生成物，再以 `app,dmg` 模式构建 macOS arm64/x64。整理产物前，脚本会从每个 `.app.tar.gz` 内读取 `Info.plist` 和 Mach-O，断言内部版本与架构正确，然后才把唯一命名的 DMG、更新包、签名、`SHA256SUMS.txt`、更新说明和发布元数据整理到：
@@ -107,51 +176,63 @@ pnpm release:mac:prepare -- \
 
 ```bash
 pnpm release:mac:stage -- \
-  0.2.0-beta.4 \
-  "修复 macOS 更新产物校验"
+  0.2.0-beta.7 \
+  "本次发布的中文更新说明"
 ```
 
 恢复阶段要求三个版本来源一致，仍会重新解包校验两个 updater 的内部版本、架构和签名，再覆盖稳定发布目录中的生成产物，但不会删除目录中的其他文件。禁止仅凭新文件名、修改时间、SHA-256 或签名存在判断版本正确：这些信息无法发现“新版本文件名包含旧版本应用”的情况。
 
-检查版本改动后提交并推送，确保 Gitee Release 标签指向包含该版本的提交：
+### 2. 校验本地产物
+
+产物固定位于：
+
+```text
+~/Desktop/Trellis Visual Console Releases/v0.2.0-beta.7/
+```
+
+应包含两个 DMG、两个 `.app.tar.gz`、两个 `.sig`、`SHA256SUMS.txt`、`RELEASE_NOTES.md` 和 `release-metadata.json`。进入目录校验哈希：
 
 ```bash
-git add package.json Cargo.toml Cargo.lock src-tauri/tauri.conf.json
-git commit -m "chore(release): 升级到 v0.2.0-beta.3"
+pushd "$HOME/Desktop/Trellis Visual Console Releases/v0.2.0-beta.7"
+shasum -a 256 -c SHA256SUMS.txt
+popd
+```
+
+安装测试时必须声明唯一目标路径 `/Applications/Trellis Visual Console.app`，核对版本和架构；测试结束后退出应用、卸载 DMG，并清理本轮产生的额外应用副本。
+
+### 3. 保留版本说明并提交
+
+本地脚本会生成发布说明，但当前不会自动写入仓库的 `releases/notes/`。如果保留这个版本，必须把同一说明复制进版本提交：
+
+```bash
+cp \
+  "$HOME/Desktop/Trellis Visual Console Releases/v0.2.0-beta.7/RELEASE_NOTES.md" \
+  releases/notes/v0.2.0-beta.7.md
+git add package.json Cargo.toml Cargo.lock src-tauri/tauri.conf.json releases/notes/v0.2.0-beta.7.md
+git commit -m "chore(release): 升级到 v0.2.0-beta.7"
 git push origin main
 ```
 
-### 2. 创建 Release 并上传
+### 4. 选择后续用途
 
-```bash
-pnpm release:mac:upload -- \
-  "$HOME/Desktop/Trellis Visual Console Releases/v0.2.0-beta.3"
+- **只做本地或手工安装验证**：直接使用两个 DMG，流程到此结束，不修改 Gitee Release 和公开清单。
+- **继续正式在线发布**：不要上传本地产物；为该提交创建同版本标签，然后从方式一的“同步两个远端并触发构建”继续。GitHub Actions 会重新构建三个平台。
+- **CI 已经为同版本创建候选 Release**：不要上传本地同名附件。不同构建环境产生的同名文件可能哈希不同，脚本会拒绝覆盖。
+
+### 当前禁止的本地命令
+
+仓库暂时保留以下历史兼容命令，但当前三平台通道不得把它们作为正式发包步骤：
+
+```text
+pnpm release:mac:upload
+pnpm release:mac:publish
 ```
 
-上传阶段要求工作区干净、本地 `main` 与 `origin/main` 一致且代码版本等于发布目录版本。脚本自动创建或复用同版本 Gitee Release，上传七个附件，并逐个匿名下载校验文件大小和 SHA-256。重试时，远端同名附件只有哈希完全一致才会跳过；内容不同会停止，禁止静默覆盖。
+`release:mac:upload` 只会准备 Mac-only 候选并可能占用同版本附件名；`release:mac:publish` 会把公开三平台清单覆盖为 Mac-only。除非后续代码先补齐三平台合并和强制校验，否则两者都不得用于正式发布。
 
-全部附件通过后，脚本在发布目录生成并校验 Mac-only 候选 `latest.json`。该文件还没有打开客户端更新发现。
+## 高级事故恢复：手工汇总三平台
 
-### 3. 发布更新清单
-
-在浏览器确认 Gitee Release 与候选清单后执行：
-
-```bash
-pnpm release:mac:publish -- \
-  "$HOME/Desktop/Trellis Visual Console Releases/v0.2.0-beta.3"
-```
-
-该命令要求候选版本高于当前公开版本，重新校验后写入仓库 `releases/latest.json`，但不会提交或推送。检查 diff 后再打开更新：
-
-```bash
-git add releases/latest.json
-git commit -m "chore(release): 发布 v0.2.0-beta.3 Mac 更新清单"
-git push origin main
-```
-
-最后匿名访问 `https://gitee.com/wanglinqiao/trellis-visual-console/raw/main/releases/latest.json`，确认内容与桌面发布目录中的候选文件一致。
-
-## 三平台手工故障恢复补充
+这不是第三种日常发包方式，只在 GitHub Actions 无法恢复且确实具备 macOS、Windows 原生构建环境时使用。没有 Windows x64 产物时立即停止，不能发布 Mac-only 清单。
 
 先把 `package.json`、工作区 `Cargo.toml` 和 `src-tauri/tauri.conf.json` 更新为同一 SemVer，然后执行：
 
