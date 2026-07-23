@@ -630,6 +630,102 @@ pre {
   background: var(--accent-soft);
 }
 
+.dropdown {
+  min-width: 0;
+  position: relative;
+  display: grid;
+  gap: 5px;
+}
+
+.dropdown-label {
+  color: var(--subtle);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.dropdown-trigger {
+  width: 100%;
+  min-width: 0;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 9px 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--surface-strong);
+  text-align: left;
+}
+
+.dropdown-trigger:hover:not(:disabled) {
+  border-color: var(--subtle);
+  background: var(--surface-hover);
+}
+
+.dropdown-trigger:focus-visible {
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.dropdown-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropdown-chevron {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  color: var(--subtle);
+  transition: transform 140ms ease;
+}
+
+.dropdown-chevron--open {
+  transform: rotate(180deg);
+}
+
+.dropdown-list {
+  z-index: 200;
+  position: fixed;
+  display: grid;
+  gap: 2px;
+  padding: 4px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-strong);
+  box-shadow: 0 12px 30px rgb(0 0 0 / 35%);
+  scrollbar-width: thin;
+}
+
+.dropdown-option {
+  width: 100%;
+  min-height: 32px;
+  padding: 7px 8px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 6px;
+  color: var(--muted);
+  background: transparent;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropdown-option--active {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.dropdown-option--selected {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
 .task-center-filters {
   display: flex;
   flex-direction: column;
@@ -654,21 +750,21 @@ pre {
   gap: 9px;
 }
 
-.task-center-filters label {
+.task-center-search {
   min-width: 0;
+  flex: 1;
   display: grid;
   gap: 5px;
 }
 
-.task-center-filters label > span:first-child {
+.task-center-search > span:first-child {
   color: var(--subtle);
   font-size: 10px;
   font-weight: 800;
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
 }
 
-.task-center-filters input,
-.task-center-filters select {
+.task-center-filters input {
   width: 100%;
   min-width: 0;
   /* 用 height 替代 min-height，确保 macOS WebKit 上与 input 精确对齐 */
@@ -678,24 +774,6 @@ pre {
   border-radius: 8px;
   color: var(--text);
   background: var(--surface-strong);
-}
-
-/* 剥离 macOS 原生 select 样式，让 CSS 完全控制尺寸和外观；
-   color-scheme: dark 告知 WebKit 用深色方案渲染原生下拉选项列表 */
-.task-center-filters select {
-  appearance: none;
-  -webkit-appearance: none;
-  color-scheme: dark;
-  padding-right: 28px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 9px center;
-  cursor: pointer;
-}
-
-.task-center-search {
-  flex: 1;
-  min-width: 0;
 }
 
 .task-center-sort {

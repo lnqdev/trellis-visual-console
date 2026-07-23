@@ -1,9 +1,9 @@
 {
   "id": "task-center-custom-dropdown",
   "name": "task-center-custom-dropdown",
-  "title": "下拉筛选自定义组件替换原生 select",
+  "title": "任务中心自定义下拉组件替换原生 select",
   "description": "",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": null,
   "scope": null,
   "package": null,

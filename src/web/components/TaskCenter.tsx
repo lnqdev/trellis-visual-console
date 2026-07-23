@@ -13,6 +13,7 @@ import {
   type TaskCenterSelection,
   type TaskCenterState,
 } from "../hooks/useTaskCenter";
+import { Dropdown, type DropdownOption } from "./Dropdown";
 
 interface TaskCenterProps {
   state: TaskCenterState;
@@ -23,6 +24,16 @@ interface TaskCenterProps {
 }
 
 const TASK_CENTER_PAGE_SIZE = 100;
+const TASK_CENTER_SORT_OPTIONS: ReadonlyArray<
+  DropdownOption<TaskCenterSelection["sort"]>
+> = [
+  { value: "updated_desc", label: "最近更新优先" },
+  { value: "updated_asc", label: "最早更新优先" },
+];
+const ALL_DROPDOWN_OPTION: DropdownOption<null> = {
+  value: null,
+  label: "全部",
+};
 
 /** 展示跨项目任务搜索、筛选、汇总和扁平工作列表。 */
 export function TaskCenter({
@@ -138,19 +149,13 @@ export function TaskCenter({
               />
             </span>
           </label>
-          <label className="task-center-sort">
-            <span>排序</span>
-            <select
-              aria-label="排序"
-              value={state.selection.sort}
-              onChange={(event) => state.updateSelection({
-                sort: event.target.value === "updated_asc" ? "updated_asc" : "updated_desc",
-              })}
-            >
-              <option value="updated_desc">最近更新优先</option>
-              <option value="updated_asc">最早更新优先</option>
-            </select>
-          </label>
+          <Dropdown
+            className="task-center-sort"
+            label="排序"
+            value={state.selection.sort}
+            options={TASK_CENTER_SORT_OPTIONS}
+            onChange={(sort) => state.updateSelection({ sort })}
+          />
           <button
             className="task-center-reset"
             type="button"
@@ -164,37 +169,37 @@ export function TaskCenter({
         </div>
         {/* 第二行：五个维度筛选下拉 */}
         <div className="task-center-filters-secondary">
-          <FilterSelect
+          <Dropdown
             label="项目"
             value={state.selection.projectId}
-            options={state.filterOptions.projects.map((project) => ({
+            options={withAllOption(state.filterOptions.projects.map((project) => ({
               value: project.project.id,
               label: project.project.label,
-            }))}
+            })))}
             onChange={(projectId) => state.updateSelection({ projectId })}
           />
-          <FilterSelect
+          <Dropdown
             label="状态"
             value={state.selection.status}
-            options={state.filterOptions.statuses}
+            options={withAllOption(state.filterOptions.statuses)}
             onChange={(status) => state.updateSelection({ status })}
           />
-          <FilterSelect
+          <Dropdown
             label="阶段"
             value={state.selection.phase}
-            options={toTextOptions(state.filterOptions.phases)}
+            options={withAllOption(toTextOptions(state.filterOptions.phases))}
             onChange={(phase) => state.updateSelection({ phase })}
           />
-          <FilterSelect
+          <Dropdown
             label="负责人"
             value={state.selection.assignee}
-            options={toTextOptions(state.filterOptions.assignees)}
+            options={withAllOption(toTextOptions(state.filterOptions.assignees))}
             onChange={(assignee) => state.updateSelection({ assignee })}
           />
-          <FilterSelect
+          <Dropdown
             label="包"
             value={state.selection.packageName}
-            options={toTextOptions(state.filterOptions.packages)}
+            options={withAllOption(toTextOptions(state.filterOptions.packages))}
             onChange={(packageName) => state.updateSelection({ packageName })}
           />
         </div>
@@ -333,32 +338,6 @@ function SegmentedControl<T extends string>({
   );
 }
 
-interface FilterSelectProps {
-  label: string;
-  value: string | null;
-  options: Array<{ value: string; label: string }>;
-  onChange: (value: string | null) => void;
-}
-
-/** 展示一个可清空的原生筛选菜单。 */
-function FilterSelect({ label, value, options, onChange }: FilterSelectProps) {
-  return (
-    <label>
-      <span>{label}</span>
-      <select
-        aria-label={label}
-        value={value ?? ""}
-        onChange={(event) => onChange(event.target.value === "" ? null : event.target.value)}
-      >
-        <option value="">全部</option>
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>{option.label}</option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
 /** 展示一个汇总数字。 */
 function SummaryItem({ label, value }: { label: string; value: number }) {
   return (
@@ -425,8 +404,15 @@ function UnavailableProjects({ projects, onOpenDiagnostics }: UnavailableProject
   );
 }
 
-/** 将字符串数组转换为原生菜单选项。 */
-function toTextOptions(values: string[]): Array<{ value: string; label: string }> {
+/** 为可空筛选选项补充统一的“全部”入口。 */
+function withAllOption<T extends string>(
+  options: ReadonlyArray<DropdownOption<T>>,
+): Array<DropdownOption<T | null>> {
+  return [ALL_DROPDOWN_OPTION, ...options];
+}
+
+/** 将字符串数组转换为下拉选项。 */
+function toTextOptions(values: string[]): Array<DropdownOption<string>> {
   return values.map((value) => ({ value, label: value }));
 }
 
