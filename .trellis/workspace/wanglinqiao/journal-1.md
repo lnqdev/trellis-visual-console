@@ -508,3 +508,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 16: 任务中心可复用自定义下拉组件
+
+**Date**: 2026-07-23
+**Task**: 任务中心可复用自定义下拉组件
+**Branch**: `main`
+
+### Summary
+
+新增类型安全、支持 Portal 与键盘交互的共享 Dropdown，替换任务中心五个筛选和一个排序原生下拉；补充前端弹出控件复用规范，并完成静态、构建及 Playwright 响应式验收。
+
+### Main Changes
+
+- Detailed change bullets were not supplied; see the summary above.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0ee10bb` | (see git log) |
+
+### Testing
+
+- Validation was not recorded for this session.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
