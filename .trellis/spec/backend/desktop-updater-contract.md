@@ -48,6 +48,8 @@ normalizeReleaseNotes(notes) -> LF-normalized notes
 - Gitee `main` 是唯一源码主线，公开 GitHub 仓库只作为同步镜像和 CI 控制面；发布标签固定为 `v<SemVer>`，标签提交必须属于 Gitee `main`，三个版本来源一致，并包含非空中文 `releases/notes/v<版本>.md`。
 - 版本说明进入标签校验和平台元数据前必须通过 `normalizeReleaseNotes` 把 CRLF、CR 统一为 LF 并去除首尾空白；不得把 Runner checkout 后的原始换行直接写入 `platform-metadata.json`，否则 Windows 与 macOS 会把同一说明误判为不一致。
 - 日常发布由公开 GitHub Actions 在标准 Runner 上完成；本地发布工具拆分准备、上传和公开清单三个阶段，仅作为故障恢复。敏感值只从仓库外文件、macOS 钥匙串或 GitHub Secret 读取，上传后匿名校验大小与 SHA-256，公开清单必须经过 `release-production` 人工门禁。
+- GitHub Actions 的每个 job 都运行在全新的隔离 Runner 上，不继承前置 job 安装的 Node、pnpm、Rust 或依赖。任何执行 `pnpm` 的 job 都必须在 checkout 后先调用 `./.github/actions/setup-project`；公开 job 的稳定顺序为 `checkout -> setup-project -> download candidate -> publish-manifest`，不能因为 `aggregate` 已完成环境初始化而省略公开 job 的初始化。
+- 同一 Actions 运行的 `Re-run failed jobs` 固定使用触发提交中的工作流定义；后续 `main` 上的工作流修复不会注入旧标签运行。公开 job 因环境初始化缺失而失败时，公开清单必须保持旧版本；恢复只能使用包含修复的新工作流入口，或在不移动旧标签的前提下用现有发布脚本重建并验证同一候选目录后执行已批准的公开动作。
 - 三平台产物必须齐套后才能生成候选清单；同一标签重试只允许复用名称、大小和 SHA-256 全部一致的 Gitee 附件。标准 Runner 无法完成构建时必须停止并重新评审，禁止静默切换 Larger Runner、长期自托管机器或缺平台清单。
 - `prepare` 构建前必须删除两个 target 下明确的旧 `.app`、`.app.tar.gz` 和 `.sig` 生成物；整理前必须读取新压缩包内的 `Info.plist` 与 Mach-O，断言版本和架构分别等于目标 SemVer 与平台键。文件名、修改时间、哈希和签名存在不能替代内容检查。
 - 双架构构建已完成但校验或归档失败时，`stage` 可在版本来源一致的前提下复用现有构建；仍须从临时目录中的真实文件执行包内版本和架构断言，并在结束后清理临时目录，不得用大文件标准输入管道代替。
@@ -72,13 +74,15 @@ normalizeReleaseNotes(notes) -> LF-normalized notes
 | 已有同名附件哈希不同、已有 Release 未指向当前 main 提交 | 拒绝复用并停止发布 |
 | 匿名下载状态、大小或 SHA-256 不一致 | 不生成或不公开候选清单 |
 | 三平台说明仅换行风格不同 | 归一化为 LF 后继续汇总；归一化后正文仍不同则报“三平台更新说明不一致” |
+| job 执行 `pnpm` 前未调用 `setup-project` | Runner 报 `pnpm: command not found` 并失败；候选 Release 可保留，公开清单不得变化 |
+| 修复工作流后直接重跑旧标签的失败 job | 仍使用旧标签提交中的工作流定义；禁止移动标签，改用包含修复的新入口或验证后的本地恢复流程 |
 | 本次构建未重新生成 `.app.tar.gz/.sig`，或压缩包内部版本/架构不匹配 | 准备/恢复阶段立即停止，禁止复制、上传和生成清单 |
 
 ### 5. Good / Base / Bad Cases
 
-- Good：从 Gitee `main` 提交版本文件和标签，GitHub Actions 校验同一提交后并行构建三平台，Gitee 附件匿名下载与哈希验证通过，人工门禁批准后才提交清单；客户端展示中文说明后由用户确认安装。
-- Base：双架构构建完成后校验或归档失败，修复原因并用相同版本和说明执行 `stage`；它从临时目录中的真实文件重新校验并覆盖稳定发布目录，不重复编译或访问远端。清单不可访问或当前无更新时，界面给出可恢复结果，项目浏览、本机数据和源项目保持不变。
-- Bad：把完整 Mach-O 通过标准输入交给会提前退出的 `file -`、把 Runner checkout 后的原始 CRLF/LF 直接写入平台元数据、只构建新 DMG 却把 target 中旧 `.app.tar.gz` 重命名为新版本、先发布只有一个 Mac 架构的清单、让脚本自动提交推送、把令牌或私钥写进仓库、静默覆盖不同内容的同名附件，或 macOS 稍后重启时再次下载安装包。
+- Good：从 Gitee `main` 提交版本文件和标签，GitHub Actions 每个 job 独立 checkout 并初始化项目环境，校验同一提交后并行构建三平台，Gitee 附件匿名下载与哈希验证通过，人工门禁批准后才提交清单；客户端展示中文说明后由用户确认安装。
+- Base：双架构构建完成后校验或归档失败，修复原因并用相同版本和说明执行 `stage`；它从临时目录中的真实文件重新校验并覆盖稳定发布目录，不重复编译或访问远端。公开 job 缺少工具链时保留已验证候选 Release 和旧公开清单，修复工作流后通过新入口或验证后的本地恢复完成同一候选发布。
+- Bad：假设前置 job 的 pnpm 会出现在公开 job、修复 `main` 后直接重跑旧标签并期待工作流自动更新、把完整 Mach-O 通过标准输入交给会提前退出的 `file -`、把 Runner checkout 后的原始 CRLF/LF 直接写入平台元数据、只构建新 DMG 却把 target 中旧 `.app.tar.gz` 重命名为新版本、先发布只有一个 Mac 架构的清单、让脚本自动提交推送、把令牌或私钥写进仓库、静默覆盖不同内容的同名附件，或 macOS 稍后重启时再次下载安装包。
 
 ### 6. 必需验证与断言点
 
@@ -86,6 +90,7 @@ normalizeReleaseNotes(notes) -> LF-normalized notes
 - 运行 `pnpm check:update-manifest -- <候选清单>`，断言平台键、SemVer、中文说明、UTC 时间、HTTPS、版本化 URL 和 Base64 签名均合法。
 - 迁移对象存储或 CDN 前必须同时更新运行时批准域名/路径和清单校验器，并先完成匿名下载、重定向与签名验证；不能只替换清单地址。
 - 运行完整 Rust/前端门禁，并用 `cargo tree -p trellis-core` 断言 Core 不包含 Tauri 或 updater。
+- 静态检查 `.github/workflows/release.yml`：每个包含 `run: pnpm` 的 job 都在该命令前调用 `./.github/actions/setup-project`；尤其断言 `publish` 顺序为 checkout、setup、下载候选、公开清单。真实演练中公开 job 不得依赖前置 job 的 PATH 或依赖目录。
 - Rust 回归测试必须把 `UpdateCheckResponse` 与 `UpdateDownloadProgress` 的全部变体序列化为 JSON，逐字段断言 `status`、`currentVersion`、`event`、`contentLength` 和 `downloaded` 与前端 Zod Schema 一致。
 - 本地发布脚本至少验证帮助入口、非法版本、脏工作区、缺失发布目录、三平台示例清单和 macOS 候选清单；涉及 Gitee 的真实上传只使用测试版本，并确认重复执行不会产生不同内容的同名附件。
 - 使用仓库外临时 fixture 分别以 LF、CRLF、CR 写入相同中文说明，依次执行三平台 `stage-platform` 与 `aggregate`；断言三个 `platform-metadata.json` 和最终 `release-metadata.json` 的 `notes` 完全相同且只包含 LF。
@@ -111,4 +116,12 @@ Gitee main：提交版本文件、中文说明和 v<SemVer> 标签
 -> aggregate/upload：Gitee Release、附件上传、匿名哈希验证、候选清单
 -> release-production：人工批准后 Contents API 写入 latest.json
 -> 客户端确认后下载并强制验签
+```
+
+```yaml
+# 每个 Runner 都必须独立初始化，不能继承 aggregate 的工具链。
+- uses: actions/checkout@v4
+- uses: ./.github/actions/setup-project
+- uses: actions/download-artifact@v4
+- run: pnpm release:ci -- publish-manifest --directory candidate
 ```

@@ -561,6 +561,16 @@ invalid utf-8 sequence of 1 bytes from index 0
 - [ ] 工作流进入 `release-production` 待批准后，先匿名确认公开 `latest.json` 仍为 `0.2.0-beta.4`，并核对 Gitee 候选附件与三平台候选清单齐全，再进行人工批准。
 - [ ] 批准后确认公开清单升级为 `0.2.0-beta.5`，再继续执行 macOS arm64、macOS x64、Windows x64 的真实客户端升级矩阵。
 
+### 2026-07-23 v0.2.0-beta.6 真实发布恢复记录
+
+- GitHub Actions 运行 <https://github.com/lnqdev/trellis-visual-console/actions/runs/29975990356> 的 attempt 2 中，macOS arm64、macOS x64、Windows x64、三平台元数据汇总、Gitee 候选附件上传和匿名校验全部成功；首次 attempt 的 macOS arm64 `bundle_dmg.sh` 失败未在重跑中复现，按标准 Runner/DMG 工具链偶发故障处理。
+- Gitee 候选 Release <https://gitee.com/wanglinqiao/trellis-visual-console/releases/tag/v0.2.0-beta.6> 指向提交 `9bfcc6958fcf7ca9abe504e03c91c5c9e241ffae`，包含双架构 macOS DMG、更新包与签名、Windows x64 安装器与签名、`SHA256SUMS.txt`，共 9 个附件。
+- 人工批准前，公开 `releases/latest.json` 仍为 `0.2.0-beta.4`。批准后的 `publish` job 在执行 `pnpm release:ci -- publish-manifest` 时失败，直接错误为 `pnpm: command not found`；根因是独立 Ubuntu Runner 未调用复合 `setup-project` Action。
+- `.github/workflows/release.yml` 已在 `publish` job 的 checkout 后补充 `Setup project`。同一运行重跑仍会使用标签提交中的旧工作流，因此没有移动、删除或重建 `v0.2.0-beta.6` 标签。
+- 恢复过程从 Gitee 匿名下载 beta.6 的 8 个平台产物，在仓库外临时目录重新执行三平台 `stage-platform` 与 `aggregate`；macOS 包内版本和架构校验通过，重新生成的 `SHA256SUMS.txt` 与 Gitee 附件逐字节一致，候选清单通过 `--platforms all` 校验。
+- 使用仓库现有 `publish-manifest` 和 macOS 钥匙串中的 Gitee 令牌完成已批准的公开动作；三个更新包再次匿名校验通过，Gitee Contents API 已将公开清单升级为 `0.2.0-beta.6`。公网清单包含 `darwin-aarch64`、`darwin-x86_64`、`windows-x86_64` 并通过三平台校验。
+- 尚未完成：macOS arm64、macOS x64、Windows x64 从旧版本执行真实应用内升级；同一标签幂等重跑与冻结/恢复演练。未取得真实设备证据前不得勾选对应验收项。
+
 ## 回滚点
 
 - 公共模块改造导致本地脚本回归：回退任务 1 提交，不影响现有客户端和公开清单。
