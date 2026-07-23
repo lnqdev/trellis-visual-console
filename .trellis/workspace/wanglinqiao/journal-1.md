@@ -441,3 +441,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 14: 明确桌面发包流程文档
+
+**Date**: 2026-07-23
+**Task**: 明确桌面发包流程文档
+**Branch**: `main`
+
+### Summary
+
+补充文档明确两种桌面发包流程（本地手动发包与 CI 托管发包），梳理在线更新任务的产品需求和设计框架
+
+### Main Changes
+
+- Detailed change bullets were not supplied; see the summary above.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `bb5c8ff` | (see git log) |
+
+### Testing
+
+- Validation was not recorded for this session.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
