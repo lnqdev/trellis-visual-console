@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 14
+- **Total Sessions**: 15
 - **Last Active**: 2026-07-23
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~476 | Active |
+| `journal-1.md` | ~510 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 15 | 2026-07-23 | 更新检查优化与任务中心筛选区整理 | `1cab6a5`, `9ee6aa0` | `main` |
 | 14 | 2026-07-23 | 明确桌面发包流程文档 | `bb5c8ff` | `main` |
 | 13 | 2026-07-23 | 完成跨平台托管发布 | `e5b8491`, `9bfcc69`, `a49ddd7`, `5765c61`, `5f8d1c3`, `8956089` | `main` |
 | 12 | 2026-07-22 | Windows x64 原生交付与平台缺陷修复 | `dc85365` | `feature/v2.0.0_desktop` |

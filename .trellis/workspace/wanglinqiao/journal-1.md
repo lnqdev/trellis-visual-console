@@ -474,3 +474,37 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 15: 更新检查优化与任务中心筛选区整理
+
+**Date**: 2026-07-23
+**Task**: 更新检查优化与任务中心筛选区整理
+**Branch**: `main`
+
+### Summary
+
+完成两个UI任务。(1) update-check-revamp：自动检查间隔24h→30min，前端新增30min定时器，版本号旁增加绿色更新/橙色重启按钮，sidebar-footer增加弱化检查更新按钮，移除顶部横条通知和诊断面板的ApplicationUpdatePanel。(2) task-center-filter-layout：筛选区拆为两行布局（搜索+排序+清除/五维度筛选），修复macOS原生select高度不一致（appearance:none + height:38px + color-scheme:dark）。遗留任务07-23-task-center-custom-dropdown（planning）：用自定义Dropdown组件替换原生select以彻底解决弹出列表系统原生样式问题。
+
+### Main Changes
+
+- Detailed change bullets were not supplied; see the summary above.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1cab6a5` | (see git log) |
+| `9ee6aa0` | (see git log) |
+
+### Testing
+
+- Validation was not recorded for this session.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
