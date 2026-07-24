@@ -541,3 +541,40 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 17: 本地脚本将 GitHub Release 同步到 Gitee
+
+**Date**: 2026-07-24
+**Task**: release-local-sync
+**Branch**: `main`
+
+### 摘要
+
+解决 GitHub Actions 跨境上传 Gitee 耗时过长问题。方案：CI 只上传到 GitHub Releases（内网，极快），国内开发者本地通过 `pnpm release:local -- upload-to-gitee` 一条命令完成 Gitee 同步和 `latest.json` 发布。期间还指导用户搭建了 Cloudflare Worker 代理（`gh.lnqdev.top`）用于加速国内从 GitHub 下载文件。
+
+### Main Changes
+
+- `.github/workflows/release.yml`：aggregate job 改用 `gh release create` 上传到 GitHub Releases，删除 Gitee 上传步骤；删除 publish job
+- `scripts/release-github.mjs`（新增）：从 GitHub Release 下载产物，支持代理，下载后 SHA-256 完整性校验
+- `scripts/release-local.mjs`（新增）：本地一键同步命令，串联下载→上传 Gitee→发布 latest.json，复用现有 Gitee 逻辑
+- `package.json`：新增 `release:local` 脚本入口
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `81ea757` | feat(release): 本地脚本同步 GitHub Release 到 Gitee |
+
+### Testing
+
+- 代码已提交，待推 tag 后验证 CI 和本地脚本完整流程。
+
+### Status
+
+[WIP] **待测试**
+
+### Next Steps
+
+- 推 tag 触发 CI，验证 GitHub Releases 上传正常
+- 本地执行 `pnpm release:local -- upload-to-gitee --tag <版本> --proxy https://gh.lnqdev.top` 验证完整同步流程

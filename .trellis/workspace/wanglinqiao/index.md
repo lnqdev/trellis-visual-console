@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 16
-- **Last Active**: 2026-07-23
+- **Total Sessions**: 17
+- **Last Active**: 2026-07-24
 <!-- @@@/auto:current-status -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 17 | 2026-07-24 | 本地脚本将 GitHub Release 同步到 Gitee | `81ea757` | `main` |
 | 16 | 2026-07-23 | 任务中心可复用自定义下拉组件 | `0ee10bb` | `main` |
 | 15 | 2026-07-23 | 更新检查优化与任务中心筛选区整理 | `1cab6a5`, `9ee6aa0` | `main` |
 | 14 | 2026-07-23 | 明确桌面发包流程文档 | `bb5c8ff` | `main` |

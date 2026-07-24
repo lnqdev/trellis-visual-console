@@ -1,0 +1,31 @@
+{
+  "id": "release-local-sync",
+  "name": "release-local-sync",
+  "title": "本地脚本将 GitHub Release 同步到 Gitee",
+  "description": "CI 构建完成后上传到 GitHub Releases，由开发者在本地通过代理脚本将产物同步到 Gitee Release 并发布 latest.json，解决跨境上传耗时问题。",
+  "status": "in_progress",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "wanglinqiao",
+  "assignee": "wanglinqiao",
+  "createdAt": "2026-07-24",
+  "completedAt": null,
+  "branch": "main",
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": "81ea757",
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [
+    ".github/workflows/release.yml",
+    "scripts/release-github.mjs",
+    "scripts/release-local.mjs",
+    "package.json"
+  ],
+  "notes": "待测试：推 tag 后验证 GitHub Releases 上传是否正常，再测试 pnpm release:local -- upload-to-gitee 本地同步流程。",
+  "meta": {}
+}
