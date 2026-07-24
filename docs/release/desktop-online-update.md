@@ -12,7 +12,7 @@
 
 | 方式 | 用途 | 生成平台 | 是否更新公开 `latest.json` |
 | --- | --- | --- | --- |
-| 方式一：GitHub Actions 三平台正式发布 | 日常版本发布和应用内在线更新 | macOS arm64、macOS x64、Windows x64 | 是，三平台齐套并经人工批准后自动提交 |
+| 方式一：GitHub Actions 三平台正式发布 | 日常版本发布和应用内在线更新 | macOS arm64、macOS x64、Windows x64 | 是，CI 上传到 GitHub Releases 后，由开发者本地执行同步命令提交 |
 | 方式二：macOS 本地双架构打包 | CI 故障排查、安装包预验收、手工提供 DMG | macOS arm64、macOS x64 | 否，不得用 Mac-only 候选覆盖三平台公开清单 |
 
 必须区分三个动作：
@@ -43,10 +43,9 @@ git remote get-url --all --push release
 ```text
 TAURI_SIGNING_PRIVATE_KEY
 TAURI_SIGNING_PRIVATE_KEY_PASSWORD
-GITEE_RELEASE_TOKEN
 ```
 
-创建受保护的 `release-production` Environment，并将发布者加入必需审核者。前三个构建和候选上传成功后，工作流暂停等待一次批准；批准前 Gitee Release 可以存在，但公开 `releases/latest.json` 不变。
+`GITEE_RELEASE_TOKEN` 不再需要配置为 GitHub Secret；令牌只在本地同步步骤中使用，从本机环境变量读取（见第 4 步）。
 
 ### 2. 准备版本提交
 
@@ -81,22 +80,50 @@ git push release main
 git push release v0.2.0-beta.7
 ```
 
-任一远端推送失败都先修复同步状态，不创建新标签、不移动已推送标签。GitHub 的“跨平台发布”工作流随后依次执行：
+任一远端推送失败都先修复同步状态，不创建新标签、不移动已推送标签。GitHub 的”跨平台发布”工作流随后依次执行：
 
 ```text
 标签预检
 -> macOS arm64 / macOS x64 / Windows x64 并行签名构建
 -> 汇总三平台产物
--> 上传 Gitee Release 并匿名校验
--> 等待 release-production 人工批准
--> 提交三平台 latest.json 到 Gitee main
+-> 上传 GitHub Release（含安装包、更新包、签名、校验文件、元数据）
 ```
 
-### 4. 人工批准与发布后验证
+工作流完成后，GitHub Release 即可见，但 `releases/latest.json` 尚未更新，客户端还看不到新版本。继续执行第 4 步完成 Gitee 同步。
 
-在 GitHub 仓库打开 `Actions -> 跨平台发布 -> 当前版本运行记录`，确认三个构建任务、汇总任务和 Gitee 匿名校验全部成功。工作流停在 `人工批准后公开更新清单` 时，点击 `Review deployments`，选择 `release-production` 后批准。不得在平台缺失、附件哈希不一致或说明错误时批准。
+### 4. 本地同步到 Gitee 并发布
 
-批准后检查公开清单必须是目标版本且恰好包含三个平台：
+CI 完成后，在本地执行一条命令将 GitHub Release 产物同步到 Gitee，并发布 `latest.json`。此步骤由开发者本人决定时机，相当于原来的人工批准门禁。
+
+先确认 Gitee 令牌已注入当前终端环境：
+
+```bash
+export GITEE_RELEASE_TOKEN="$(security find-generic-password \
+  -a "$USER" \
+  -s com.wanglinqiao.trellis-visual-console.gitee-release \
+  -w)"
+```
+
+然后执行同步命令（`--proxy` 加速国内下载 GitHub 产物）：
+
+```bash
+pnpm release:local -- upload-to-gitee \
+  --tag v0.2.0-beta.7 \
+  --proxy https://gh.lnqdev.top
+```
+
+脚本自动执行：
+
+```text
+从 GitHub Release 下载全部产物（走代理）
+-> SHA-256 完整性校验
+-> 创建或复用 Gitee Release
+-> 上传附件并匿名校验
+-> 生成候选 latest.json（含 Gitee 真实下载地址和签名）
+-> 提交 latest.json 到 Gitee main
+```
+
+执行完成后验证公开清单已更新为目标版本且包含三个平台：
 
 ```bash
 curl -fsSL \
@@ -104,13 +131,13 @@ curl -fsSL \
   | jq '{version, platforms: (.platforms | keys)}'
 ```
 
-期望平台为 `darwin-aarch64`、`darwin-x86_64`、`windows-x86_64`。随后同步 GitHub Actions 通过 Contents API 写入的 Gitee 提交：
+期望平台为 `darwin-aarch64`、`darwin-x86_64`、`windows-x86_64`。随后同步 Gitee 写入的提交到本地：
 
 ```bash
 git pull --ff-only origin main
 ```
 
-最后在已安装客户端中手动检查更新，核对目标版本、中文说明、安装/重启结果和当前版本显示。重跑同一标签只允许复用哈希完全一致的附件。
+最后在已安装客户端中手动检查更新，核对目标版本、中文说明、安装/重启结果和当前版本显示。
 
 ## 密钥与本机环境
 
