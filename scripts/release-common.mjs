@@ -5,6 +5,7 @@ import { basename, join } from "node:path";
 
 export const REPOSITORY_OWNER = "wanglinqiao";
 export const REPOSITORY_NAME = "trellis-visual-console";
+export const GITHUB_REPOSITORY_OWNER = "lnqdev";
 export const PLATFORM_KEYS = [
   "darwin-aarch64",
   "darwin-x86_64",

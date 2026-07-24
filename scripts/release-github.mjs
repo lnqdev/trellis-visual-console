@@ -12,8 +12,8 @@ import { join } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { Readable } from "node:stream";
 import {
+  GITHUB_REPOSITORY_OWNER,
   REPOSITORY_NAME,
-  REPOSITORY_OWNER,
   assert,
   calculateFileSha256,
 } from "./release-common.mjs";
@@ -33,7 +33,7 @@ function proxyUrl(url, proxy) {
 
 /** 通过 GitHub REST API 读取 Release 信息（直接访问，不经过代理）。 */
 async function fetchReleaseInfo(tag) {
-  const url = `${GITHUB_API_BASE}/repos/${REPOSITORY_OWNER}/${REPOSITORY_NAME}/releases/tags/${encodeURIComponent(tag)}`;
+  const url = `${GITHUB_API_BASE}/repos/${GITHUB_REPOSITORY_OWNER}/${REPOSITORY_NAME}/releases/tags/${encodeURIComponent(tag)}`;
   const response = await fetch(url, {
     headers: {
       "Accept": "application/vnd.github+json",
