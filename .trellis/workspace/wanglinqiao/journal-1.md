@@ -578,3 +578,40 @@
 
 - 推 tag 触发 CI，验证 GitHub Releases 上传正常
 - 本地执行 `pnpm release:local -- upload-to-gitee --tag <版本> --proxy https://gh.lnqdev.top` 验证完整同步流程
+
+
+## Session 18: 本地脚本将 GitHub Release 同步到 Gitee
+
+**Date**: 2026-07-24
+**Task**: 本地脚本将 GitHub Release 同步到 Gitee
+**Branch**: `main`
+
+### Summary
+
+解决 GitHub Actions 跨境上传 Gitee 耗时过长问题。CI aggregate job 改为上传到 GitHub Releases（内网快），国内开发者通过 pnpm release:local -- upload-to-gitee 本地一键完成 Gitee 同步和 latest.json 发布。期间还指导搭建了 Cloudflare Worker 代理 gh.lnqdev.top 用于加速国内从 GitHub 下载文件。新增 scripts/release-github.mjs（从 GitHub Release 下载产物并 SHA-256 校验）和 scripts/release-local.mjs（串联下载→上传 Gitee→发布 latest.json），更新发布指南文档。修复了 lint 未使用变量和 GitHub owner 拼错（lnqdev vs wanglinqiao）两个问题。
+
+### Main Changes
+
+- Detailed change bullets were not supplied; see the summary above.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `81ea757` | (see git log) |
+| `7242fc6` | (see git log) |
+| `c6f1b8a` | (see git log) |
+| `c6382ca` | (see git log) |
+| `1451bb6` | (see git log) |
+
+### Testing
+
+- Validation was not recorded for this session.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
