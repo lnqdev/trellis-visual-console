@@ -6,7 +6,7 @@ on:
       - "v*"
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: release-${{ github.ref }}
@@ -125,11 +125,9 @@ jobs:
           retention-days: 1
 
   aggregate:
-    name: 汇总并上传候选 Release
+    name: 汇总并上传 GitHub Release
     needs: [validate, build-macos, build-windows]
     runs-on: ubuntu-24.04
-    env:
-      GITEE_RELEASE_TOKEN: ${{ secrets.GITEE_RELEASE_TOKEN }}
     steps:
       - name: Checkout tagged commit
         uses: actions/checkout@v4
@@ -147,37 +145,19 @@ jobs:
       - name: Aggregate platform metadata
         shell: bash
         run: pnpm release:ci -- aggregate --input ci-artifacts --output candidate
-      - name: Upload Gitee Release and verify anonymously
+      - name: Upload GitHub Release
         shell: bash
-        run: pnpm release:ci -- upload --directory candidate
-      - name: Upload candidate for approval job
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-candidate
-          path: candidate
-          if-no-files-found: error
-          retention-days: 1
-
-  publish:
-    name: 人工批准后公开更新清单
-    needs: [validate, aggregate]
-    runs-on: ubuntu-24.04
-    environment: release-production
-    env:
-      GITEE_RELEASE_TOKEN: ${{ secrets.GITEE_RELEASE_TOKEN }}
-    steps:
-      - name: Checkout tagged commit
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ needs.validate.outputs.commit }}
-      - name: Setup project
-        uses: ./.github/actions/setup-project
-      - name: Download candidate
-        uses: actions/download-artifact@v4
-        with:
-          name: release-candidate
-          path: candidate
-      - name: Publish latest.json through Gitee Contents API
-        shell: bash
-        run: pnpm release:ci -- publish-manifest --directory candidate
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v${{ needs.validate.outputs.version }}"
+          gh release create "${TAG}" \
+            --title "Trellis Visual Console ${TAG}" \
+            --notes-file candidate/RELEASE_NOTES.md \
+            --prerelease \
+            candidate/*.exe \
+            candidate/*.dmg \
+            candidate/*.tar.gz \
+            candidate/*.sig \
+            candidate/SHA256SUMS.txt \
+            candidate/release-metadata.json

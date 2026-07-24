@@ -21,6 +21,7 @@
     "check:update-manifest": "node scripts/validate-update-manifest.mjs",
     "release:prepare": "node scripts/prepare-release.mjs",
     "release:ci": "node scripts/release-ci.mjs",
+    "release:local": "node scripts/release-local.mjs",
     "release:mac": "node scripts/release-macos.mjs",
     "release:mac:prepare": "node scripts/release-macos.mjs prepare",
     "release:mac:stage": "node scripts/release-macos.mjs stage",
