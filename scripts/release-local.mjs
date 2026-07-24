@@ -12,7 +12,6 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { PLATFORM_KEYS, assert, parseSemver } from "./release-common.mjs";
 import { pullGithubRelease } from "./release-github.mjs";
 import {
@@ -25,9 +24,6 @@ import {
 } from "./release-gitee.mjs";
 import { readReleaseMetadata } from "./release-common.mjs";
 import { PLATFORM_SETS, validateManifest } from "./validate-update-manifest.mjs";
-
-const SCRIPT_DIRECTORY = fileURLToPath(new URL(".", import.meta.url));
-const REPOSITORY_ROOT = resolve(SCRIPT_DIRECTORY, "..");
 
 /** 把 --key value 参数解析为稳定对象。 */
 function parseOptions(args) {
