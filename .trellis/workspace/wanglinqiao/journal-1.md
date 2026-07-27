@@ -615,3 +615,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 19: 完成项目移除与 macOS 一体化窗口
+
+**Date**: 2026-07-27
+**Task**: 完成项目移除与 macOS 一体化窗口
+**Branch**: `main`
+
+### Summary
+
+新增只清理应用登记、摘要、正文授权和 watcher 的项目移除完整链路；侧边栏提供带确认的可访问移除入口并修复选择与迟到响应；macOS 使用原生 Overlay 标题栏保留窗口按钮和拖动行为，Windows 保持原生装饰。完成 Rust、前端、Playwright IPC mock、隔离真实项目流程和 macOS 原生窗口验证。
+
+### Main Changes
+
+- Detailed change bullets were not supplied; see the summary above.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f72eee4` | (see git log) |
+
+### Testing
+
+- Validation was not recorded for this session.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

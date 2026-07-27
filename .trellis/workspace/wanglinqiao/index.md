@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 18
-- **Last Active**: 2026-07-24
+- **Total Sessions**: 19
+- **Last Active**: 2026-07-27
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~617 | Active |
+| `journal-1.md` | ~650 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 19 | 2026-07-27 | 完成项目移除与 macOS 一体化窗口 | `f72eee4` | `main` |
 | 18 | 2026-07-24 | 本地脚本将 GitHub Release 同步到 Gitee | `81ea757`, `7242fc6`, `c6f1b8a`, `c6382ca`, `1451bb6` | `main` |
 | 17 | 2026-07-24 | 本地脚本将 GitHub Release 同步到 Gitee | `81ea757` | `main` |
 | 16 | 2026-07-23 | 任务中心可复用自定义下拉组件 | `0ee10bb` | `main` |
