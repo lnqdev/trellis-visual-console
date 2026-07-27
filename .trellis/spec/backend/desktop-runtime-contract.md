@@ -47,11 +47,19 @@
 isMacOSDesktopRuntime(): boolean
 ```
 
+```json
+{
+  "permissions": ["core:default", "core:window:allow-start-dragging"]
+}
+```
+
 ### 3. 合同
 
 - `titleBarStyle` 和 `hiddenTitle` 只调整 macOS；Windows 继续使用默认原生标题栏和窗口按钮。
-- 必须保留 `decorations: true`，由系统红黄绿按钮负责关闭、最小化和全屏/还原，不实现前端自绘按钮或新增窗口 capability。
+- 必须保留 `decorations: true`，由系统红黄绿按钮负责关闭、最小化和全屏/还原，不实现前端自绘按钮。
 - 只有 Tauri macOS WebView 增加 `console-shell--macos-overlay` 和独立 `data-tauri-drag-region`；普通浏览器与 Windows 不增加顶部安全边距。
+- `data-tauri-drag-region` 依赖 `core:window:allow-start-dragging`；`core:default` 不包含该命令，缺少权限时拖动层可见但窗口不会移动。
+- capability 只增加 `allow-start-dragging`，不得顺带开放窗口位置、尺寸、关闭或任意窗口控制命令。
 - 拖动区必须位于原生窗口按钮右侧的顶部预留空白，不能覆盖品牌、项目标题、导航或操作按钮。
 
 ### 4. 校验与错误矩阵
@@ -59,6 +67,7 @@ isMacOSDesktopRuntime(): boolean
 | 环境 | 结果 |
 | --- | --- |
 | macOS Tauri | 深色内容延伸到顶部，隐藏居中标题，保留原生窗口按钮和拖动区 |
+| macOS Tauri 缺少 `allow-start-dragging` | 拖动命令被权限层拒绝，必须视为验收失败 |
 | Windows Tauri | 保持现有原生标题栏和窗口控制 |
 | 普通浏览器开发页 | 不增加 Overlay 修饰类或顶部空白 |
 | 1280x800 / 800x600 | 窗口按钮、拖动区和首行可交互内容不重叠 |
@@ -66,7 +75,7 @@ isMacOSDesktopRuntime(): boolean
 
 ### 5. Good / Base / Bad Cases
 
-- Good：使用 Tauri macOS Overlay 保留系统窗口行为，前端只负责安全区和拖动空白。
+- Good：使用 Tauri macOS Overlay 保留系统窗口行为，前端负责安全区和拖动空白，capability 只允许启动拖动。
 - Base：Windows 和浏览器沿用原布局。
 - Bad：跨平台设置 `decorations: false` 并自绘窗口按钮，或让透明拖动层覆盖业务控件。
 
@@ -75,23 +84,45 @@ isMacOSDesktopRuntime(): boolean
 - 真实 macOS `.app` 截图断言没有独立白色标题栏和居中标题，红黄绿按钮仍存在。
 - 实测拖动、系统双击标题区行为、关闭、最小化、全屏和还原。
 - 在 1280x800、800x600 和全屏状态检查顶部区域无重叠、裁切或横向滚动。
-- 核对 Tauri 配置 Schema，确认两个标题字段为 macOS 专用且没有新增 Windows capability。
+- 核对 Tauri 配置 Schema，确认两个标题字段为 macOS 专用；核对 capability 包含且只额外包含 `core:window:allow-start-dragging`。
 
 ### 7. Wrong vs Correct
 
 #### Wrong
 
+`tauri.conf.json`：
+
 ```json
-{ "decorations": false }
+{
+  "decorations": false
+}
+```
+
+`capabilities/default.json`：
+
+```json
+{
+  "permissions": ["core:default"]
+}
 ```
 
 #### Correct
+
+`tauri.conf.json`：
 
 ```json
 {
   "decorations": true,
   "titleBarStyle": "Overlay",
   "hiddenTitle": true
+}
+```
+
+`capabilities/default.json`：
+
+```json
+{
+  "permissions": ["core:default", "core:window:allow-start-dragging"]
 }
 ```
 
