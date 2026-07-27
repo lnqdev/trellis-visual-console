@@ -266,6 +266,14 @@ pub struct ProjectFocusRequest {
     pub focused: bool,
 }
 
+/// 项目移除成功响应。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectRemoveResponse {
+    pub project_id: String,
+    pub removed: bool,
+}
+
 /// 项目操作后的详情响应。
 pub type ProjectActionResponse = ProjectDetailResponse;
 

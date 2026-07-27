@@ -222,6 +222,23 @@ impl ProjectRealtimeManager {
         self.deactivate_project(project_id)
     }
 
+    /// 串行移除项目登记并释放可能存在的实时监听资源。
+    pub fn remove_project(&self, project_id: &str) -> Result<(), ProjectRealtimeError> {
+        let project_lock = self.project_lock(project_id)?;
+        let _guard = project_lock
+            .lock()
+            .map_err(|_| ProjectRealtimeError::StateUnavailable)?;
+        if !self
+            .catalog
+            .remove_project(project_id)
+            .map_err(|_| ProjectRealtimeError::CatalogUnavailable)?
+        {
+            return Err(ProjectRealtimeError::ProjectNotFound);
+        }
+        // 运行时从 Map 取出后，排队中的迟到消息会因找不到项目而被丢弃。
+        self.deactivate_project(project_id)
+    }
+
     /// 手动刷新项目快照，不自动改变焦点状态。
     pub fn refresh_project(
         &self,

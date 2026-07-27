@@ -192,6 +192,37 @@ impl ProjectCatalog {
         Ok(Some(updated_project))
     }
 
+    /// 从应用注册表和摘要存储中移除一个已登记项目。
+    pub fn remove_project(&self, project_id: &str) -> Result<bool, ProjectCatalogError> {
+        let _guard = self.lock_operations()?;
+        let initialization = self.storage.initialize()?;
+        if !initialization
+            .registry
+            .projects
+            .iter()
+            .any(|project| project.id == project_id)
+        {
+            return Ok(false);
+        }
+
+        let mut updated_registry = initialization.registry.clone();
+        updated_registry
+            .projects
+            .retain(|project| project.id != project_id);
+        let mut updated_snapshots = initialization.snapshots.clone();
+        updated_snapshots.snapshots.remove(project_id);
+
+        // 注册表是登记状态的权威来源；快照写入失败时恢复注册表，避免可见的半删除状态。
+        self.storage.registry().save(&updated_registry)?;
+        if let Err(snapshot_error) = self.storage.snapshots().save(&updated_snapshots) {
+            self.storage.registry().save(&initialization.registry)?;
+            return Err(snapshot_error.into());
+        }
+        self.lock_migration_rebuild_ids()?
+            .retain(|pending_project_id| pending_project_id != project_id);
+        Ok(true)
+    }
+
     /// 重建版本迁移后被明确标记为不可信的旧快照。
     pub fn rebuild_migrated_projects(&self) -> Result<usize, ProjectCatalogError> {
         let project_ids = {

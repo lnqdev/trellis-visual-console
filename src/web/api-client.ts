@@ -12,6 +12,7 @@ import {
   ProjectDocumentResponseSchema,
   ProjectListResponseSchema,
   ProjectRegisterResponseSchema,
+  ProjectRemoveResponseSchema,
   ProjectScanResponseSchema,
   TaskCenterResponseSchema,
   TaskDetailResponseSchema,
@@ -23,6 +24,7 @@ import {
   type ProjectListResponse,
   type ProjectRegisterInput,
   type ProjectRegisterResponse,
+  type ProjectRemoveResponse,
   type ProjectScanResponse,
   type TaskCenterResponse,
   type TaskDetailResponse,
@@ -43,6 +45,15 @@ export class ApiClientError extends Error {
     super(message);
     this.name = "ApiClientError";
   }
+}
+
+/** 判断当前页面是否运行在 macOS Tauri 桌面 WebView 中。 */
+export function isMacOSDesktopRuntime(): boolean {
+  return (
+    isTauri() &&
+    typeof navigator !== "undefined" &&
+    /Macintosh|Mac OS X/.test(navigator.userAgent)
+  );
 }
 
 /** 读取全部已登记项目。 */
@@ -68,6 +79,11 @@ export function scanProjects(rootPath: string): Promise<ProjectScanResponse> {
 /** 登记一个或多个已选择项目。 */
 export function registerProjects(projects: ProjectRegisterInput[]): Promise<ProjectRegisterResponse> {
   return invokeCommand("register_projects", { projects }, ProjectRegisterResponseSchema);
+}
+
+/** 移除一个已登记项目及其应用内摘要。 */
+export function removeProject(projectId: string): Promise<ProjectRemoveResponse> {
+  return invokeCommand("remove_project", { projectId }, ProjectRemoveResponseSchema);
 }
 
 /** 打开系统目录选择对话框。 */

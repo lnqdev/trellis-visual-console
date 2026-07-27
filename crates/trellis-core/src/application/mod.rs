@@ -11,8 +11,9 @@ use catalog::{ProjectCatalog, ProjectCatalogData, ProjectCatalogError, ProjectRe
 
 use crate::contracts::{
     CommandError, ProjectActionResponse, ProjectDetailResponse, ProjectListItem,
-    ProjectListResponse, ProjectRegisterInput, ProjectRegisterResponse, ProjectRuntimeWatchMode,
-    ProjectScanResponse, TaskCenterItem, TaskCenterResponse, TaskCollection, TaskDetailResponse,
+    ProjectListResponse, ProjectRegisterInput, ProjectRegisterResponse, ProjectRemoveResponse,
+    ProjectRuntimeWatchMode, ProjectScanResponse, TaskCenterItem, TaskCenterResponse,
+    TaskCollection, TaskDetailResponse,
 };
 use crate::projects::{
     ProjectReadError, UnsafeProjectPathError, read_project_markdown, read_project_task_detail,
@@ -123,6 +124,19 @@ impl ApplicationService {
         }
         Ok(ProjectRegisterResponse {
             results: self.catalog.register_projects(&projects)?,
+        })
+    }
+
+    /// 移除一个已登记项目及其应用内摘要和实时运行状态。
+    pub fn remove_project(&self, project_id: &str) -> Result<ProjectRemoveResponse, CommandError> {
+        let removal_result = self.realtime.remove_project(project_id);
+        // watcher 关闭失败时项目可能已完成持久化移除，授权清理不能被提前跳过。
+        let authorization_result = self.clear_content_authorization(project_id);
+        removal_result?;
+        authorization_result?;
+        Ok(ProjectRemoveResponse {
+            project_id: project_id.to_owned(),
+            removed: true,
         })
     }
 

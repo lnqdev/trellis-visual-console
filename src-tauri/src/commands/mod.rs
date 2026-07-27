@@ -15,7 +15,8 @@ use time::format_description::well_known::Rfc3339;
 use trellis_core::contracts::{
     CommandError, DirectoryPickerResponse, OpenProjectPathResponse, ProjectActionResponse,
     ProjectDetailResponse, ProjectDocumentResponse, ProjectListResponse, ProjectRegisterInput,
-    ProjectRegisterResponse, ProjectScanResponse, TaskCenterResponse, TaskDetailResponse,
+    ProjectRegisterResponse, ProjectRemoveResponse, ProjectScanResponse, TaskCenterResponse,
+    TaskDetailResponse,
 };
 
 use crate::AppState;
@@ -132,6 +133,16 @@ pub async fn register_projects(
 ) -> Result<ProjectRegisterResponse, CommandError> {
     let core = state.core()?;
     run_core(move || core.register_projects(projects)).await
+}
+
+/// 移除一个已登记项目及其应用内摘要和实时运行状态。
+#[tauri::command(rename_all = "camelCase")]
+pub async fn remove_project(
+    project_id: String,
+    state: State<'_, AppState>,
+) -> Result<ProjectRemoveResponse, CommandError> {
+    let core = state.core()?;
+    run_core(move || core.remove_project(&project_id)).await
 }
 
 /// 切换项目焦点状态并返回最新详情。

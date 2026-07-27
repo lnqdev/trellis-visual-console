@@ -27,6 +27,74 @@
 - 隔离数据目录清理后应用退出，已登记源项目字节不变。
 - 关闭窗口后 1 秒内进程退出。
 
+## 场景：macOS 覆盖式标题栏
+
+### 1. 范围 / 触发条件
+
+- 修改主窗口标题栏、窗口装饰、顶部安全区或拖动行为时适用。
+
+### 2. 签名
+
+```json
+{
+  "decorations": true,
+  "titleBarStyle": "Overlay",
+  "hiddenTitle": true
+}
+```
+
+```ts
+isMacOSDesktopRuntime(): boolean
+```
+
+### 3. 合同
+
+- `titleBarStyle` 和 `hiddenTitle` 只调整 macOS；Windows 继续使用默认原生标题栏和窗口按钮。
+- 必须保留 `decorations: true`，由系统红黄绿按钮负责关闭、最小化和全屏/还原，不实现前端自绘按钮或新增窗口 capability。
+- 只有 Tauri macOS WebView 增加 `console-shell--macos-overlay` 和独立 `data-tauri-drag-region`；普通浏览器与 Windows 不增加顶部安全边距。
+- 拖动区必须位于原生窗口按钮右侧的顶部预留空白，不能覆盖品牌、项目标题、导航或操作按钮。
+
+### 4. 校验与错误矩阵
+
+| 环境 | 结果 |
+| --- | --- |
+| macOS Tauri | 深色内容延伸到顶部，隐藏居中标题，保留原生窗口按钮和拖动区 |
+| Windows Tauri | 保持现有原生标题栏和窗口控制 |
+| 普通浏览器开发页 | 不增加 Overlay 修饰类或顶部空白 |
+| 1280x800 / 800x600 | 窗口按钮、拖动区和首行可交互内容不重叠 |
+| 全屏 / 还原 | 内容连续，恢复后原生按钮和拖动区继续可用 |
+
+### 5. Good / Base / Bad Cases
+
+- Good：使用 Tauri macOS Overlay 保留系统窗口行为，前端只负责安全区和拖动空白。
+- Base：Windows 和浏览器沿用原布局。
+- Bad：跨平台设置 `decorations: false` 并自绘窗口按钮，或让透明拖动层覆盖业务控件。
+
+### 6. 必需验证与断言点
+
+- 真实 macOS `.app` 截图断言没有独立白色标题栏和居中标题，红黄绿按钮仍存在。
+- 实测拖动、系统双击标题区行为、关闭、最小化、全屏和还原。
+- 在 1280x800、800x600 和全屏状态检查顶部区域无重叠、裁切或横向滚动。
+- 核对 Tauri 配置 Schema，确认两个标题字段为 macOS 专用且没有新增 Windows capability。
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```json
+{ "decorations": false }
+```
+
+#### Correct
+
+```json
+{
+  "decorations": true,
+  "titleBarStyle": "Overlay",
+  "hiddenTitle": true
+}
+```
+
 ## 场景：macOS DMG 安装与挂载清理
 
 ### 1. 范围与触发条件

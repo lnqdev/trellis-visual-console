@@ -12,6 +12,7 @@ import {
   Radio,
   RefreshCw,
   RotateCcw,
+  Trash2,
 } from "lucide-react";
 import type { ProjectListItem } from "../../shared/api";
 import { formatDateTime, formatWatchMode } from "../formatters";
@@ -24,8 +25,10 @@ interface ProjectSidebarProps {
   mode: ConsoleMode;
   selectedProjectId: string | null;
   eventStreamState: EventStreamState;
+  busyAction: string | null;
   updater: ApplicationUpdaterController;
   onSelectProject: (projectId: string) => void;
+  onRemoveProject: (projectId: string) => void;
   onOpenTaskCenter: () => void;
   onOpenDiscovery: () => void;
   onRetry: () => void;
@@ -38,8 +41,10 @@ export function ProjectSidebar({
   mode,
   selectedProjectId,
   eventStreamState,
+  busyAction,
   updater,
   onSelectProject,
+  onRemoveProject,
   onOpenTaskCenter,
   onOpenDiscovery,
   onRetry,
@@ -133,21 +138,27 @@ export function ProjectSidebar({
               icon={<Layers3 size={15} aria-hidden="true" />}
               projects={focus}
               selectedProjectId={activeProjectId}
+              busyAction={busyAction}
               onSelect={onSelectProject}
+              onRemove={onRemoveProject}
             />
             <ProjectGroup
               title="历史项目"
               icon={<FolderClock size={15} aria-hidden="true" />}
               projects={history}
               selectedProjectId={activeProjectId}
+              busyAction={busyAction}
               onSelect={onSelectProject}
+              onRemove={onRemoveProject}
             />
             <ProjectGroup
               title="不可用"
               icon={<CircleOff size={15} aria-hidden="true" />}
               projects={unavailable}
               selectedProjectId={activeProjectId}
+              busyAction={busyAction}
               onSelect={onSelectProject}
+              onRemove={onRemoveProject}
             />
           </>
         )}
@@ -182,11 +193,21 @@ interface ProjectGroupProps {
   icon: React.ReactNode;
   projects: ProjectListItem[];
   selectedProjectId: string | null;
+  busyAction: string | null;
   onSelect: (projectId: string) => void;
+  onRemove: (projectId: string) => void;
 }
 
 /** 展示一个状态分组中的项目按钮。 */
-function ProjectGroup({ title, icon, projects, selectedProjectId, onSelect }: ProjectGroupProps) {
+function ProjectGroup({
+  title,
+  icon,
+  projects,
+  selectedProjectId,
+  busyAction,
+  onSelect,
+  onRemove,
+}: ProjectGroupProps) {
   return (
     <section className="project-group">
       <header>
@@ -198,22 +219,42 @@ function ProjectGroup({ title, icon, projects, selectedProjectId, onSelect }: Pr
         <p>暂无项目</p>
       ) : (
         <div className="project-list">
-          {projects.map((item) => (
-            <button
-              key={item.project.id}
-              className={`project-item ${selectedProjectId === item.project.id ? "project-item--active" : ""}`}
-              type="button"
-              onClick={() => onSelect(item.project.id)}
-              aria-current={selectedProjectId === item.project.id ? "page" : undefined}
-            >
-              <span className={`status-dot status-dot--${item.project.state}`} aria-hidden="true" />
-              <span className="project-item-copy">
-                <strong>{item.project.label}</strong>
-                <small>{formatWatchMode(item.runtime.watchMode)} · {formatDateTime(item.project.lastIndexedAt)}</small>
-              </span>
-              {item.diagnosticCount > 0 ? <span className="count-badge">{item.diagnosticCount}</span> : null}
-            </button>
-          ))}
+          {projects.map((item) => {
+            const active = selectedProjectId === item.project.id;
+            const removing = busyAction === `remove:${item.project.id}`;
+            return (
+              <div className="project-item-row" key={item.project.id}>
+                <button
+                  className={`project-item ${active ? "project-item--active" : ""}`}
+                  type="button"
+                  onClick={() => onSelect(item.project.id)}
+                  aria-current={active ? "page" : undefined}
+                  disabled={busyAction !== null}
+                >
+                  <span className={`status-dot status-dot--${item.project.state}`} aria-hidden="true" />
+                  <span className="project-item-copy">
+                    <strong>{item.project.label}</strong>
+                    <small>{formatWatchMode(item.runtime.watchMode)} · {formatDateTime(item.project.lastIndexedAt)}</small>
+                  </span>
+                  {item.diagnosticCount > 0 ? <span className="count-badge">{item.diagnosticCount}</span> : null}
+                </button>
+                <button
+                  className="project-remove-button"
+                  type="button"
+                  aria-label={`移除项目：${item.project.label}`}
+                  title={`移除项目：${item.project.label}`}
+                  disabled={busyAction !== null}
+                  onClick={() => onRemove(item.project.id)}
+                >
+                  {removing ? (
+                    <RefreshCw className="spin" size={14} aria-hidden="true" />
+                  ) : (
+                    <Trash2 size={14} aria-hidden="true" />
+                  )}
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
     </section>

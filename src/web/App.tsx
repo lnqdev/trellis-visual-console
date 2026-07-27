@@ -18,6 +18,7 @@ import { SpecBrowser } from "./components/SpecBrowser";
 import { TaskBrowser } from "./components/TaskBrowser";
 import { TaskCenter } from "./components/TaskCenter";
 import { WorkflowPanel } from "./components/WorkflowPanel";
+import { isMacOSDesktopRuntime } from "./api-client";
 import { useApplicationUpdater } from "./hooks/useApplicationUpdater";
 import { useProjectConsole, type ProjectView } from "./hooks/useProjectConsole";
 
@@ -38,17 +39,23 @@ export function App() {
   const consoleState = useProjectConsole();
   const updater = useApplicationUpdater();
   const projectCount = consoleState.projects.data?.length ?? 0;
+  const macOSDesktopRuntime = isMacOSDesktopRuntime();
 
   return (
-    <div className="console-shell">
+    <div className={`console-shell${macOSDesktopRuntime ? " console-shell--macos-overlay" : ""}`}>
+      {macOSDesktopRuntime ? (
+        <div className="window-drag-region" data-tauri-drag-region="" aria-hidden="true" />
+      ) : null}
       <ProjectSidebar
         projects={consoleState.projects}
         applicationVersion={updater.state.currentVersion ?? __APP_VERSION__}
         mode={consoleState.mode}
         selectedProjectId={consoleState.selectedProjectId}
         eventStreamState={consoleState.eventStreamState}
+        busyAction={consoleState.busyAction}
         updater={updater}
         onSelectProject={consoleState.selectProject}
+        onRemoveProject={(projectId) => void consoleState.removeRegisteredProject(projectId)}
         onOpenTaskCenter={consoleState.openTaskCenter}
         onOpenDiscovery={consoleState.openDiscovery}
         onRetry={consoleState.retryProjects}

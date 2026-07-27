@@ -23,6 +23,7 @@ import {
   openProjectPath,
   refreshProject,
   registerProjects,
+  removeProject,
   scanProjects,
   selectDirectory,
   setProjectFocus,
@@ -645,6 +646,40 @@ export function useProjectConsole() {
     [loadProjects, selectProject],
   );
 
+  /** 二次确认后移除项目登记，并从后端权威列表修复当前选择。 */
+  const removeRegisteredProject = useCallback(
+    async (projectId: string) => {
+      const project = projects.data?.find((item) => item.project.id === projectId)?.project;
+      if (project === undefined) {
+        setNotice({ tone: "error", message: "项目已不在当前列表中，请刷新后重试" });
+        return;
+      }
+      const confirmed = window.confirm(
+        `是否从 Trellis Visual Console 移除“${project.label}”？\n\n` +
+          "只会删除本应用中的项目登记和摘要快照，不会删除或修改源项目及 .trellis。之后可以重新添加。",
+      );
+      if (!confirmed) {
+        return;
+      }
+
+      if (selectedProjectIdRef.current === projectId) {
+        // Command 没有原生取消能力，先失效选择和请求代次，阻止迟到详情重新提交。
+        applyProjectSelection(null, true);
+      }
+      await runAction(`remove:${projectId}`, async () => {
+        try {
+          await removeProject(projectId);
+          setTaskCenterRefreshGeneration((current) => current + 1);
+        } finally {
+          // 后端可能已提交注册表后才报告清理失败，始终重新读取权威列表。
+          await loadProjects(true);
+        }
+        setNotice({ tone: "success", message: `项目“${project.label}”已从本应用移除` });
+      });
+    },
+    [applyProjectSelection, loadProjects, projects.data],
+  );
+
   /** 执行无返回值操作并统一管理忙碌和错误状态。 */
   async function runAction(action: string, operation: () => Promise<void>): Promise<void> {
     setBusyAction(action);
@@ -711,6 +746,7 @@ export function useProjectConsole() {
     openLogs,
     clearApplicationData,
     addProjects,
+    removeRegisteredProject,
     openDiscovery: () => setDiscoveryOpen(true),
     closeDiscovery: () => setDiscoveryOpen(false),
     clearNotice: () => setNotice(null),

@@ -145,6 +145,7 @@ pub fn run() {
             commands::get_project,
             commands::scan_projects,
             commands::register_projects,
+            commands::remove_project,
             commands::set_project_focus,
             commands::refresh_project,
             commands::read_spec_document,

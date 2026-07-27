@@ -244,6 +244,14 @@ export const ProjectRegisterResponseSchema = z
 /** 焦点切换请求。 */
 export const ProjectFocusRequestSchema = z.object({ focused: z.boolean() }).strict();
 
+/** 项目移除成功响应。 */
+export const ProjectRemoveResponseSchema = z
+  .object({
+    projectId: NonEmptyStringSchema,
+    removed: z.literal(true),
+  })
+  .strict();
+
 /** 项目操作完成后的详情响应。 */
 export const ProjectActionResponseSchema = ProjectDetailResponseSchema;
 
@@ -393,6 +401,7 @@ export type ProjectRegistrationResultApi = z.infer<
 >;
 export type ProjectRegisterResponse = z.infer<typeof ProjectRegisterResponseSchema>;
 export type ProjectFocusRequest = z.infer<typeof ProjectFocusRequestSchema>;
+export type ProjectRemoveResponse = z.infer<typeof ProjectRemoveResponseSchema>;
 export type ProjectActionResponse = z.infer<typeof ProjectActionResponseSchema>;
 export type ProjectDocumentResponse = z.infer<typeof ProjectDocumentResponseSchema>;
 export type TaskDocumentSummary = z.infer<typeof TaskDocumentSummarySchema>;
