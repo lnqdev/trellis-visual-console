@@ -4441,7 +4441,7 @@ dependencies = [
 
 [[package]]
 name = "trellis-core"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "atomic-write-file",
  "notify",
@@ -4456,7 +4456,7 @@ dependencies = [
 
 [[package]]
 name = "trellis-visual-console"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "atomic-write-file",
  "serde",
