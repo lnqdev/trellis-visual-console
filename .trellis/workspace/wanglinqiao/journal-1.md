@@ -648,3 +648,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 20: 修复 Markdown 相对链接跳转
+
+**Date**: 2026-11-26
+**Task**: 修复 Markdown 相对链接跳转
+**Branch**: `main`
+
+### Summary
+
+修复任务与 Spec 文档中 Markdown 相对链接点击后 WebView 白屏：新增链接分类与项目内路由（同任务/跨任务/Spec/Workflow），标题生成 GitHub 风格 id 并支持同文档与跨文档锚点；补充前端组件与 Hook 规范。lint、typecheck、build:web 与浏览器 harness 验证通过。
+
+### Main Changes
+
+- Detailed change bullets were not supplied; see the summary above.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `2d6bcd1` | (see git log) |
+
+### Testing
+
+- Validation was not recorded for this session.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

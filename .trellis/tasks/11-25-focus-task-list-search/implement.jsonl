@@ -1,0 +1,3 @@
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "TaskBrowser 组件职责、可访问性与中文文案约束"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "本地 UI 状态与派生状态的归属规则"}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "前端目录与组件放置约定"}
