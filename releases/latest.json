@@ -1,19 +1,19 @@
 {
-  "version": "1.0.1",
-  "notes": "## 更新内容\n\n- 修复mac无法拖动的问题\n\n## 内测安装提示\n\nmacOS 首次打开如被 Gatekeeper 拦截，请在“系统设置 > 隐私与安全性”中确认打开；Windows 未签名内测包可能显示 SmartScreen 提示。本版本不包含 Apple Developer ID、公证或 Windows 商业代码签名。",
-  "pub_date": "2026-07-27T10:15:23.000Z",
+  "version": "1.0.2",
+  "notes": "## 更新内容\n\n- 新增任务文档 Markdown 文内查找\n- 任务列表筛选改为同行布局并仅按任务名称搜索\n- 修复文档内 Markdown 相对链接跳转\n- 支持侧边栏折叠与展开\n- 支持拖动调整侧边栏与任务树栏宽度\n\n## 内测安装提示\n\nmacOS 首次打开如被 Gatekeeper 拦截，请在“系统设置 > 隐私与安全性”中确认打开；Windows 未签名内测包可能显示 SmartScreen 提示。本版本不包含 Apple Developer ID、公证或 Windows 商业代码签名。",
+  "pub_date": "2026-11-26T03:43:07.000Z",
   "platforms": {
     "darwin-aarch64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTEQxdjdqZURTRUVyYlhHeDRXUFdUYlJzWEJ2c09CT1BWTklScWhsLzNVNnVsaUJsc0tXUjhKcElzd2NGM29rcWVpMkVPQUtZYWJSdlJTMlVvVnZxeTE4OHhULzVOTWdvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1MTQ2ODcyCWZpbGU6VHJlbGxpcyBWaXN1YWwgQ29uc29sZS5hcHAudGFyLmd6ClZWUVpra2Vvcm9KWTljWmk2TGdxSkVWSHJMUzhLNUo5QitHRjFrWmJkNUJEU3FqZy9JNkJ4WlBzTFlZeE16eXh0dkJsQUt1Wmp5dDZxUG5JNGJsY0FnPT0K",
-      "url": "https://gitee.com/wanglinqiao/trellis-visual-console/releases/download/v1.0.1/Trellis.Visual.Console_1.0.1_aarch64.app.tar.gz"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTEQxdjdqZURTRUdKcWQwZjBPUS9FZXdwVXRHUTM0cUx4WUtYVldXRFJQdUp5Q0gzbW1JVEtZUFdqb3NPMENaSlZZMEdNV3l6c1FSb2JuT25MU29meThKZ0Nqd3FsR2dZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1NjY0MTE1CWZpbGU6VHJlbGxpcyBWaXN1YWwgQ29uc29sZS5hcHAudGFyLmd6CkhGSHhLdHNmSDBCWGl0NmJFaFBHU1BleXE5NmpCSUxxdXhZTWd5MVRwNEJjZEZiTXN3OHk5R3ZUOGx6citQYkFzZUZzU3RORjN1bDd1MTRPcXpVdERBPT0K",
+      "url": "https://gitee.com/wanglinqiao/trellis-visual-console/releases/download/v1.0.2/Trellis.Visual.Console_1.0.2_aarch64.app.tar.gz"
     },
     "darwin-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTEQxdjdqZURTRUdGMXpjM3pCQ0JMdzkvRWk5RnFCdFliNkVnTDBURmFSaEQyUGR0YU9VVC9zWE4rRWh1QXBVQ0k4K1ZGVjZiNitIT3NXemNDWFdMOCtNNjJKTVB5SHdrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1MTQ2ODAwCWZpbGU6VHJlbGxpcyBWaXN1YWwgQ29uc29sZS5hcHAudGFyLmd6ClA5bXQ0OGFQS1g2Y2xuZXh2UUhSb3V0QnN1OUd4YkI0VVFEL29QajlwTnZrdXM5U1gva25XSXQ0MXhXNTZkT0dmTEdoUmgzcnZQWW56eDEvVndpMkFnPT0K",
-      "url": "https://gitee.com/wanglinqiao/trellis-visual-console/releases/download/v1.0.1/Trellis.Visual.Console_1.0.1_x64.app.tar.gz"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTEQxdjdqZURTRU40OGUrbzlDbi9QNEpDNUtWeUZXQnJXaFcrdFF4TUl3R3AzdWJ6ejJUTlBheVRuc1QyR2JpbThKTXgvcWZwR2RnS2RuYktubTZxN05VWEpFbUo1ZkFJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1NjY0MzQzCWZpbGU6VHJlbGxpcyBWaXN1YWwgQ29uc29sZS5hcHAudGFyLmd6CnN5S3FrNEJhUXBjcU83N01XNlUyRnNGcVZzQnY0Vm51dGEwcGIxYWxaUnY0LzVHaDVLQ2owM09WdUZMQXcyVG4zY3VIZmdnd3FqOGtYMi9rL0dlc0NRPT0K",
+      "url": "https://gitee.com/wanglinqiao/trellis-visual-console/releases/download/v1.0.2/Trellis.Visual.Console_1.0.2_x64.app.tar.gz"
     },
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTEQxdjdqZURTRUk2RTZqVWpBRHBlZzZ1TDBHSEorREJLY2tEL1FhNS9rQjNvTXNkUVl0L0w0Y3NZakcwYVg4dWhTZnRSWkdLUmZmTXdMd0p0RUE5SUdMYWZUb0trY0FVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1MTQ3MDYzCWZpbGU6VHJlbGxpcyBWaXN1YWwgQ29uc29sZV8xLjAuMV94NjQtc2V0dXAuZXhlCkJLUDVRQzNIY3NNNlh3aHNJblJVZWlHSytzanBUNnE4cmNuQ2txWHBrZ2pQZmZORTVTSW15Y0JhVGVpL0dMVzdjS3BxalEya1M2VjNtMG5JWDl6dEJ3PT0K",
-      "url": "https://gitee.com/wanglinqiao/trellis-visual-console/releases/download/v1.0.1/Trellis.Visual.Console_1.0.1_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTEQxdjdqZURTRUFydFEwTUNPUHNlc1V0NTVVOHYyMzdhOFZjWWl3YlcxcUdiTGl5YWZZcTdUdDAvQnJHRmU2b3YrdlFPSHVlU2VMRlZvTWZ6elkzajNldzhnekJSNVFvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1NjY0MDA2CWZpbGU6VHJlbGxpcyBWaXN1YWwgQ29uc29sZV8xLjAuMl94NjQtc2V0dXAuZXhlCkQ5aU0zOFFkcjc1SG8vNkpRRWk3VE9KNkRJZlRsSkZYNmJQTE9OZmpkQSs4d2xsMUpoTm40cHY3ZHAvZlpvcDVmYzljNldiYUlUMVhObDYwTmpWNERRPT0K",
+      "url": "https://gitee.com/wanglinqiao/trellis-visual-console/releases/download/v1.0.2/Trellis.Visual.Console_1.0.2_x64-setup.exe"
     }
   }
 }
