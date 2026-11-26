@@ -3,6 +3,7 @@ import {
   GitBranch,
   LayoutDashboard,
   ListTodo,
+  PanelLeftOpen,
   RefreshCw,
   TriangleAlert,
   X,
@@ -21,6 +22,7 @@ import { WorkflowPanel } from "./components/WorkflowPanel";
 import { isMacOSDesktopRuntime } from "./api-client";
 import { useApplicationUpdater } from "./hooks/useApplicationUpdater";
 import { useProjectConsole, type ProjectView } from "./hooks/useProjectConsole";
+import { useSidebarCollapsed } from "./hooks/useSidebarCollapsed";
 
 const PROJECT_VIEWS: Array<{
   id: ProjectView;
@@ -38,11 +40,16 @@ const PROJECT_VIEWS: Array<{
 export function App() {
   const consoleState = useProjectConsole();
   const updater = useApplicationUpdater();
+  const sidebar = useSidebarCollapsed();
   const projectCount = consoleState.projects.data?.length ?? 0;
   const macOSDesktopRuntime = isMacOSDesktopRuntime();
 
   return (
-    <div className={`console-shell${macOSDesktopRuntime ? " console-shell--macos-overlay" : ""}`}>
+    <div
+      className={`console-shell${macOSDesktopRuntime ? " console-shell--macos-overlay" : ""}${
+        sidebar.collapsed ? " console-shell--sidebar-collapsed" : ""
+      }`}
+    >
       {macOSDesktopRuntime ? (
         <div className="window-drag-region" data-tauri-drag-region="" aria-hidden="true" />
       ) : null}
@@ -59,9 +66,26 @@ export function App() {
         onOpenTaskCenter={consoleState.openTaskCenter}
         onOpenDiscovery={consoleState.openDiscovery}
         onRetry={consoleState.retryProjects}
+        onCollapseSidebar={sidebar.toggle}
       />
 
       <main className="workspace-shell">
+        {/* 侧边栏折叠后在主内容区顶部保留展开入口 */}
+        {sidebar.collapsed ? (
+          <div className="workspace-sidebar-launcher">
+            <button
+              className="icon-only-button sidebar-toggle-button"
+              type="button"
+              aria-label="展开侧边栏"
+              aria-expanded={false}
+              aria-keyshortcuts="Control+B Meta+B"
+              title="展开侧边栏"
+              onClick={sidebar.toggle}
+            >
+              <PanelLeftOpen size={17} aria-hidden="true" />
+            </button>
+          </div>
+        ) : null}
         {consoleState.notice !== null ? (
           <div className={`global-notice global-notice--${consoleState.notice.tone}`} aria-live="polite">
             <span>{consoleState.notice.message}</span>

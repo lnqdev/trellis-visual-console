@@ -8,6 +8,7 @@ import {
   FolderClock,
   Layers3,
   ListChecks,
+  PanelLeftClose,
   Plus,
   Radio,
   RefreshCw,
@@ -32,6 +33,7 @@ interface ProjectSidebarProps {
   onOpenTaskCenter: () => void;
   onOpenDiscovery: () => void;
   onRetry: () => void;
+  onCollapseSidebar: () => void;
 }
 
 /** 展示焦点、历史和不可用项目分组导航。 */
@@ -48,6 +50,7 @@ export function ProjectSidebar({
   onOpenTaskCenter,
   onOpenDiscovery,
   onRetry,
+  onCollapseSidebar,
 }: ProjectSidebarProps) {
   const data = projects.data ?? [];
   const focus = data.filter((item) => item.project.state === "focus");
@@ -63,7 +66,7 @@ export function ProjectSidebar({
         <div className="brand-icon" aria-hidden="true">
           T
         </div>
-        <div>
+        <div className="brand-copy">
           <strong>Trellis Console</strong>
           <span>LOCAL · READ ONLY</span>
           {/* 版本号行：有新版本或待重启时在右侧显示操作按钮 */}
@@ -91,6 +94,17 @@ export function ProjectSidebar({
             ) : null}
           </span>
         </div>
+        <button
+          className="icon-only-button sidebar-toggle-button brand-collapse-button"
+          type="button"
+          aria-label="折叠侧边栏"
+          aria-expanded={true}
+          aria-keyshortcuts="Control+B Meta+B"
+          title="折叠侧边栏"
+          onClick={onCollapseSidebar}
+        >
+          <PanelLeftClose size={17} aria-hidden="true" />
+        </button>
       </div>
 
       <div className={`connection-chip connection-chip--${eventStreamState}`} aria-live="polite">

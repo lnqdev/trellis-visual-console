@@ -109,3 +109,75 @@ removeRegisteredProject(projectId: string): Promise<void>
   <button aria-label="移除项目：项目名称" onClick={removeProject} />
 </div>
 ```
+
+## 场景：侧边栏折叠与展开
+
+### 1. 范围 / 触发条件
+
+- 修改 `.console-shell` 栅格布局、左侧项目导航的显示状态或折叠入口时适用。
+
+### 2. 签名
+
+```ts
+useSidebarCollapsed(): { collapsed: boolean; toggle: () => void }
+```
+
+- 折叠状态持久化键固定为 `trellis-console:sidebar-collapsed`（`"1"` 折叠 / `"0"` 展开）。
+- `ProjectSidebar` 通过 `onCollapseSidebar` 回调触发折叠；展开入口由 `App` 在主内容区渲染。
+
+### 3. 合同
+
+- 桌面栅格布局下，折叠态把第一列设为 `0`，主内容区占满剩余宽度，不出现空白列。
+- 折叠态不得让侧边栏退出网格流：禁止对 grid item 使用 `display: none`，否则主内容会落入第一列。应使用 `width/min-width/padding` 归零加 `visibility: hidden; pointer-events: none`。
+- 窄屏（`max-width: 820px`，`.console-shell` 为 `display: block`）折叠时改用 `display: none` 移除顶部占位高度。
+- 折叠与展开按钮均为图标按钮，提供 `aria-label`、`title`、`aria-expanded` 和 `aria-keyshortcuts="Control+B Meta+B"`。
+- `Cmd/Ctrl + B` 全局切换；忽略 `event.repeat`，并调用 `preventDefault`。
+
+### 4. 校验与错误矩阵
+
+| 条件 | 界面行为 |
+| --- | --- |
+| 读取 localStorage 抛错 | 默认展开，不影响折叠功能 |
+| 写入 localStorage 抛错 | 折叠行为仍生效，仅不持久化 |
+| 页面刷新或重启 | 恢复上次折叠状态 |
+| 在输入控件中按 `Cmd/Ctrl + B` | 仍切换侧边栏（应用为只读，无文本加粗语义） |
+
+### 5. Good / Base / Bad Cases
+
+- Good：折叠状态由 `useSidebarCollapsed` 统一管理，组件只接收 `onCollapseSidebar` 回调。
+- Base：首次进入无存储值时展开。
+- Bad：折叠时给 `.project-sidebar` 加 `display: none`，主内容区被挤进 0 宽的第一列。
+
+### 6. 必需验证与断言点
+
+- 断言折叠前后 `getComputedStyle(shell).gridTemplateColumns` 在 `300px …` 与 `0px …` 间切换，且 `.workspace-shell` 左边界为 0。
+- 断言刷新后 `.console-shell` 仍带 `--sidebar-collapsed` 类。
+- 断言 `Meta+B` / `Control+B` 切换 `collapsed` 状态。
+- 在 375px 视口断言折叠后 `.project-sidebar` 为 `display: none` 且 `.workspace-shell` 顶部为 0。
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```css
+.console-shell--sidebar-collapsed .project-sidebar {
+  display: none;
+}
+```
+
+#### Correct
+
+```css
+.console-shell--sidebar-collapsed {
+  grid-template-columns: 0 minmax(0, 1fr);
+}
+
+.console-shell--sidebar-collapsed .project-sidebar {
+  width: 0;
+  min-width: 0;
+  padding-inline: 0;
+  border-right-width: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+```

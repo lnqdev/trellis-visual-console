@@ -100,6 +100,25 @@ pre {
   display: grid;
   grid-template-columns: 300px minmax(0, 1fr);
   min-height: 100vh;
+  transition: grid-template-columns 220ms ease;
+}
+
+/* 折叠态：侧边栏列宽归零，主内容区铺满剩余空间。
+   提高特异性以覆盖各断点下对 .console-shell 列宽的重定义 */
+.console-shell.console-shell--sidebar-collapsed {
+  grid-template-columns: 0 minmax(0, 1fr);
+}
+
+/* 桌面 grid 布局下必须保留侧边栏占位，否则主内容区会落入第一列；
+   通过宽度与内边距归零 + 隐藏来让它"消失" */
+.console-shell--sidebar-collapsed .project-sidebar {
+  width: 0;
+  min-width: 0;
+  padding-right: 0;
+  padding-left: 0;
+  border-right-width: 0;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .window-drag-region {
@@ -136,6 +155,17 @@ pre {
   align-items: center;
   gap: 12px;
   margin-bottom: 18px;
+}
+
+/* 品牌文字区收缩，避免折叠按钮挤压时溢出 */
+.brand-row .brand-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.brand-collapse-button {
+  flex: 0 0 auto;
+  align-self: flex-start;
 }
 
 .brand-icon {
@@ -590,6 +620,12 @@ pre {
 .workspace-shell {
   min-width: 0;
   padding: 24px clamp(20px, 3vw, 42px) 40px;
+}
+
+/* 侧边栏折叠后，主内容区顶部常驻的展开入口 */
+.workspace-sidebar-launcher {
+  display: flex;
+  margin-bottom: 14px;
 }
 
 .task-center-page {
@@ -2751,6 +2787,11 @@ pre {
     padding: 16px;
     border-right: 0;
     border-bottom: 1px solid var(--border-soft);
+  }
+
+  /* 窄屏为单列 block 布局，直接移除以避免占据顶部高度 */
+  .console-shell--sidebar-collapsed .project-sidebar {
+    display: none;
   }
 
   .console-shell--macos-overlay .project-sidebar {
