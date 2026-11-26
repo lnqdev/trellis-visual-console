@@ -1763,7 +1763,8 @@ pre {
   background: var(--surface);
 }
 
-.task-list-search {
+/* 搜索框与负责人下拉同处一行，行容器统一控制与下方内容的间距。 */
+.task-list-filters {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1777,7 +1778,7 @@ pre {
   display: block;
 }
 
-.task-list-search-control svg {
+.task-list-search-control > svg {
   position: absolute;
   top: 50%;
   left: 10px;
@@ -1789,7 +1790,8 @@ pre {
 .task-list-search-control input {
   width: 100%;
   height: 34px;
-  padding: 6px 10px 6px 32px;
+  /* 右侧预留清除按钮空间，避免按钮与文本重叠。 */
+  padding: 6px 30px 6px 32px;
   border: 1px solid var(--border);
   border-radius: 8px;
   color: var(--text);
@@ -1801,16 +1803,21 @@ pre {
   display: none;
 }
 
+/* 清除按钮绝对定位在输入框右内侧，避免单独占位挤压输入空间。 */
 .task-list-search-clear {
-  flex: 0 0 auto;
-  width: 30px;
-  height: 30px;
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  width: 24px;
+  height: 24px;
   display: grid;
   place-items: center;
-  border: 1px solid var(--border);
-  border-radius: 7px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
   color: var(--muted);
   background: transparent;
+  transform: translateY(-50%);
 }
 
 .task-list-search-clear:hover {
@@ -1818,9 +1825,25 @@ pre {
   background: var(--surface-hover);
 }
 
-/* 负责人下拉适配窄侧栏：触发器与搜索框同高，避免 375px 下横向溢出。 */
+/* 负责人下拉固定窄宽度，与搜索框同高并在行内垂直居中。 */
 .task-list-assignee {
-  margin-bottom: 10px;
+  flex: 0 0 112px;
+  width: 112px;
+  min-width: 0;
+}
+
+/* 视觉隐藏负责人下拉的可见标签，保留 Dropdown 的 aria-labelledby 可访问名称。 */
+.task-list-assignee .dropdown-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
 .task-list-assignee .dropdown-trigger {

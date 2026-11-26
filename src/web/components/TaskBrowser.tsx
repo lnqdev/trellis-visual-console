@@ -140,7 +140,7 @@ export function TaskBrowser({
     }
     return new Set(
       filteredTasks
-        .filter((task) => !hasSearchQuery || matchesTaskSearch(task, normalizedSearchQuery))
+        .filter((task) => !hasSearchQuery || matchesTaskTitle(task, normalizedSearchQuery))
         .map((task) => task.sourcePath),
     );
   }, [filteredTasks, hasSearchQuery, isFiltering, normalizedSearchQuery]);
@@ -285,37 +285,37 @@ export function TaskBrowser({
           </button>
         </div>
 
-        <div className="task-list-search">
+        <div className="task-list-filters">
           <div className="task-list-search-control">
             <Search size={14} aria-hidden="true" />
             <input
               type="search"
               value={searchQuery}
-              placeholder="搜索任务名称或负责人"
-              aria-label="搜索任务名称或负责人"
+              placeholder="搜索任务名称"
+              aria-label="搜索任务名称"
               onChange={(event) => setSearchQuery(event.target.value)}
             />
+            {searchQuery.length > 0 ? (
+              <button
+                type="button"
+                className="task-list-search-clear"
+                aria-label="清除搜索"
+                title="清除搜索"
+                onClick={() => setSearchQuery("")}
+              >
+                <X size={14} aria-hidden="true" />
+              </button>
+            ) : null}
           </div>
-          {searchQuery.length > 0 ? (
-            <button
-              type="button"
-              className="task-list-search-clear"
-              aria-label="清除搜索"
-              title="清除搜索"
-              onClick={() => setSearchQuery("")}
-            >
-              <X size={14} aria-hidden="true" />
-            </button>
-          ) : null}
-        </div>
 
-        <Dropdown
-          className="task-list-assignee"
-          label="负责人"
-          value={assigneeFilter}
-          options={assigneeOptions}
-          onChange={setAssigneeFilter}
-        />
+          <Dropdown
+            className="task-list-assignee"
+            label="负责人"
+            value={assigneeFilter}
+            options={assigneeOptions}
+            onChange={setAssigneeFilter}
+          />
+        </div>
 
         {collection === "archived" && focusedParent !== null ? (
           <div className="task-archive-focus" aria-live="polite">
@@ -701,10 +701,8 @@ function isCompletedTask(task: TaskSummaryApi): boolean {
   return task.status === "completed" || task.status === "done";
 }
 
-/** 按标题或负责人做去空白、大小写不敏感的包含匹配。 */
-function matchesTaskSearch(task: TaskSummaryApi, normalizedQuery: string): boolean {
+/** 仅按任务标题做去空白、大小写不敏感的包含匹配；负责人只由下拉筛选控制。 */
+function matchesTaskTitle(task: TaskSummaryApi, normalizedQuery: string): boolean {
   const normalizedTitle = task.title.trim().toLocaleLowerCase("zh-CN");
-  // 负责人为空时按空字符串处理，避免空关键词误命中。
-  const normalizedAssignee = (task.assignee ?? "").trim().toLocaleLowerCase("zh-CN");
-  return normalizedTitle.includes(normalizedQuery) || normalizedAssignee.includes(normalizedQuery);
+  return normalizedTitle.includes(normalizedQuery);
 }
