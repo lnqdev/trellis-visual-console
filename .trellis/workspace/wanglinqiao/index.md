@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 20
+- **Total Sessions**: 21
 - **Last Active**: 2026-11-26
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~683 | Active |
+| `journal-1.md` | ~716 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 21 | 2026-11-26 | 焦点项目任务列表搜索与负责人筛选 | `ea85a6c` | `main` |
 | 20 | 2026-11-26 | 修复 Markdown 相对链接跳转 | `2d6bcd1` | `main` |
 | 19 | 2026-07-27 | 完成项目移除与 macOS 一体化窗口 | `f72eee4` | `main` |
 | 18 | 2026-07-24 | 本地脚本将 GitHub Release 同步到 Gitee | `81ea757`, `7242fc6`, `c6f1b8a`, `c6382ca`, `1451bb6` | `main` |

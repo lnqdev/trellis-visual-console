@@ -681,3 +681,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 21: 焦点项目任务列表搜索与负责人筛选
+
+**Date**: 2026-11-26
+**Task**: 焦点项目任务列表搜索与负责人筛选
+**Branch**: `main`
+
+### Summary
+
+任务列表支持按名称搜索与负责人下拉筛选，结果为命中任务加祖先链的树形结构；搜索框与下拉同行布局，负责人失效自动重置。已通过 lint/typecheck/build。
+
+### Main Changes
+
+- Detailed change bullets were not supplied; see the summary above.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ea85a6c` | (see git log) |
+
+### Testing
+
+- Validation was not recorded for this session.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
