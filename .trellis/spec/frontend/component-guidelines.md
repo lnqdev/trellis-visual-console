@@ -90,6 +90,30 @@ interface DropdownProps<T extends string | null> {
 - 不启用 `rehype-raw`，不使用 `dangerouslySetInnerHTML`。
 - JSONL 使用可聚焦的 `<pre><code>`，保留原始文本并允许内部滚动。
 - HTTP(S) 外部链接使用 `target="_blank"` 和 `rel="noreferrer"`。
+- 相对链接必须先经 `resolveMarkdownLink(href, data.sourcePath)` 分类，禁止把相对路径直接交给 WebView 导航（会白屏并丢失当前选择）：
+  - `external`：`target="_blank"` + `rel="noreferrer"`。
+  - `anchor`：`preventDefault()` 后在文档容器内滚动。
+  - `file`：`preventDefault()` 并调用 `onNavigateDocument(sourcePath, anchor)`。
+  - `invalid`：只 `preventDefault()`，不得改变 `location`。
+- Markdown 标题通过 `buildHeadingIdMap(content)` 生成 GitHub 风格 id，并以“起始行号 → id”建立映射，避免依赖 React 渲染顺序；同名标题追加 `-1`、`-2`。
+
+```tsx
+// 错误：相对链接直接输出，点击后 WebView 导航到文件地址。
+<a {...props} href={href}>{children}</a>
+
+// 正确：统一分类，相对文档交给应用内路由，锚点交给文档容器滚动。
+const target = resolveMarkdownLink(href, data.sourcePath);
+if (target.kind === "external") {
+  return <a {...props} href={href} target="_blank" rel="noreferrer">{children}</a>;
+}
+return (
+  <a {...props} href={href} onClick={(event) => {
+    event.preventDefault();
+    if (target.kind === "anchor") scrollToAnchor(target.anchor);
+    if (target.kind === "file") onNavigateDocument?.(target.sourcePath, target.anchor);
+  }}>{children}</a>
+);
+```
 
 ## 常见错误
 

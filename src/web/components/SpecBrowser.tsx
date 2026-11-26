@@ -11,6 +11,9 @@ interface SpecBrowserProps {
   document: AsyncState<ProjectDocumentResponse>;
   onSelectPath: (sourcePath: string) => void;
   onOpenSource: (sourcePath: string) => void;
+  onNavigateDocument: (sourcePath: string, anchor: string | null) => void;
+  pendingDocumentAnchor: string | null;
+  onConsumeDocumentAnchor: () => void;
 }
 
 /** 展示 Spec 目录树和按需读取的 Markdown 正文。 */
@@ -20,6 +23,9 @@ export function SpecBrowser({
   document,
   onSelectPath,
   onOpenSource,
+  onNavigateDocument,
+  pendingDocumentAnchor,
+  onConsumeDocumentAnchor,
 }: SpecBrowserProps) {
   useEffect(() => {
     if (selectedPath === null) {
@@ -47,7 +53,14 @@ export function SpecBrowser({
           </div>
         )}
       </aside>
-      <DocumentViewer document={document} emptyMessage="选择一个 Spec 文件开始阅读" onOpenSource={onOpenSource} />
+      <DocumentViewer
+        document={document}
+        emptyMessage="选择一个 Spec 文件开始阅读"
+        onOpenSource={onOpenSource}
+        onNavigateDocument={onNavigateDocument}
+        anchor={pendingDocumentAnchor}
+        onAnchorConsumed={onConsumeDocumentAnchor}
+      />
     </section>
   );
 }

@@ -197,6 +197,9 @@ function renderProjectView(
           document={consoleState.specDocument}
           onSelectPath={consoleState.selectSpecPath}
           onOpenSource={(sourcePath) => void consoleState.openSelectedPath(sourcePath)}
+          onNavigateDocument={consoleState.navigateDocumentLink}
+          pendingDocumentAnchor={consoleState.pendingDocumentAnchor}
+          onConsumeDocumentAnchor={consoleState.consumeDocumentAnchor}
         />
       );
     case "tasks":
@@ -215,6 +218,9 @@ function renderProjectView(
           onSelectTask={consoleState.selectTaskSourcePath}
           onSelectDocument={consoleState.selectTaskDocumentPath}
           onOpenSource={(sourcePath) => void consoleState.openSelectedPath(sourcePath)}
+          onNavigateDocument={consoleState.navigateDocumentLink}
+          pendingDocumentAnchor={consoleState.pendingDocumentAnchor}
+          onConsumeDocumentAnchor={consoleState.consumeDocumentAnchor}
         />
       );
     case "workflow":

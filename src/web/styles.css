@@ -1659,6 +1659,11 @@ pre {
   letter-spacing: -0.02em;
 }
 
+/* 锚点跳转时给标题留出呼吸空间，避免贴住滚动容器顶部。 */
+.markdown-body :is(h1, h2, h3, h4, h5, h6) {
+  scroll-margin-top: 16px;
+}
+
 .markdown-body h1 {
   padding-bottom: 0.45em;
   border-bottom: 1px solid var(--border);
@@ -1758,9 +1763,85 @@ pre {
   background: var(--surface);
 }
 
+.task-list-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.task-list-search-control {
+  min-width: 0;
+  position: relative;
+  flex: 1;
+  display: block;
+}
+
+.task-list-search-control svg {
+  position: absolute;
+  top: 50%;
+  left: 10px;
+  color: var(--subtle);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.task-list-search-control input {
+  width: 100%;
+  height: 34px;
+  padding: 6px 10px 6px 32px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--surface-strong);
+}
+
+/* 隐藏 WebKit 原生清除按钮，统一使用右侧受控清除按钮。 */
+.task-list-search-control input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.task-list-search-clear {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--muted);
+  background: transparent;
+}
+
+.task-list-search-clear:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+/* 负责人下拉适配窄侧栏：触发器与搜索框同高，避免 375px 下横向溢出。 */
+.task-list-assignee {
+  margin-bottom: 10px;
+}
+
+.task-list-assignee .dropdown-trigger {
+  height: 34px;
+  padding: 6px 9px 6px 10px;
+}
+
 .task-list {
   display: grid;
   gap: 4px;
+}
+
+.task-item .task-search-assignee {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 3px;
+  color: #93c5fd;
+  /* 负责人名称或邮箱异常长时换行，避免窄屏下撑出横向滚动。 */
+  overflow-wrap: anywhere;
 }
 
 .task-archive-focus {
@@ -1833,7 +1914,8 @@ pre {
 }
 
 .task-expand-button,
-.task-expand-placeholder {
+.task-expand-placeholder,
+.task-expand-indicator {
   width: 20px;
   min-height: 38px;
 }
@@ -1842,11 +1924,20 @@ pre {
   border-radius: 6px;
 }
 
-.task-expand-button svg {
+/* 搜索态层级固定展开，仅保留静态展开指示，不提供收起交互。 */
+.task-expand-indicator {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+
+.task-expand-button svg,
+.task-expand-indicator svg {
   transition: transform 180ms ease;
 }
 
-.task-expand-button svg.expanded {
+.task-expand-button svg.expanded,
+.task-expand-indicator svg.expanded {
   transform: rotate(90deg);
 }
 

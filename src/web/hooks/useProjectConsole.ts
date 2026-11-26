@@ -10,8 +10,10 @@ import type {
   ProjectScanResponse,
   TaskCenterItemApi,
   TaskDetailResponse,
+  TaskSummaryApi,
 } from "../../shared/api";
 import { isProjectRealtimeEvent } from "../../shared/project-events";
+import { isReadableDocumentPath } from "../markdown-links";
 import {
   fetchProject,
   fetchProjects,
@@ -96,6 +98,7 @@ export function useProjectConsole() {
   const [selectedTaskDocumentPath, setSelectedTaskDocumentPath] = useState<string | null>(
     initialProjectSelection.taskDocumentPath,
   );
+  const [pendingDocumentAnchor, setPendingDocumentAnchor] = useState<string | null>(null);
   const [suppressTaskAutoSelect, setSuppressTaskAutoSelect] = useState(false);
   const [specDocument, setSpecDocument] = useState<AsyncState<ProjectDocumentResponse>>(
     createAsyncState<ProjectDocumentResponse>(null),
@@ -134,6 +137,7 @@ export function useProjectConsole() {
         setSpecDocument(createAsyncState<ProjectDocumentResponse>(null));
         setTaskDetail(createAsyncState<TaskDetailResponse>(null));
         setTaskDocument(createAsyncState<ProjectDocumentResponse>(null));
+        setPendingDocumentAnchor(null);
         setSuppressTaskAutoSelect(false);
       }
     },
@@ -159,6 +163,7 @@ export function useProjectConsole() {
         setSpecDocument(createAsyncState<ProjectDocumentResponse>(null));
         setTaskDetail(createAsyncState<TaskDetailResponse>(null));
         setTaskDocument(createAsyncState<ProjectDocumentResponse>(null));
+        setPendingDocumentAnchor(null);
         return true;
       }
 
@@ -472,6 +477,7 @@ export function useProjectConsole() {
   /** 打开全局跨项目任务中心。 */
   const openTaskCenter = useCallback(() => {
     setMode("tasks");
+    setPendingDocumentAnchor(null);
     setDiscoveryOpen(false);
   }, []);
 
@@ -540,7 +546,10 @@ export function useProjectConsole() {
   }, [applyProjectSelection]);
 
   /** 切换当前项目主视图。 */
-  const selectView = useCallback((nextView: ProjectView) => setView(nextView), []);
+  const selectView = useCallback((nextView: ProjectView) => {
+    setPendingDocumentAnchor(null);
+    setView(nextView);
+  }, []);
 
   /** 执行项目聚焦或取消聚焦。 */
   const changeFocus = useCallback(
@@ -597,6 +606,112 @@ export function useProjectConsole() {
     },
     [selectedProjectId],
   );
+
+  /**
+   * 把文档内的项目路径链接路由到应用内对应视图。
+   *
+   * 优先级：Spec 文件 → 任务文档 → workflow.md；无法解析时保持当前页面并给出提示，
+   * 绝不让 WebView 直接导航到文件地址。
+   */
+  const navigateDocumentLink = useCallback(
+    (sourcePath: string, anchor: string | null) => {
+      const snapshot = detail.data?.snapshot ?? null;
+      if (
+        selectedProjectId === null ||
+        detail.data?.contentReadable !== true ||
+        snapshot === null
+      ) {
+        setNotice({ tone: "info", message: "当前项目没有可读取的正文快照，无法在应用内跳转" });
+        return;
+      }
+
+      if (containsSpecFile(snapshot.specTree, sourcePath)) {
+        setView("spec");
+        // 目标不是当前文件时先清空旧正文，避免跨文档锚点作用在上一份内容上。
+        if (selectedSpecPath !== sourcePath) {
+          setSpecDocument({ data: null, loading: true, error: null });
+        }
+        setSelectedSpecPath(sourcePath);
+        setPendingDocumentAnchor(anchor);
+        return;
+      }
+
+      const taskTarget = findTaskDocumentTarget(
+        [...snapshot.tasks.active, ...snapshot.tasks.archived],
+        sourcePath,
+      );
+      if (taskTarget !== null) {
+        if (!isReadableDocumentPath(taskTarget.documentPath)) {
+          setNotice({ tone: "info", message: `该链接不是可阅读的 Markdown/JSONL 文档：${sourcePath}` });
+          return;
+        }
+        // 当前任务详情已加载时，先确认目标文档确实在可读清单里。
+        if (
+          taskTarget.taskSourcePath === selectedTaskSourcePath &&
+          taskDetail.data?.task.sourcePath === taskTarget.taskSourcePath &&
+          !taskDetail.data.documents.some(
+            (document) => document.relativePath === taskTarget.documentPath,
+          )
+        ) {
+          setNotice({ tone: "info", message: `目标文档不在当前 Task 中：${taskTarget.documentPath}` });
+          return;
+        }
+        setView("tasks");
+        // 只有任务或文档发生变化时才清空旧正文，避免锚点落在上一份文档上。
+        if (
+          taskTarget.taskSourcePath !== selectedTaskSourcePath ||
+          taskTarget.documentPath !== selectedTaskDocumentPath
+        ) {
+          setTaskDocument({ data: null, loading: true, error: null });
+        }
+        setSelectedTaskSourcePath(taskTarget.taskSourcePath);
+        setSelectedTaskDocumentPath(taskTarget.documentPath);
+        setSuppressTaskAutoSelect(false);
+        setPendingDocumentAnchor(anchor);
+        return;
+      }
+
+      if (sourcePath === ".trellis/workflow.md") {
+        setView("workflow");
+        // Workflow 视图不消费文档锚点，避免旧锚点残留到下一次阅读。
+        setPendingDocumentAnchor(null);
+        return;
+      }
+
+      setNotice({ tone: "info", message: `无法在应用内打开该链接：${sourcePath}` });
+    },
+    [
+      detail.data,
+      selectedProjectId,
+      selectedSpecPath,
+      selectedTaskDocumentPath,
+      selectedTaskSourcePath,
+      taskDetail.data,
+    ],
+  );
+
+  /** 清除跨文档跳转后待处理的锚点。 */
+  const consumeDocumentAnchor = useCallback(() => setPendingDocumentAnchor(null), []);
+
+  /** 选择 Spec 文档，同时清除上一次跳转遗留的锚点。 */
+  const selectSpecPath = useCallback((sourcePath: string) => {
+    setPendingDocumentAnchor(null);
+    setSelectedSpecPath(sourcePath);
+  }, []);
+
+  /** 选择 Task，重置文档标签与待处理锚点。 */
+  const selectTaskSourcePath = useCallback((sourcePath: string) => {
+    setPendingDocumentAnchor(null);
+    setSelectedTaskSourcePath(sourcePath);
+    setSelectedTaskDocumentPath(null);
+    setSuppressTaskAutoSelect(false);
+  }, []);
+
+  /** 选择 Task 内的文档标签，同时清除上一次跳转遗留的锚点。 */
+  const selectTaskDocumentPath = useCallback((relativePath: string) => {
+    setPendingDocumentAnchor(null);
+    setSelectedTaskDocumentPath(relativePath);
+  }, []);
 
   /** 扫描一个用户显式输入的本机根路径。 */
   const discoverProjects = useCallback(async (rootPath: string): Promise<ProjectScanResponse> => {
@@ -731,13 +846,12 @@ export function useProjectConsole() {
     openTaskCenterItem,
     openProjectDiagnostics,
     selectView,
-    selectSpecPath: setSelectedSpecPath,
-    selectTaskSourcePath: (sourcePath: string) => {
-      setSelectedTaskSourcePath(sourcePath);
-      setSelectedTaskDocumentPath(null);
-      setSuppressTaskAutoSelect(false);
-    },
-    selectTaskDocumentPath: setSelectedTaskDocumentPath,
+    selectSpecPath,
+    selectTaskSourcePath,
+    selectTaskDocumentPath,
+    pendingDocumentAnchor,
+    navigateDocumentLink,
+    consumeDocumentAnchor,
     changeFocus,
     refreshSelectedProject,
     openSelectedPath,
@@ -935,4 +1049,34 @@ function containsTask(detail: ProjectDetailResponse, sourcePath: string): boolea
   return [...detail.snapshot.tasks.active, ...detail.snapshot.tasks.archived].some(
     (task) => task.sourcePath === sourcePath,
   );
+}
+
+/**
+ * 在快照 Task 中查找目标文档所属的任务与任务内相对路径。
+ *
+ * 归档任务位于 `.trellis/tasks/archive/<月份>/<task>/`，目录层级不固定，
+ * 因此用「任务目录是目标路径前缀」匹配，并取最长前缀避免父任务误匹配。
+ */
+function findTaskDocumentTarget(
+  tasks: TaskSummaryApi[],
+  sourcePath: string,
+): { taskSourcePath: string; documentPath: string } | null {
+  let matched: { taskSourcePath: string; documentPath: string; directory: string } | null = null;
+  for (const task of tasks) {
+    const directory = task.sourcePath.replace(/\/task\.json$/, "");
+    if (directory === task.sourcePath || !sourcePath.startsWith(`${directory}/`)) {
+      continue;
+    }
+    if (matched !== null && directory.length <= matched.directory.length) {
+      continue;
+    }
+    matched = {
+      taskSourcePath: task.sourcePath,
+      documentPath: sourcePath.slice(directory.length + 1),
+      directory,
+    };
+  }
+  return matched === null
+    ? null
+    : { taskSourcePath: matched.taskSourcePath, documentPath: matched.documentPath };
 }

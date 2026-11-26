@@ -3,6 +3,10 @@
 ## useProjectConsole
 
 - 集中管理项目列表、详情、正文、URL、操作反馈和桌面事件状态。
+- 文档内链接统一由 `navigateDocumentLink(sourcePath, anchor)` 路由，顺序固定为 `specTree` → 快照 Task 文档 → `.trellis/workflow.md`。
+- 路由前校验 `detail.data.contentReadable`；跨文档或跨任务时先把旧正文置为 `{ data: null, loading: true, error: null }`，再设置选择，确保 `pendingDocumentAnchor` 只在目标正文就绪后消费。
+- 无法路由时用 notice 提示并保持当前页面；禁止 `window.open` 或修改 `location`。
+- 手动切换视图、Spec 文档、Task 或文档标签时必须清空 `pendingDocumentAnchor`，避免残留锚点作用到下一次阅读。
 - 切换项目时立即清空旧详情和正文选择。
 - 每次详情请求递增代次；提交时同时校验当前项目 ref、代次和响应项目 ID。
 - Effect 清理继续 `abort()`，但不能把 AbortController 当成 IPC 原生取消。

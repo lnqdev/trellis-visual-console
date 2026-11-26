@@ -1,0 +1,5 @@
+{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `python3 .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "文档渲染组件、语义化与可访问性约束"}
+{"file": ".trellis/spec/frontend/hook-guidelines.md", "reason": "useProjectConsole 状态与请求代次约束"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "导航状态归属与 URL 同步规则"}
+{"file": ".trellis/spec/frontend/readonly-console-contract.md", "reason": "页面行为与只读合同"}

@@ -9,6 +9,7 @@ import {
   FileText,
   ListTodo,
   PlayCircle,
+  Search,
   UserRound,
   X,
 } from "lucide-react";
@@ -21,6 +22,7 @@ import type {
 import { formatDateTime, formatTaskStatus, readTaskStatusGroup } from "../formatters";
 import type { AsyncState } from "../hooks/useProjectConsole";
 import { DocumentViewer } from "./DocumentViewer";
+import { Dropdown, type DropdownOption } from "./Dropdown";
 
 interface TaskBrowserProps {
   activeTasks: TaskSummaryApi[];
@@ -33,6 +35,9 @@ interface TaskBrowserProps {
   onSelectTask: (sourcePath: string) => void;
   onSelectDocument: (relativePath: string) => void;
   onOpenSource: (sourcePath: string) => void;
+  onNavigateDocument: (sourcePath: string, anchor: string | null) => void;
+  pendingDocumentAnchor: string | null;
+  onConsumeDocumentAnchor: () => void;
 }
 
 type TaskCollection = "active" | "archived";
@@ -49,6 +54,9 @@ export function TaskBrowser({
   onSelectTask,
   onSelectDocument,
   onOpenSource,
+  onNavigateDocument,
+  pendingDocumentAnchor,
+  onConsumeDocumentAnchor,
 }: TaskBrowserProps) {
   const taskIndex = useMemo(
     () => createTaskIndex(activeTasks, archivedTasks),
@@ -64,6 +72,9 @@ export function TaskBrowser({
     createDefaultExpandedTasks(archivedTasks, taskIndex),
   );
   const [archivedFocusParentPath, setArchivedFocusParentPath] = useState<string | null>(null);
+  // 搜索与负责人筛选都是纯本地 UI 状态，不写入 URL，也不影响集合标签与详情选择。
+  const [searchQuery, setSearchQuery] = useState("");
+  const [assigneeFilter, setAssigneeFilter] = useState<string | null>(null);
 
   const tasks = collection === "active" ? activeTasks : archivedTasks;
   const taskPaths = useMemo(() => new Set(tasks.map((task) => task.sourcePath)), [tasks]);
@@ -85,6 +96,88 @@ export function TaskBrowser({
       .filter((task): task is TaskSummaryApi => task !== undefined && isArchivedTask(task, archivedTasks));
   }, [archivedFocusParentPath, archivedTasks, collection, taskIndex]);
   const displayedRoots = focusedArchivedTasks ?? roots;
+  // 筛选范围与标签语义一致：只筛当前集合，归档子任务聚焦时只筛聚焦结果。
+  const searchableTasks = focusedArchivedTasks ?? tasks;
+  const searchablePaths = useMemo(
+    () => new Set(searchableTasks.map((task) => task.sourcePath)),
+    [searchableTasks],
+  );
+  // 负责人选项 = 「全部负责人」+ 当前可搜索集合内去重并按 zh-CN 排序的非空负责人。
+  const assigneeOptions = useMemo<ReadonlyArray<DropdownOption<string | null>>>(() => {
+    const names = new Set<string>();
+    for (const task of searchableTasks) {
+      const name = task.assignee?.trim() ?? "";
+      if (name !== "") {
+        names.add(name);
+      }
+    }
+    const sortedNames = [...names].sort((left, right) => left.localeCompare(right, "zh-CN"));
+    return [
+      { value: null, label: "全部负责人" },
+      ...sortedNames.map((name) => ({ value: name, label: name })),
+    ];
+  }, [searchableTasks]);
+  // 切换集合、变化聚焦范围或数据刷新后，若已选负责人不在新选项中则重置为全部。
+  useEffect(() => {
+    if (assigneeFilter !== null && !assigneeOptions.some((option) => option.value === assigneeFilter)) {
+      setAssigneeFilter(null);
+    }
+  }, [assigneeFilter, assigneeOptions]);
+  const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase("zh-CN");
+  const hasSearchQuery = normalizedSearchQuery.length > 0;
+  const isFiltering = hasSearchQuery || assigneeFilter !== null;
+  // 先按负责人筛选，再按关键词匹配，两者为 AND 关系。
+  const filteredTasks = useMemo(
+    () => (assigneeFilter === null
+      ? searchableTasks
+      : searchableTasks.filter((task) => (task.assignee ?? "").trim() === assigneeFilter)),
+    [assigneeFilter, searchableTasks],
+  );
+  // 直接命中（通过全部筛选）的任务集合，用于决定是否展示负责人等命中说明。
+  const filterMatchedPaths = useMemo(() => {
+    if (!isFiltering) {
+      return null;
+    }
+    return new Set(
+      filteredTasks
+        .filter((task) => !hasSearchQuery || matchesTaskSearch(task, normalizedSearchQuery))
+        .map((task) => task.sourcePath),
+    );
+  }, [filteredTasks, hasSearchQuery, isFiltering, normalizedSearchQuery]);
+  // 可见集合 = 命中任务 + 它们在当前筛选范围内的祖先链；未命中的兄弟分支与子任务被裁剪。
+  const filterVisiblePaths = useMemo(() => {
+    if (filterMatchedPaths === null) {
+      return null;
+    }
+    const visible = new Set(filterMatchedPaths);
+    for (const sourcePath of filterMatchedPaths) {
+      const task = taskIndex.get(sourcePath);
+      if (task === undefined) {
+        continue;
+      }
+      // 向上补齐祖先链，父任务即使未命中也要作为层级上下文出现；跨集合祖先不纳入。
+      const visited = new Set<string>([sourcePath]);
+      let parentPath = task.parentSourcePath;
+      while (parentPath !== null && searchablePaths.has(parentPath) && !visited.has(parentPath)) {
+        visited.add(parentPath);
+        visible.add(parentPath);
+        parentPath = taskIndex.get(parentPath)?.parentSourcePath ?? null;
+      }
+    }
+    return visible;
+  }, [filterMatchedPaths, searchablePaths, taskIndex]);
+  // 筛选树根：可见集合中没有可见父任务的节点，保持当前集合原有顺序。
+  const filterRoots = useMemo(
+    () => (filterVisiblePaths === null
+      ? []
+      : searchableTasks.filter((task) => (
+        filterVisiblePaths.has(task.sourcePath)
+        && (task.parentSourcePath === null || !filterVisiblePaths.has(task.parentSourcePath))
+      ))),
+    [filterVisiblePaths, searchableTasks],
+  );
+  // 筛选态复用任务树渲染，仅把根节点替换为裁剪后的筛选树根。
+  const treeRoots = isFiltering ? filterRoots : displayedRoots;
   const focusedParent = archivedFocusParentPath === null
     ? null
     : (taskIndex.get(archivedFocusParentPath) ?? null);
@@ -192,6 +285,38 @@ export function TaskBrowser({
           </button>
         </div>
 
+        <div className="task-list-search">
+          <div className="task-list-search-control">
+            <Search size={14} aria-hidden="true" />
+            <input
+              type="search"
+              value={searchQuery}
+              placeholder="搜索任务名称或负责人"
+              aria-label="搜索任务名称或负责人"
+              onChange={(event) => setSearchQuery(event.target.value)}
+            />
+          </div>
+          {searchQuery.length > 0 ? (
+            <button
+              type="button"
+              className="task-list-search-clear"
+              aria-label="清除搜索"
+              title="清除搜索"
+              onClick={() => setSearchQuery("")}
+            >
+              <X size={14} aria-hidden="true" />
+            </button>
+          ) : null}
+        </div>
+
+        <Dropdown
+          className="task-list-assignee"
+          label="负责人"
+          value={assigneeFilter}
+          options={assigneeOptions}
+          onChange={setAssigneeFilter}
+        />
+
         {collection === "archived" && focusedParent !== null ? (
           <div className="task-archive-focus" aria-live="polite">
             <span>来自：<strong>{focusedParent.title}</strong></span>
@@ -206,11 +331,11 @@ export function TaskBrowser({
           </div>
         ) : null}
 
-        {displayedRoots.length === 0 ? (
-          <p className="empty-copy">当前分组没有 Task。</p>
+        {treeRoots.length === 0 ? (
+          <p className="empty-copy">{isFiltering ? "没有匹配的 Task。" : "当前分组没有 Task。"}</p>
         ) : (
           <div className="task-list" role="tree" aria-label={`${collection === "active" ? "活动" : "归档"}任务树`}>
-            {displayedRoots.map((task) => (
+            {treeRoots.map((task) => (
               <TaskTreeNode
                 key={task.sourcePath}
                 task={task}
@@ -222,6 +347,8 @@ export function TaskBrowser({
                 expandedTasks={expandedTasks}
                 selectedTaskSourcePath={selectedTaskSourcePath}
                 focused={focusedArchivedTasks !== null}
+                filterVisiblePaths={filterVisiblePaths}
+                filterMatchedPaths={filterMatchedPaths}
                 onToggleExpanded={toggleExpanded}
                 onSelectTask={onSelectTask}
                 onFocusArchivedChildren={focusArchivedChildren}
@@ -286,6 +413,9 @@ export function TaskBrowser({
               document={taskDocument}
               emptyMessage="当前 Task 没有可阅读文档"
               onOpenSource={onOpenSource}
+              onNavigateDocument={onNavigateDocument}
+              anchor={pendingDocumentAnchor}
+              onAnchorConsumed={onConsumeDocumentAnchor}
             />
           </>
         )}
@@ -304,6 +434,8 @@ interface TaskTreeNodeProps {
   expandedTasks: Set<string>;
   selectedTaskSourcePath: string | null;
   focused: boolean;
+  filterVisiblePaths: Set<string> | null;
+  filterMatchedPaths: Set<string> | null;
   onToggleExpanded: (sourcePath: string) => void;
   onSelectTask: (sourcePath: string) => void;
   onFocusArchivedChildren: (task: TaskSummaryApi) => void;
@@ -320,21 +452,29 @@ function TaskTreeNode({
   expandedTasks,
   selectedTaskSourcePath,
   focused,
+  filterVisiblePaths,
+  filterMatchedPaths,
   onToggleExpanded,
   onSelectTask,
   onFocusArchivedChildren,
 }: TaskTreeNodeProps) {
+  // 筛选态传入了可见集合：只渲染其中的子任务，层级固定展开，且隐藏归档子任务入口。
+  const filterMode = filterVisiblePaths !== null;
+  const isMatched = filterMatchedPaths?.has(task.sourcePath) ?? false;
   const children = focused
     ? []
     : task.childSourcePaths
       .filter((sourcePath) => collectionPaths.has(sourcePath))
+      .filter((sourcePath) => filterVisiblePaths === null || filterVisiblePaths.has(sourcePath))
       .map((sourcePath) => taskIndex.get(sourcePath))
       .filter((child): child is TaskSummaryApi => child !== undefined);
-  const archivedChildren = collection === "active"
-    ? task.childSourcePaths
-      .map((sourcePath) => taskIndex.get(sourcePath))
-      .filter((child): child is TaskSummaryApi => child !== undefined && isArchivedTask(child, archivedTasks))
-    : [];
+  const archivedChildren = filterMode
+    ? []
+    : collection === "active"
+      ? task.childSourcePaths
+        .map((sourcePath) => taskIndex.get(sourcePath))
+        .filter((child): child is TaskSummaryApi => child !== undefined && isArchivedTask(child, archivedTasks))
+      : [];
   const allChildren = task.childSourcePaths
     .map((sourcePath) => taskIndex.get(sourcePath))
     .filter((child): child is TaskSummaryApi => child !== undefined);
@@ -342,7 +482,8 @@ function TaskTreeNode({
     (child) => isArchivedTask(child, archivedTasks) || isCompletedTask(child),
   ).length;
   const hasExpandableContent = children.length > 0 || archivedChildren.length > 0;
-  const expanded = expandedTasks.has(task.sourcePath);
+  // 筛选态层级固定展开，不响应用户的逐级收起。
+  const expanded = filterMode ? true : expandedTasks.has(task.sourcePath);
   const parent = task.parentSourcePath === null ? null : (taskIndex.get(task.parentSourcePath) ?? null);
   const depthClass = `task-tree-node--depth-${Math.min(depth, 3)}`;
 
@@ -350,15 +491,21 @@ function TaskTreeNode({
     <div className={`task-tree-node ${depthClass}`} role="treeitem" aria-expanded={hasExpandableContent ? expanded : undefined}>
       <div className="task-tree-row">
         {hasExpandableContent ? (
-          <button
-            className="task-expand-button"
-            type="button"
-            aria-label={`${expanded ? "收起" : "展开"}${task.title}`}
-            aria-expanded={expanded}
-            onClick={() => onToggleExpanded(task.sourcePath)}
-          >
-            <ChevronRight className={expanded ? "expanded" : ""} size={15} aria-hidden="true" />
-          </button>
+          filterMode ? (
+            <span className="task-expand-indicator" aria-hidden="true">
+              <ChevronRight className="expanded" size={15} />
+            </span>
+          ) : (
+            <button
+              className="task-expand-button"
+              type="button"
+              aria-label={`${expanded ? "收起" : "展开"}${task.title}`}
+              aria-expanded={expanded}
+              onClick={() => onToggleExpanded(task.sourcePath)}
+            >
+              <ChevronRight className={expanded ? "expanded" : ""} size={15} aria-hidden="true" />
+            </button>
+          )
         ) : <span className="task-expand-placeholder" aria-hidden="true" />}
 
         <button
@@ -377,6 +524,12 @@ function TaskTreeNode({
               ) : null}
             </span>
             <small>{formatTaskStatus(task)} · {formatDateTime(task.updatedAt)}</small>
+            {filterMode && isMatched && task.assignee !== null && task.assignee.trim() !== "" ? (
+              <small className="task-search-assignee">
+                <UserRound size={12} aria-hidden="true" />
+                {task.assignee}
+              </small>
+            ) : null}
             {collection === "archived" && parent !== null ? (
               <small className="task-parent-context">父任务：{parent.title}</small>
             ) : null}
@@ -399,6 +552,8 @@ function TaskTreeNode({
               expandedTasks={expandedTasks}
               selectedTaskSourcePath={selectedTaskSourcePath}
               focused={false}
+              filterVisiblePaths={filterVisiblePaths}
+              filterMatchedPaths={filterMatchedPaths}
               onToggleExpanded={onToggleExpanded}
               onSelectTask={onSelectTask}
               onFocusArchivedChildren={onFocusArchivedChildren}
@@ -544,4 +699,12 @@ function isArchivedTask(task: TaskSummaryApi, archivedTasks: TaskSummaryApi[]): 
 /** 兼容 Trellis 标准与旧版完成状态。 */
 function isCompletedTask(task: TaskSummaryApi): boolean {
   return task.status === "completed" || task.status === "done";
+}
+
+/** 按标题或负责人做去空白、大小写不敏感的包含匹配。 */
+function matchesTaskSearch(task: TaskSummaryApi, normalizedQuery: string): boolean {
+  const normalizedTitle = task.title.trim().toLocaleLowerCase("zh-CN");
+  // 负责人为空时按空字符串处理，避免空关键词误命中。
+  const normalizedAssignee = (task.assignee ?? "").trim().toLocaleLowerCase("zh-CN");
+  return normalizedTitle.includes(normalizedQuery) || normalizedAssignee.includes(normalizedQuery);
 }
