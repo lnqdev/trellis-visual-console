@@ -36,16 +36,18 @@ jobs:
   build-macos:
     name: 构建 macOS ${{ matrix.platform }}
     needs: validate
-    runs-on: macos-14
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: true
       matrix:
         include:
           - platform: darwin-aarch64
             target: aarch64-apple-darwin
+            runner: macos-15
             command: pnpm build:mac:arm64
           - platform: darwin-x86_64
             target: x86_64-apple-darwin
+            runner: macos-15-intel
             command: pnpm build:mac:x64
     env:
       CI: "true"

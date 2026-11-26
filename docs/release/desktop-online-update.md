@@ -36,7 +36,7 @@ git remote set-url --add --push release https://github.com/lnqdev/trellis-visual
 git remote get-url --all --push release
 ```
 
-日常发布先推送 `main`，再显式推送轻量版本标签；两条命令都会同时发送到 Gitee 和 GitHub：`git push release main`、`git push release v<版本>`。任一远端失败都按发布失败处理并修复同步状态。GitHub 仓库必须保持公开，并只使用标准 `ubuntu-24.04`、`macos-14`、`windows-2022` Runner，不使用 Larger Runner 或长期自托管机器。构建中转 Artifact 仅保留 1 天，客户端最终只从 Gitee Release 下载。
+日常发布先推送 `main`，再显式推送轻量版本标签；两条命令都会同时发送到 Gitee 和 GitHub：`git push release main`、`git push release v<版本>`。任一远端失败都按发布失败处理并修复同步状态。GitHub 仓库必须保持公开，并只使用标准 `ubuntu-24.04`、`macos-15`（arm64）、`macos-15-intel`（x86_64）、`windows-2022` Runner，不使用 Larger Runner 或长期自托管机器。构建中转 Artifact 仅保留 1 天，客户端最终只从 Gitee Release 下载。
 
 在 GitHub Repository Secrets 中配置以下名称，值不得写入仓库、日志或 Artifact：
 
