@@ -714,3 +714,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 22: 任务文档 Markdown 文内查找
+
+**Date**: 2026-11-26
+**Task**: 任务文档 Markdown 文内查找
+**Branch**: `main`
+
+### Summary
+
+为 DocumentViewer 的 Markdown 正文实现 Ctrl/Cmd+F 文内查找：新增 markdown-search rehype 插件（跨行内元素命中、全部高亮、当前命中强调），DocumentViewer 增加查找浮层、计数与上下循环跳转，处理 IME 回车、切换文档重置与 JSONL 不提供入口；用 vite + Playwright 实测 375/768/1280 布局与交互，lint/typecheck/build 通过，并补充前端文档渲染规范。
+
+### Main Changes
+
+- Detailed change bullets were not supplied; see the summary above.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e0d44d5` | (see git log) |
+
+### Testing
+
+- Validation was not recorded for this session.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

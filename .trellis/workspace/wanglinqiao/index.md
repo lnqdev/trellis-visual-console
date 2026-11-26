@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 21
+- **Total Sessions**: 22
 - **Last Active**: 2026-11-26
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~716 | Active |
+| `journal-1.md` | ~749 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 22 | 2026-11-26 | 任务文档 Markdown 文内查找 | `e0d44d5` | `main` |
 | 21 | 2026-11-26 | 焦点项目任务列表搜索与负责人筛选 | `ea85a6c` | `main` |
 | 20 | 2026-11-26 | 修复 Markdown 相对链接跳转 | `2d6bcd1` | `main` |
 | 19 | 2026-07-27 | 完成项目移除与 macOS 一体化窗口 | `f72eee4` | `main` |
