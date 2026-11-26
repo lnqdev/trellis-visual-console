@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "复核文档渲染未被破坏：链接路由、标题锚点、不启用 rehype-raw"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "验证 lint/typecheck/build 门禁与可访问性"}

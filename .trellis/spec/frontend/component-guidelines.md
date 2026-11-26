@@ -115,6 +115,20 @@ return (
 );
 ```
 
+### Markdown 文内查找（Ctrl/Cmd + F）
+
+- 实现分两层：`src/web/markdown-search.ts` 提供 rehype 插件 `createSearchHighlightPlugin({ query, activeIndex })`；`DocumentViewer` 负责查找条状态与快捷键。
+- 高亮必须在渲染阶段产出 `<mark>`；禁止直接改写 React 管理的 DOM 文本节点，也不要依赖 CSS Custom Highlight（macOS 13 的 WKWebView 不支持）。
+- 插件契约：
+  - 匹配：`query.trim().toLocaleLowerCase("zh-CN")` 后做包含匹配，大小写不敏感、非重叠推进；空关键词原样返回语法树。
+  - 分组：按块级标签（`p`、`li`、`td`、`th`、`h1`-`h6`、`blockquote`、`pre` 等）切分文本组，行内元素文本并入最近的块级组；因此跨 `strong`/`code`/`a` 的关键词可以命中，但不会跨段落、表格单元格匹配。
+  - 输出：`<mark class="markdown-search-hit" data-search-match-index="N">`，当前命中追加 `markdown-search-hit--active`；同一命中跨多个文本节点时共享同一序号。
+- `DocumentViewer` 约束：
+  - 仅当 `format === "markdown"` 时注册 window `keydown` 拦截 `Ctrl/Cmd + F`（排除 Alt 与 `[role="dialog"]` 内部），并阻止 WebView 原生查找；JSONL 不提供入口与快捷键。
+  - 命中总数取 DOM 中唯一的 `data-search-match-index` 数量，当前命中用 `scrollIntoView({ block: "center" })` 定位。
+  - 中文输入法组词确认的 Enter（`isComposing` 或 `keyCode === 229`）不得触发跳转。
+  - 查找状态属于组件本地状态，不写入 URL；切换文档必须重置关键词、当前序号与计数。查找条相对 `.document-body` 绝对定位，不随正文滚动，也不压住工具栏。
+
 ## 常见错误
 
 - 不要在新项目已选中时继续展示旧项目正文；切换请求先清空旧数据。
