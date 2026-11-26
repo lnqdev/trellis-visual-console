@@ -8,6 +8,7 @@ import {
   TriangleAlert,
   X,
 } from "lucide-react";
+import type { CSSProperties } from "react";
 import type { ProjectDetailResponse } from "../shared/api";
 import { ApplicationUpdateDialog } from "./components/ApplicationUpdate";
 import { DiagnosticsPanel } from "./components/DiagnosticsPanel";
@@ -22,6 +23,7 @@ import { WorkflowPanel } from "./components/WorkflowPanel";
 import { isMacOSDesktopRuntime } from "./api-client";
 import { useApplicationUpdater } from "./hooks/useApplicationUpdater";
 import { useProjectConsole, type ProjectView } from "./hooks/useProjectConsole";
+import { useResizablePanel } from "./hooks/useResizablePanel";
 import { useSidebarCollapsed } from "./hooks/useSidebarCollapsed";
 
 const PROJECT_VIEWS: Array<{
@@ -41,14 +43,24 @@ export function App() {
   const consoleState = useProjectConsole();
   const updater = useApplicationUpdater();
   const sidebar = useSidebarCollapsed();
+  // 侧边栏宽度支持拖动调整，并持久化到本地存储
+  const sidebarResize = useResizablePanel({
+    storageKey: "trellis-console:sidebar-width",
+    defaultWidth: 300,
+    minWidth: 232,
+    maxWidth: 460,
+    ariaLabel: "调整侧边栏宽度",
+  });
   const projectCount = consoleState.projects.data?.length ?? 0;
   const macOSDesktopRuntime = isMacOSDesktopRuntime();
+  const shellStyle = { "--sidebar-width": `${sidebarResize.width}px` } as CSSProperties;
 
   return (
     <div
       className={`console-shell${macOSDesktopRuntime ? " console-shell--macos-overlay" : ""}${
         sidebar.collapsed ? " console-shell--sidebar-collapsed" : ""
-      }`}
+      }${sidebarResize.resizing ? " console-shell--resizing" : ""}`}
+      style={shellStyle}
     >
       {macOSDesktopRuntime ? (
         <div className="window-drag-region" data-tauri-drag-region="" aria-hidden="true" />
@@ -68,6 +80,8 @@ export function App() {
         onRetry={consoleState.retryProjects}
         onCollapseSidebar={sidebar.toggle}
       />
+      {/* 侧边栏与主内容之间的拖动分隔线 */}
+      <div {...sidebarResize.separatorProps} />
 
       <main className="workspace-shell">
         {/* 侧边栏折叠后在主内容区顶部保留展开入口 */}

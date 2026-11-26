@@ -98,15 +98,28 @@ pre {
 .console-shell {
   position: relative;
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
+  /* 第一列宽度由拖动分隔线写入 --sidebar-width，中间列为分隔线拖拽热区 */
+  grid-template-columns: var(--sidebar-width, 300px) 6px minmax(0, 1fr);
   min-height: 100vh;
   transition: grid-template-columns 220ms ease;
 }
 
-/* 折叠态：侧边栏列宽归零，主内容区铺满剩余空间。
+/* 拖动过程中关闭宽度过渡，避免跟手滞后 */
+.console-shell.console-shell--resizing {
+  transition: none;
+}
+
+/* 折叠态：侧边栏与分隔线列宽归零，主内容区铺满剩余空间。
    提高特异性以覆盖各断点下对 .console-shell 列宽的重定义 */
 .console-shell.console-shell--sidebar-collapsed {
-  grid-template-columns: 0 minmax(0, 1fr);
+  grid-template-columns: 0 0 minmax(0, 1fr);
+}
+
+/* 折叠态下仅隐藏侧边栏分隔线（直接子元素）；
+   不能命中 Task 视图里的任务树分隔线，否则折叠侧边栏会连带禁用任务树拖动 */
+.console-shell--sidebar-collapsed > .panel-resize-handle {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 /* 桌面 grid 布局下必须保留侧边栏占位，否则主内容区会落入第一列；
@@ -119,6 +132,44 @@ pre {
   border-right-width: 0;
   visibility: hidden;
   pointer-events: none;
+}
+
+/* 可拖动面板之间的竖向分隔线：透明热区，悬停、聚焦或拖动时显示高亮线 */
+.panel-resize-handle {
+  position: relative;
+  z-index: 2;
+  align-self: stretch;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.panel-resize-handle:focus-visible {
+  /* 覆盖 [tabindex]:focus-visible 的整块高亮，只保留分隔线自身反馈 */
+  box-shadow: none;
+}
+
+/* 高亮线紧贴面板原有右边框的右侧，视觉上像边框被点亮 */
+.panel-resize-handle::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  background: transparent;
+  transition: background 120ms ease;
+}
+
+.panel-resize-handle:hover::after,
+.panel-resize-handle:focus-visible::after,
+.panel-resize-handle--active::after {
+  background: var(--accent);
+}
+
+/* 拖动期间全局锁定左右调整光标并禁止选中文本 */
+body.is-resizing-panel {
+  cursor: col-resize;
+  user-select: none;
 }
 
 .window-drag-region {
@@ -1530,11 +1581,19 @@ pre {
 .task-browser {
   min-height: 620px;
   display: grid;
-  grid-template-columns: 270px minmax(0, 1fr);
   overflow: hidden;
   border: 1px solid var(--border-soft);
   border-radius: 13px;
   background: var(--surface);
+}
+
+.split-browser {
+  grid-template-columns: 270px minmax(0, 1fr);
+}
+
+/* 任务树栏宽度由拖动分隔线写入 --task-list-width，中间列为拖拽热区 */
+.task-browser {
+  grid-template-columns: var(--task-list-width, 300px) 6px minmax(0, 1fr);
 }
 
 .resource-list-panel,
@@ -1865,10 +1924,6 @@ pre {
 .markdown-body pre .markdown-search-hit--active {
   color: #0b1220;
   background: #f59e0b;
-}
-
-.task-browser {
-  grid-template-columns: 300px minmax(0, 1fr);
 }
 
 .task-list-panel {
@@ -2745,16 +2800,24 @@ pre {
 
 @media (max-width: 1180px) {
   .console-shell {
-    grid-template-columns: 260px minmax(0, 1fr);
+    grid-template-columns: var(--sidebar-width, 260px) 6px minmax(0, 1fr);
+  }
+
+  /* 折叠态需要更具体的选择器，避免被上面的断点规则覆盖 */
+  .console-shell.console-shell--sidebar-collapsed {
+    grid-template-columns: 0 0 minmax(0, 1fr);
   }
 
   .metric-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .split-browser,
-  .task-browser {
+  .split-browser {
     grid-template-columns: 235px minmax(0, 1fr);
+  }
+
+  .task-browser {
+    grid-template-columns: var(--task-list-width, 270px) 6px minmax(0, 1fr);
   }
 
   .discovery-grid {
@@ -2844,6 +2907,11 @@ pre {
   .task-browser {
     min-height: 0;
     display: block;
+  }
+
+  /* 窄屏为单列布局，不再需要拖动分隔线 */
+  .panel-resize-handle {
+    display: none;
   }
 
   .resource-list-panel,

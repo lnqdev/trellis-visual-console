@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import type { CSSProperties } from "react";
 import type {
   ProjectDocumentResponse,
   TaskDetailResponse,
@@ -21,6 +22,7 @@ import type {
 } from "../../shared/api";
 import { formatDateTime, formatTaskStatus, readTaskStatusGroup } from "../formatters";
 import type { AsyncState } from "../hooks/useProjectConsole";
+import { useResizablePanel } from "../hooks/useResizablePanel";
 import { DocumentViewer } from "./DocumentViewer";
 import { Dropdown, type DropdownOption } from "./Dropdown";
 
@@ -58,6 +60,15 @@ export function TaskBrowser({
   pendingDocumentAnchor,
   onConsumeDocumentAnchor,
 }: TaskBrowserProps) {
+  // 任务树栏宽度支持拖动调整，并持久化到本地存储
+  const listPanelResize = useResizablePanel({
+    storageKey: "trellis-console:task-list-width",
+    defaultWidth: 300,
+    minWidth: 220,
+    maxWidth: 560,
+    ariaLabel: "调整任务列表宽度",
+  });
+  const browserStyle = { "--task-list-width": `${listPanelResize.width}px` } as CSSProperties;
   const taskIndex = useMemo(
     () => createTaskIndex(activeTasks, archivedTasks),
     [activeTasks, archivedTasks],
@@ -260,7 +271,7 @@ export function TaskBrowser({
   };
 
   return (
-    <section className="task-browser" aria-label="Task 浏览器">
+    <section className="task-browser" aria-label="Task 浏览器" style={browserStyle}>
       <aside className="task-list-panel">
         <div className="task-collection-tabs" role="tablist" aria-label="Task 集合">
           <button
@@ -357,6 +368,8 @@ export function TaskBrowser({
           </div>
         )}
       </aside>
+      {/* 任务树栏与详情区之间的拖动分隔线 */}
+      <div {...listPanelResize.separatorProps} />
 
       <div className="task-detail-panel">
         {taskDetail.loading && taskDetail.data === null ? (

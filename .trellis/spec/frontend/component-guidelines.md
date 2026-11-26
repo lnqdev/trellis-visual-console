@@ -15,6 +15,26 @@
 - 交互使用语义化 `button`、`form`、`nav`、`article`、`aside`，纯装饰图标设置 `aria-hidden="true"`。
 - 错误使用 `role="alert"`，异步提示使用 `aria-live`，标签页使用 `role="tablist" / role="tab" / aria-selected`。
 
+## 可拖动面板分隔线
+
+### 适用场景
+
+- 左侧项目导航侧边栏与 Task 视图任务树栏的宽度由用户拖动决定；统一由 `useResizablePanel` 管理，禁止在组件内重复实现 pointer 逻辑。
+
+### 实现合同
+
+- 布局使用三列 grid：`var(--sidebar-width, 300px) 6px minmax(0, 1fr)` / `var(--task-list-width, 300px) 6px minmax(0, 1fr)`，中间 6px 列是拖拽热区，宽度通过内联 CSS 变量写入。
+- 分隔线元素直接展开 Hook 返回的 `separatorProps`：`role="separator"`、`aria-orientation="vertical"`、`aria-valuemin/max/now`、`tabIndex=0`；`ArrowLeft` / `ArrowRight` 每次调整 16px，按住 Shift 为 48px。
+- 宽度持久化到 localStorage（沿用 `trellis-console:` 前缀）；拖动中跳过落盘、松手后写入，避免高频同步存储拖慢拖动。
+- 拖动期间 `body` 增加 `is-resizing-panel`（禁止选中文本 + `col-resize` 光标），容器增加 `--resizing` 关闭 `grid-template-columns` 过渡；拖动结束、`pointercancel` 与 `lostpointercapture` 都要复位状态。
+- 指针捕获使用 `setPointerCapture`，保证快速拖出热区后仍能收到事件；因 `preventDefault()` 会阻止自动聚焦，`pointerdown` 中需显式 `focus()`，让拖动后可直接用方向键微调。
+
+### 踩坑
+
+- 折叠态隐藏分隔线必须使用直接子选择器 `.console-shell--sidebar-collapsed > .panel-resize-handle`。使用后代选择器会连带隐藏 Task 视图内部的分隔线，导致侧边栏折叠后任务树栏无法拖动。
+- 折叠态列宽写成 `0 0 minmax(0, 1fr)`，并需要在 1180px 等媒体查询断点内以更高特异性重复声明，否则会被断点规则覆盖。
+- 窄屏（≤ 820px）切换为 `display: block` 后必须 `display: none` 隐藏分隔线，避免占位或制造横向滚动。
+
 ## 平台原生弹出控件
 
 ### 适用范围与约束

@@ -13,6 +13,11 @@
 - 折叠按钮需具备可访问性：`aria-label`、`title`、可见的焦点样式；折叠时按钮使用 `aria-expanded=false`。
 - 窄屏（宽度 ≤ 820px，侧边栏变为顶部横排布局）时，折叠/展开行为依然生效。
 - 不改变现有侧边栏内容、项目分组、更新入口等功能。
+- 左侧项目导航侧边栏支持拖动其右侧分割线调整宽度，宽度限制在合理区间内。
+- Task 视图的任务树栏（左侧任务列表）支持拖动其右侧分割线调整宽度。
+- 两处宽度各自持久化到 localStorage，刷新或重启后保持上次选择。
+- 分割线需具备可访问性：`role="separator"`、`aria-valuenow/min/max`、可 Tab 聚焦，左右方向键可微调宽度。
+- 拖动过程中不出现文字选中、宽度过渡滞后或布局跳动；窄屏（≤ 820px）单列布局下隐藏分割线。
 
 ## Acceptance Criteria
 
@@ -20,9 +25,13 @@
 - [ ] 折叠状态写入 localStorage，刷新或重启后状态保持。
 - [ ] `Cmd + B`（macOS）与 `Ctrl + B`（其他平台）均可切换侧边栏。
 - [ ] 窄屏布局下折叠/展开同样生效，且不破坏顶部分组横向滚动。
-- [ ] `pnpm lint` 与 `pnpm typecheck` 通过。
+- [ ] 拖动侧边栏分割线可改变宽度并写入 localStorage；折叠时分隔线不可见、不可交互。
+- [ ] Task 视图拖动任务树栏分割线可改变宽度并写入 localStorage。
+- [ ] 分割线支持键盘左右方向键（Shift 大步长）调整，且焦点样式可见。
+- [ ] `pnpm lint`、`pnpm typecheck` 与 `pnpm build:web` 通过。
 - [ ] 不引入新的第三方依赖。
 
 ## Notes
 
-- 轻量任务，PRD-only；改动集中在 `App.tsx`、`ProjectSidebar.tsx`、`styles.css`。
+- 轻量任务，PRD-only；改动集中在 `App.tsx`、`TaskBrowser.tsx`、`useResizablePanel.ts`、`styles.css`。
+- 宽度拖动与折叠共用同一套 grid 列定义：`var(--sidebar-width)` / `var(--task-list-width)` + 6px 拖拽列。
