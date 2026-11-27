@@ -15,6 +15,32 @@ export type MarkdownLinkTarget =
 /** 项目内可浏览路径的统一前缀。 */
 const TRELLIS_ROOT_PREFIX = ".trellis/";
 
+/** 扫描出的单个标题：行号、级别、纯文本与锚点 id。 */
+interface ScannedHeading {
+  /** 标题在原文中的起始行号，从 1 开始。 */
+  line: number;
+  /** 标题级别，1 表示 h1。 */
+  level: number;
+  /** 去掉行内 Markdown 标记后的可见文字。 */
+  text: string;
+  /** GitHub 风格锚点 id，与正文标题元素 id 一致。 */
+  id: string;
+}
+
+/** 文档大纲中的一个标题节点。 */
+export interface DocumentOutlineNode {
+  /** 标题锚点 id，点击后滚动到同 id 的正文标题。 */
+  id: string;
+  /** 标题可见文字。 */
+  text: string;
+  /** 标题级别，1 表示 h1。 */
+  level: 1 | 2 | 3;
+  /** 标题在原文中的起始行号，从 1 开始。 */
+  line: number;
+  /** 下级标题；大纲只展开到 h3。 */
+  children: DocumentOutlineNode[];
+}
+
 /** 形如 `https:`、`mailto:`、`file:` 的显式协议。 */
 const SCHEME_PATTERN = /^[a-z][a-z0-9+.-]*:/i;
 
@@ -84,6 +110,60 @@ export function resolveMarkdownLink(
  */
 export function buildHeadingIdMap(content: string): Map<number, string> {
   const headingIds = new Map<number, string>();
+  for (const heading of collectHeadings(content)) {
+    headingIds.set(heading.line, heading.id);
+  }
+  return headingIds;
+}
+
+/**
+ * 构建文档大纲（h1–h3）的层级结构。
+ *
+ * 标题 id 直接复用 {@link buildHeadingIdMap} 的同一份扫描结果，
+ * 因此大纲条目的跳转目标与正文标题 id 必然一致；跳过 fenced code block、
+ * 无可见文字（slug 为空）的标题，与锚点生成规则保持一致。
+ */
+export function buildDocumentOutline(content: string): DocumentOutlineNode[] {
+  const roots: DocumentOutlineNode[] = [];
+  // 栈中保留从根到当前标题的祖先链，便于按级别挂载子节点。
+  const stack: DocumentOutlineNode[] = [];
+
+  for (const heading of collectHeadings(content)) {
+    if (heading.level > 3) {
+      continue;
+    }
+    const node: DocumentOutlineNode = {
+      id: heading.id,
+      text: heading.text,
+      level: heading.level as 1 | 2 | 3,
+      line: heading.line,
+      children: [],
+    };
+    // 级别不高于当前标题的节点不再是祖先，先弹出；h3 无 h2 时自然挂到最近的 h1。
+    let parent = stack[stack.length - 1];
+    while (parent !== undefined && parent.level >= node.level) {
+      stack.pop();
+      parent = stack[stack.length - 1];
+    }
+    if (parent === undefined) {
+      roots.push(node);
+    } else {
+      parent.children.push(node);
+    }
+    stack.push(node);
+  }
+
+  return roots;
+}
+
+/**
+ * 逐行扫描 Markdown 标题并分配锚点 id。
+ *
+ * 行号键与 GitHub 风格的 `-1`、`-2` 去重规则都在这里统一处理，
+ * 供锚点渲染与文档大纲共用，避免两处规则漂移导致跳转错位。
+ */
+function collectHeadings(content: string): ScannedHeading[] {
+  const headings: ScannedHeading[] = [];
   const occurrences = new Map<string, number>();
   let inFence = false;
 
@@ -101,16 +181,22 @@ export function buildHeadingIdMap(content: string): Map<number, string> {
     if (match === null) {
       return;
     }
-    const baseId = slugifyHeadingText(stripInlineMarkdown(match[1] ?? ""));
+    const text = stripInlineMarkdown(match[1] ?? "");
+    const baseId = slugifyHeadingText(text);
     if (baseId.length === 0) {
       return;
     }
     const seenCount = occurrences.get(baseId) ?? 0;
     occurrences.set(baseId, seenCount + 1);
-    headingIds.set(index + 1, seenCount === 0 ? baseId : `${baseId}-${seenCount}`);
+    headings.push({
+      line: index + 1,
+      level: (line.trimStart().match(/^#+/)?.[0].length ?? 1),
+      text,
+      id: seenCount === 0 ? baseId : `${baseId}-${seenCount}`,
+    });
   });
 
-  return headingIds;
+  return headings;
 }
 
 /**

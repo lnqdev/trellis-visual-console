@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, ExternalLink, FileText, Search, X } from "lucide-react";
+import { ChevronDown, ChevronUp, ExternalLink, FileText, List, Search, X } from "lucide-react";
 import {
   createElement,
   useCallback,
@@ -14,7 +14,12 @@ import remarkGfm from "remark-gfm";
 import type { ProjectDocumentResponse } from "../../shared/api";
 import { formatDateTime } from "../formatters";
 import type { AsyncState } from "../hooks/useProjectConsole";
-import { buildHeadingIdMap, resolveMarkdownLink } from "../markdown-links";
+import {
+  buildDocumentOutline,
+  buildHeadingIdMap,
+  resolveMarkdownLink,
+  type DocumentOutlineNode,
+} from "../markdown-links";
 import { createSearchHighlightPlugin } from "../markdown-search";
 
 interface DocumentViewerProps {
@@ -31,6 +36,9 @@ interface DocumentViewerProps {
 
 type HeadingTag = "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
 
+/** 判定“当前章节”时标题越过容器顶部的缓冲距离。 */
+const OUTLINE_ACTIVE_OFFSET = 28;
+
 /** 安全展示 Markdown 或 JSONL 文档，并保留源路径信息。 */
 export function DocumentViewer({
   document,
@@ -41,6 +49,8 @@ export function DocumentViewer({
   onAnchorConsumed,
 }: DocumentViewerProps) {
   const articleRef = useRef<HTMLElement | null>(null);
+  // 正文滚动容器，滚动高亮需要以它为参照计算标题位置。
+  const markdownBodyRef = useRef<HTMLDivElement | null>(null);
   const data = document.data;
   // 当前文档路径；查找状态必须与它绑定，避免切换文档时用旧关键词统计新文档。
   const documentPath = data?.sourcePath ?? null;
@@ -48,6 +58,14 @@ export function DocumentViewer({
     () => buildHeadingIdMap(data?.format === "markdown" ? data.content : ""),
     [data],
   );
+  // 大纲与正文标题基于同一份内容扫描，切换文档时随内容一起更新。
+  const outlineNodes = useMemo(
+    () => (data?.format === "markdown" ? buildDocumentOutline(data.content) : []),
+    [data],
+  );
+  // 当前阅读位置对应的标题 id；窄屏抽屉的展开状态也属于本地交互。
+  const [activeHeadingId, setActiveHeadingId] = useState<string | null>(null);
+  const [outlineOpen, setOutlineOpen] = useState(false);
 
   // 文内查找全部使用组件本地状态：仅影响当前阅读区，不写入 URL。
   const [findOpen, setFindOpen] = useState(false);
@@ -142,6 +160,73 @@ export function DocumentViewer({
     element?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 
+  /** 点击大纲条目：滚动到标题顶部并同步高亮，窄屏抽屉随后收起。 */
+  const handleOutlineSelect = useCallback(
+    (id: string) => {
+      scrollToAnchor(id);
+      setActiveHeadingId(id);
+      setOutlineOpen(false);
+    },
+    [scrollToAnchor],
+  );
+
+  // 滚动高亮当前章节：取最后一个已越过容器顶部的标题。
+  // 用固定阈值判断，而不是多个元素交错触发，避免相邻标题边界处来回抖动。
+  useLayoutEffect(() => {
+    const container = markdownBodyRef.current;
+    if (container === null || outlineNodes.length === 0) {
+      setActiveHeadingId(null);
+      return;
+    }
+    let frame = 0;
+    const updateActiveHeading = (): void => {
+      frame = 0;
+      // 宽屏由正文容器滚动，≤820px 时容器不设高度上限、改为整页滚动，
+      // 两种模式分别取容器顶边或视口顶边作为判定基准。
+      const containerRect = container.getBoundingClientRect();
+      const scrollsInContainer = container.scrollHeight > container.clientHeight + 2;
+      const pageHeight = window.document.documentElement.scrollHeight;
+      // 已滚到底部时，按“最后一段可见章节”判定，避免末章永远高亮不到；
+      // 页面本身不能滚动时不算到底，否则短文档会一上来就高亮最后一节。
+      const atBottom = scrollsInContainer
+        ? container.scrollTop + container.clientHeight >= container.scrollHeight - 2
+        : pageHeight > window.innerHeight + 2 && window.scrollY + window.innerHeight >= pageHeight - 2;
+      const viewportHeight = scrollsInContainer ? container.clientHeight : window.innerHeight;
+      // 顶部判定加一点缓冲，让刚滚到顶部的标题先于下一节成为当前章节。
+      const threshold = atBottom ? viewportHeight - 24 : OUTLINE_ACTIVE_OFFSET;
+      const headings = Array.from(container.querySelectorAll<HTMLElement>(":is(h1, h2, h3)[id]"));
+      let currentId: string | null = null;
+      for (const heading of headings) {
+        const top = scrollsInContainer
+          ? heading.getBoundingClientRect().top - containerRect.top
+          : heading.getBoundingClientRect().top;
+        if (top <= threshold) {
+          currentId = heading.id;
+        }
+      }
+      setActiveHeadingId(currentId ?? headings[0]?.id ?? null);
+    };
+    const scheduleUpdate = (): void => {
+      if (frame !== 0) {
+        return;
+      }
+      frame = window.requestAnimationFrame(updateActiveHeading);
+    };
+    updateActiveHeading();
+    // 容器滚动与整页滚动都要监听，滚动模式由窗口宽度决定。
+    container.addEventListener("scroll", scheduleUpdate, { passive: true });
+    window.addEventListener("scroll", scheduleUpdate, { passive: true });
+    window.addEventListener("resize", scheduleUpdate);
+    return () => {
+      container.removeEventListener("scroll", scheduleUpdate);
+      window.removeEventListener("scroll", scheduleUpdate);
+      window.removeEventListener("resize", scheduleUpdate);
+      if (frame !== 0) {
+        window.cancelAnimationFrame(frame);
+      }
+    };
+  }, [outlineNodes]);
+
   // 跨文档跳转时，等目标正文渲染完成后再滚动，并通知上层清空锚点。
   useEffect(() => {
     if (anchor === null || data === null) {
@@ -184,6 +269,8 @@ export function DocumentViewer({
     setFindQuery("");
     setActiveMatch(0);
     setMatchCount(0);
+    // 大纲抽屉同样属于单份文档的交互状态，切换文档后回到收起。
+    setOutlineOpen(false);
   }, [documentPath]);
 
   // 打开查找条后聚焦并全选关键词，便于直接覆盖输入。
@@ -259,6 +346,8 @@ export function DocumentViewer({
 
   const currentData = data;
   const isMarkdown = currentData.format === "markdown";
+  // JSONL、空文档与无标题文档都不提供大纲入口。
+  const outlineVisible = isMarkdown && outlineNodes.length > 0;
   // 空关键词不展示计数；无命中时给出明确提示。
   const trimmedQuery = findQuery.trim();
   const findStatus =
@@ -315,6 +404,21 @@ export function DocumentViewer({
         </div>
         {/* 使用 span 包裹按钮，避免命中 .document-toolbar > div 的网格布局。 */}
         <span className="document-toolbar-actions">
+          {/* 窄屏通过此按钮展开大纲抽屉；宽屏大纲常驻，按钮由样式隐藏。 */}
+          {outlineVisible ? (
+            <button
+              className="icon-button document-outline-toggle"
+              type="button"
+              aria-expanded={outlineOpen}
+              aria-controls="document-outline"
+              aria-label="文档大纲"
+              title="文档大纲"
+              onClick={() => setOutlineOpen((open) => !open)}
+            >
+              <List size={16} aria-hidden="true" />
+              大纲
+            </button>
+          ) : null}
           {isMarkdown ? (
             <button
               className="icon-button"
@@ -338,8 +442,9 @@ export function DocumentViewer({
         </span>
       </header>
 
-      {/* 阅读区容器：查找条相对正文定位，不随正文滚动，也不会压到工具栏。 */}
-      <div className="document-body">
+      {/* 阅读区容器：查找条相对正文定位，不随正文滚动，也不会压到工具栏。
+          有大纲时变为两列，正文列保持可滚动，大纲列独立滚动。 */}
+      <div className={`document-body${outlineVisible ? " document-body--with-outline" : ""}`}>
         {/* 文内查找条浮于正文右上角，不挤压正文布局。 */}
         {isMarkdown && findOpen ? (
           <div
@@ -395,7 +500,7 @@ export function DocumentViewer({
         ) : null}
 
         {isMarkdown ? (
-          <div className="markdown-body">
+          <div className="markdown-body" ref={markdownBodyRef}>
             <ReactMarkdown
               remarkPlugins={remarkPlugins}
               rehypePlugins={rehypePlugins}
@@ -409,8 +514,90 @@ export function DocumentViewer({
             <code>{currentData.content}</code>
           </pre>
         )}
+
+        {outlineVisible ? (
+          <nav
+            id="document-outline"
+            className={`document-outline${outlineOpen ? " document-outline--open" : ""}`}
+            aria-label="文档大纲"
+          >
+            <div className="document-outline-panel">
+              <header>
+                <span className="eyebrow">OUTLINE</span>
+                <button
+                  className="icon-only-button document-outline-close"
+                  type="button"
+                  aria-label="关闭大纲"
+                  title="关闭大纲"
+                  onClick={() => setOutlineOpen(false)}
+                >
+                  <X size={15} aria-hidden="true" />
+                </button>
+              </header>
+              <ul>
+                {outlineNodes.map((node) => (
+                  <OutlineNode
+                    key={node.id}
+                    node={node}
+                    depth={0}
+                    activeId={activeHeadingId}
+                    onSelect={handleOutlineSelect}
+                  />
+                ))}
+              </ul>
+            </div>
+          </nav>
+        ) : null}
       </div>
     </article>
+  );
+}
+
+interface OutlineNodeProps {
+  node: DocumentOutlineNode;
+  /** 当前条目在树中的深度，用于计算缩进。 */
+  depth: number;
+  activeId: string | null;
+  onSelect: (id: string) => void;
+}
+
+/** 递归展示大纲条目；缩进由 data-depth 交给样式，层级最多三层。 */
+function OutlineNode({ node, depth, activeId, onSelect }: OutlineNodeProps) {
+  const isActive = node.id === activeId;
+  return (
+    <li>
+      <button
+        className={`document-outline-item${isActive ? " is-active" : ""}`}
+        type="button"
+        data-depth={Math.min(depth, 2)}
+        title={node.text}
+        {...(isActive ? { "aria-current": "location" as const } : {})}
+        onClick={(event) => {
+          // 鼠标点击后释放焦点，让收起态的导轨立即复原；键盘激活（detail 为 0）保留焦点。
+          if (event.detail > 0) {
+            event.currentTarget.blur();
+          }
+          onSelect(node.id);
+        }}
+      >
+        {/* 收起态只显示短横线，展开面板时才露出文字。 */}
+        <span className="document-outline-dash" aria-hidden="true" />
+        <span className="document-outline-label">{node.text}</span>
+      </button>
+      {node.children.length > 0 ? (
+        <ul>
+          {node.children.map((child) => (
+            <OutlineNode
+              key={child.id}
+              node={child}
+              depth={depth + 1}
+              activeId={activeId}
+              onSelect={onSelect}
+            />
+          ))}
+        </ul>
+      ) : null}
+    </li>
   );
 }
 
