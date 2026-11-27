@@ -96,6 +96,8 @@ export function TaskBrowser({
   // 搜索与负责人筛选都是纯本地 UI 状态，不写入 URL，也不影响集合标签与详情选择。
   const [searchQuery, setSearchQuery] = useState("");
   const [assigneeFilter, setAssigneeFilter] = useState<string | null>(null);
+  // 筛选态默认展开全部层级，这里单独记录用户主动收起的节点，避免影响常规浏览的展开状态。
+  const [filterCollapsed, setFilterCollapsed] = useState<Set<string>>(() => new Set());
 
   const tasks = collection === "active" ? activeTasks : archivedTasks;
   const taskPaths = useMemo(() => new Set(tasks.map((task) => task.sourcePath)), [tasks]);
@@ -147,6 +149,10 @@ export function TaskBrowser({
   const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase("zh-CN");
   const hasSearchQuery = normalizedSearchQuery.length > 0;
   const isFiltering = hasSearchQuery || assigneeFilter !== null;
+  // 筛选条件或集合变化后结果集已改变，清空收起记录以重新展示完整层级。
+  useEffect(() => {
+    setFilterCollapsed(new Set());
+  }, [assigneeFilter, collection, normalizedSearchQuery]);
   // 先按负责人筛选，再按关键词匹配，两者为 AND 关系。
   const filteredTasks = useMemo(
     () => (assigneeFilter === null
@@ -252,15 +258,12 @@ export function TaskBrowser({
 
   /** 切换当前集合中一个父任务的展开状态。 */
   const toggleExpanded = (sourcePath: string): void => {
-    const update = (current: Set<string>): Set<string> => {
-      const next = new Set(current);
-      if (next.has(sourcePath)) {
-        next.delete(sourcePath);
-      } else {
-        next.add(sourcePath);
-      }
-      return next;
-    };
+    // 筛选态使用独立的收起集合：默认展开，只记录用户手动收起的节点。
+    if (isFiltering) {
+      setFilterCollapsed((current) => togglePathInSet(current, sourcePath));
+      return;
+    }
+    const update = (current: Set<string>): Set<string> => togglePathInSet(current, sourcePath);
     if (collection === "active") {
       setActiveExpanded(update);
     } else {
@@ -366,6 +369,7 @@ export function TaskBrowser({
                 collectionPaths={taskPaths}
                 archivedTasks={archivedTasks}
                 expandedTasks={expandedTasks}
+                filterCollapsed={filterCollapsed}
                 selectedTaskSourcePath={selectedTaskSourcePath}
                 focused={focusedArchivedTasks !== null}
                 filterVisiblePaths={filterVisiblePaths}
@@ -462,6 +466,8 @@ interface TaskTreeNodeProps {
   collectionPaths: Set<string>;
   archivedTasks: TaskSummaryApi[];
   expandedTasks: Set<string>;
+  /** 筛选态下被用户主动收起的节点集合。 */
+  filterCollapsed: Set<string>;
   selectedTaskSourcePath: string | null;
   focused: boolean;
   filterVisiblePaths: Set<string> | null;
@@ -480,6 +486,7 @@ function TaskTreeNode({
   collectionPaths,
   archivedTasks,
   expandedTasks,
+  filterCollapsed,
   selectedTaskSourcePath,
   focused,
   filterVisiblePaths,
@@ -512,8 +519,10 @@ function TaskTreeNode({
     (child) => isArchivedTask(child, archivedTasks) || isCompletedTask(child),
   ).length;
   const hasExpandableContent = children.length > 0 || archivedChildren.length > 0;
-  // 筛选态层级固定展开，不响应用户的逐级收起。
-  const expanded = filterMode ? true : expandedTasks.has(task.sourcePath);
+  // 筛选态默认展开全部层级，但允许用户逐级收起；常规视图沿用持久化的展开集合。
+  const expanded = filterMode
+    ? !filterCollapsed.has(task.sourcePath)
+    : expandedTasks.has(task.sourcePath);
   const parent = task.parentSourcePath === null ? null : (taskIndex.get(task.parentSourcePath) ?? null);
   const depthClass = `task-tree-node--depth-${Math.min(depth, 3)}`;
 
@@ -521,21 +530,15 @@ function TaskTreeNode({
     <div className={`task-tree-node ${depthClass}`} role="treeitem" aria-expanded={hasExpandableContent ? expanded : undefined}>
       <div className={`task-tree-row ${selectedTaskSourcePath === task.sourcePath ? "task-tree-row--selected" : ""}`}>
         {hasExpandableContent ? (
-          filterMode ? (
-            <span className="task-expand-indicator" aria-hidden="true">
-              <ChevronRight className="expanded" size={15} />
-            </span>
-          ) : (
-            <button
-              className="task-expand-button"
-              type="button"
-              aria-label={`${expanded ? "收起" : "展开"}${task.title}`}
-              aria-expanded={expanded}
-              onClick={() => onToggleExpanded(task.sourcePath)}
-            >
-              <ChevronRight className={expanded ? "expanded" : ""} size={15} aria-hidden="true" />
-            </button>
-          )
+          <button
+            className="task-expand-button"
+            type="button"
+            aria-label={`${expanded ? "收起" : "展开"}${task.title}`}
+            aria-expanded={expanded}
+            onClick={() => onToggleExpanded(task.sourcePath)}
+          >
+            <ChevronRight className={expanded ? "expanded" : ""} size={15} aria-hidden="true" />
+          </button>
         ) : <span className="task-expand-placeholder" aria-hidden="true" />}
 
         <button
@@ -586,6 +589,7 @@ function TaskTreeNode({
               collectionPaths={collectionPaths}
               archivedTasks={archivedTasks}
               expandedTasks={expandedTasks}
+              filterCollapsed={filterCollapsed}
               selectedTaskSourcePath={selectedTaskSourcePath}
               focused={false}
               filterVisiblePaths={filterVisiblePaths}
@@ -609,6 +613,17 @@ function TaskTreeNode({
       ) : null}
     </div>
   );
+}
+
+/** 在集合中切换某个路径：存在则删除，不存在则加入，返回新集合。 */
+function togglePathInSet(current: Set<string>, sourcePath: string): Set<string> {
+  const next = new Set(current);
+  if (next.has(sourcePath)) {
+    next.delete(sourcePath);
+  } else {
+    next.add(sourcePath);
+  }
+  return next;
 }
 
 /** 按任务状态选择具有独立语义的图标。 */

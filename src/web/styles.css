@@ -2526,8 +2526,7 @@ body.is-resizing-panel {
 }
 
 .task-expand-button,
-.task-expand-placeholder,
-.task-expand-indicator {
+.task-expand-placeholder {
   width: 20px;
   min-height: 38px;
 }
@@ -2536,20 +2535,11 @@ body.is-resizing-panel {
   border-radius: 6px;
 }
 
-/* 搜索态层级固定展开，仅保留静态展开指示，不提供收起交互。 */
-.task-expand-indicator {
-  display: grid;
-  place-items: center;
-  color: var(--muted);
-}
-
-.task-expand-button svg,
-.task-expand-indicator svg {
+.task-expand-button svg {
   transition: transform 180ms ease;
 }
 
-.task-expand-button svg.expanded,
-.task-expand-indicator svg.expanded {
+.task-expand-button svg.expanded {
   transform: rotate(90deg);
 }
 
