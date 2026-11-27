@@ -27,6 +27,7 @@ import {
   formatTaskDate,
   formatTaskDevType,
   formatTaskStatus,
+  readTaskCopyName,
   readTaskStatusGroup,
 } from "../formatters";
 import type { AsyncState } from "../hooks/useProjectConsole";
@@ -407,7 +408,7 @@ export function TaskBrowser({
                 ) : null}
                 <div className="task-detail-title-row">
                   <h2>{taskDetail.data.task.title}</h2>
-                  <TaskNameCopyButton name={taskDetail.data.task.title} className="task-name-copy--static" />
+                  <TaskNameCopyButton name={readTaskCopyName(taskDetail.data.task)} className="task-name-copy--static" />
                 </div>
                 <div className="task-meta">
                   <span>{formatTaskStatus(taskDetail.data.task)}</span>
@@ -570,7 +571,7 @@ function TaskTreeNode({
           </span>
         </button>
 
-        <TaskNameCopyButton name={task.title} />
+        <TaskNameCopyButton name={readTaskCopyName(task)} />
       </div>
 
       {expanded ? (

@@ -183,6 +183,9 @@ pub struct ProjectOverviewSnapshot {
 pub struct TaskSummarySnapshot {
     pub id: String,
     pub title: String,
+    /// task.json 中的 name 字段，用于按原文复制任务名。
+    #[serde(default)]
+    pub name: Option<String>,
     pub status: String,
     /// 任务优先级（P0-P3）；非法值保留原值用于降级展示，并在索引阶段产出警告。
     #[serde(default)]
@@ -379,6 +382,11 @@ fn validate_tasks(tasks: &[TaskSummarySnapshot], prefix: &str, details: &mut Vec
         let task_prefix = format!("{prefix}.{index}");
         validate_non_empty(&task.id, &format!("{task_prefix}.id"), details);
         validate_non_empty(&task.title, &format!("{task_prefix}.title"), details);
+        validate_optional_non_empty(
+            task.name.as_deref(),
+            &format!("{task_prefix}.name"),
+            details,
+        );
         validate_non_empty(&task.status, &format!("{task_prefix}.status"), details);
         validate_non_empty(
             &task.source_path,

@@ -93,6 +93,7 @@ export const TaskSummaryApiSchema = z
   .object({
     id: NonEmptyStringSchema,
     title: NonEmptyStringSchema,
+    name: NonEmptyStringSchema.nullable(),
     status: NonEmptyStringSchema,
     priority: NonEmptyStringSchema.nullable(),
     devType: NonEmptyStringSchema.nullable(),

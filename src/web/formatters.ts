@@ -75,6 +75,11 @@ export function formatTaskStatus(task: TaskSummaryApi): string {
   return formatTaskStatusValue(task.status);
 }
 
+/** 返回快捷复制使用的任务名：优先 task.json 的 name，缺失时回退 id。 */
+export function readTaskCopyName(task: TaskSummaryApi): string {
+  return task.name ?? task.id;
+}
+
 /** 任务优先级的视觉分组；none 表示未设置，unknown 表示非法枚举。 */
 export type TaskPriorityGroup = "p0" | "p1" | "p2" | "p3" | "unknown" | "none";
 

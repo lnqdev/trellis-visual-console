@@ -335,6 +335,7 @@ fn parse_task_directory(
         validate_active_task_prd(project, task_root, diagnostics);
     }
     validate_task_jsonl_files(project, task_root, diagnostics);
+    let name = record_name.clone();
     let id = record_id
         .or(record_name.clone())
         .unwrap_or_else(|| directory_name.clone());
@@ -353,6 +354,7 @@ fn parse_task_directory(
         summary: TaskSummarySnapshot {
             id,
             title,
+            name,
             phase: map_task_status_to_phase(&status),
             status,
             priority,
