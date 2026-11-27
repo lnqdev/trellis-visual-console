@@ -40,7 +40,8 @@ body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
-  overflow-x: hidden;
+  /* 桌面固定外壳：整页不滚动，滚动交给各内容面板；窄屏断点会恢复整页滚动 */
+  overflow: hidden;
   background:
     radial-gradient(circle at 88% 8%, rgb(34 197 94 / 6%), transparent 28%),
     var(--bg);
@@ -95,12 +96,17 @@ pre {
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
 }
 
+/* 桌面应用式外壳：固定一屏高度，三列各自在内部滚动。
+   用 100dvh 而不是 100vh，避免 macOS WebView / 移动端动态工具栏下与实际可视高度不一致。 */
 .console-shell {
   position: relative;
   display: grid;
   /* 第一列宽度由拖动分隔线写入 --sidebar-width，中间列为分隔线拖拽热区 */
   grid-template-columns: var(--sidebar-width, 300px) 6px minmax(0, 1fr);
-  min-height: 100vh;
+  /* 行高必须显式 minmax(0, 1fr)，否则内容会把行撑高、外壳溢出 */
+  grid-template-rows: minmax(0, 1fr);
+  height: 100dvh;
+  overflow: hidden;
   transition: grid-template-columns 220ms ease;
 }
 
@@ -185,16 +191,17 @@ body.is-resizing-panel {
   padding-top: 52px;
 }
 
+/* 顶部留白压缩后同比下调，但仍需让出 30px 窗口拖动区与红绿灯高度 */
 .console-shell--macos-overlay .workspace-shell {
-  padding-top: 54px;
+  padding-top: 42px;
 }
 
 .project-sidebar {
-  position: sticky;
-  top: 0;
+  position: relative;
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
+  min-height: 0;
   padding: 22px 18px 18px;
   overflow: hidden;
   border-right: 1px solid var(--border-soft);
@@ -469,6 +476,7 @@ body.is-resizing-panel {
   min-height: 0;
   flex: 1;
   overflow-y: auto;
+  overscroll-behavior: contain;
   scrollbar-width: thin;
 }
 
@@ -668,20 +676,44 @@ body.is-resizing-panel {
   gap: 3px;
 }
 
+/* 主内容列：纵向排布 页头 / 横幅 / 视图标签 / 内容区，内容区占满剩余高度并自行滚动 */
 .workspace-shell {
   min-width: 0;
-  padding: 24px clamp(20px, 3vw, 42px) 40px;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 12px clamp(20px, 3vw, 42px) 24px;
+  overflow: hidden;
+  overscroll-behavior: contain;
 }
 
 /* 侧边栏折叠后，主内容区顶部常驻的展开入口 */
 .workspace-sidebar-launcher {
+  flex: 0 0 auto;
   display: flex;
   margin-bottom: 14px;
 }
 
+/* 全局提示固定在外壳内，只有下方的内容区滚动 */
+.global-notice {
+  flex: 0 0 auto;
+}
+
+/* 未选项目、加载中与错误提示占满主内容区剩余高度 */
+.workspace-loading,
+.empty-workspace {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
 .task-center-page {
+  flex: 1 1 0;
   width: min(1520px, 100%);
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .task-center-heading {
@@ -690,7 +722,8 @@ body.is-resizing-panel {
   align-items: flex-start;
   justify-content: space-between;
   gap: 24px;
-  margin-bottom: 18px;
+  margin-bottom: 12px;
+  flex: 0 0 auto;
 }
 
 .task-center-heading > div {
@@ -721,6 +754,7 @@ body.is-resizing-panel {
 }
 
 .task-center-inline-error {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -744,6 +778,7 @@ body.is-resizing-panel {
 }
 
 .task-center-segments {
+  flex: 0 0 auto;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -873,6 +908,7 @@ body.is-resizing-panel {
 }
 
 .task-center-filters {
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   gap: 9px;
@@ -969,6 +1005,7 @@ body.is-resizing-panel {
 }
 
 .task-center-summary {
+  flex: 0 0 auto;
   display: grid;
   grid-template-columns: repeat(8, minmax(70px, 1fr));
   gap: 1px;
@@ -1001,6 +1038,7 @@ body.is-resizing-panel {
 
 .task-center-unavailable,
 .task-center-unavailable-list {
+  flex: 0 0 auto;
   width: 100%;
   margin-bottom: 12px;
   border: 1px solid rgb(248 113 113 / 24%);
@@ -1047,9 +1085,14 @@ body.is-resizing-panel {
   border-block: 1px solid var(--border-soft);
 }
 
+/* 结果列表是任务中心唯一的滚动区域，标题/筛选/汇总保持固定 */
 .task-center-results {
+  flex: 1 1 0;
+  min-height: 0;
   display: grid;
   gap: 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .task-center-load-more {
@@ -1203,6 +1246,7 @@ body.is-resizing-panel {
 }
 
 .task-center-empty {
+  flex: 1 1 0;
   min-height: 260px;
   display: flex;
   flex-direction: column;
@@ -1265,13 +1309,22 @@ body.is-resizing-panel {
   margin: 0 auto;
 }
 
+/* 项目工作区占满主内容列：页头 / 快照横幅 / 视图标签固定，只有内容区滚动 */
+.project-workspace {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .project-header,
 .page-heading {
+  flex: 0 0 auto;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 28px;
-  margin-bottom: 18px;
+  margin-bottom: 12px;
 }
 
 .project-title-block {
@@ -1280,7 +1333,7 @@ body.is-resizing-panel {
 
 .eyebrow {
   display: block;
-  margin-bottom: 7px;
+  margin-bottom: 5px;
   color: #4ade80;
   font-size: 10px;
   font-weight: 800;
@@ -1291,7 +1344,7 @@ body.is-resizing-panel {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .project-header h1,
@@ -1360,6 +1413,7 @@ body.is-resizing-panel {
 }
 
 .snapshot-banner {
+  flex: 0 0 auto;
   margin-bottom: 14px;
   padding: 10px 13px;
   border: 1px solid rgb(96 165 250 / 22%);
@@ -1376,6 +1430,7 @@ body.is-resizing-panel {
 }
 
 .view-tabs {
+  flex: 0 0 auto;
   display: flex;
   gap: 5px;
   margin-bottom: 14px;
@@ -1420,8 +1475,14 @@ body.is-resizing-panel {
   background: var(--accent-soft);
 }
 
+/* 内容区占满剩余高度：概览/Workflow/诊断等普通页面在此滚动；
+   Spec/Task 浏览器则撑满高度，由内部两栏各自滚动 */
 .view-content {
   min-width: 0;
+  min-height: 0;
+  flex: 1 1 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .metric-grid {
@@ -1583,10 +1644,13 @@ body.is-resizing-panel {
   font-size: 11px;
 }
 
+/* 浏览器撑满内容区高度，左右两栏各自滚动（行高显式 minmax(0,1fr) 才能让内层滚动生效） */
 .split-browser,
 .task-browser {
-  min-height: 620px;
+  height: 100%;
+  min-height: 0;
   display: grid;
+  grid-template-rows: minmax(0, 1fr);
   overflow: hidden;
   border: 1px solid var(--border-soft);
   border-radius: 13px;
@@ -1605,8 +1669,10 @@ body.is-resizing-panel {
 .resource-list-panel,
 .task-list-panel {
   min-width: 0;
+  min-height: 0;
   padding: 16px 12px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   border-right: 1px solid var(--border-soft);
   background: rgb(11 19 36 / 55%);
 }
@@ -1681,13 +1747,18 @@ body.is-resizing-panel {
   background: var(--accent-soft);
 }
 
+/* 阅读器纵向三段：工具栏固定、正文占满并滚动、大纲导轨贴右 */
 .document-viewer {
   min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   background: var(--surface);
 }
 
 .document-toolbar {
+  flex: 0 0 auto;
   min-height: 62px;
   display: flex;
   align-items: center;
@@ -1731,13 +1802,15 @@ body.is-resizing-panel {
   text-transform: uppercase;
 }
 
+/* 正文填满阅读区并自行滚动：不再依赖按页头高度手算的 100vh 魔法数 */
 .markdown-body,
 .jsonl-body {
-  min-height: 555px;
-  max-height: calc(100vh - 270px);
+  height: 100%;
+  min-height: 0;
   margin: 0;
   padding: clamp(20px, 4vw, 42px);
   overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .markdown-body {
@@ -1856,6 +1929,8 @@ body.is-resizing-panel {
 /* 阅读区容器：承担查找条的定位参照，正文滚动时查找条保持可见。 */
 .document-body {
   position: relative;
+  flex: 1 1 0;
+  min-height: 0;
 }
 
 /* 文内查找条：定位在正文右上角，浮于正文之上且不随正文滚动。 */
@@ -1911,6 +1986,7 @@ body.is-resizing-panel {
 .document-body--with-outline {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 28px;
+  grid-template-rows: minmax(0, 1fr);
 }
 
 /* 查找条跟随正文列，避免被导轨遮住。 */
@@ -1919,10 +1995,14 @@ body.is-resizing-panel {
   max-width: calc(100% - 64px);
 }
 
+/* 导轨高度跟随阅读区容器，不再按页头高度写死，避免页头变化后裁切或溢出。
+   不能设 overflow: hidden：悬停展开的浮层要向左压过正文，裁切会让它显示不全。 */
 .document-outline {
   position: relative;
   min-width: 0;
-  max-height: calc(100vh - 270px);
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
 }
 
 /* 默认收起为短横线导轨；悬停或键盘聚焦时向左展开文字面板，覆盖正文而不挤压布局。 */
@@ -2629,10 +2709,26 @@ body.is-resizing-panel {
 
 .task-detail-panel {
   min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 
+/* 未选中任务时的空/错误提示占满详情区 */
+.task-detail-panel > .content-state {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+/* 详情里的阅读器占满头部与文档标签之外的剩余高度 */
+.task-detail-panel > .document-viewer {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
 .task-detail-header {
+  flex: 0 0 auto;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -2722,6 +2818,7 @@ body.is-resizing-panel {
 }
 
 .task-document-tabs {
+  flex: 0 0 auto;
   display: flex;
   gap: 4px;
   padding: 7px 10px;
@@ -2959,8 +3056,13 @@ body.is-resizing-panel {
   font-size: 13px;
 }
 
+/* 添加项目页直接挂在主内容列下，自行滚动，侧边栏与外壳保持不动 */
 .discovery-page {
+  flex: 1 1 0;
+  min-height: 0;
   padding-top: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .page-heading p {
@@ -3197,8 +3299,73 @@ body.is-resizing-panel {
 }
 
 @media (max-width: 820px) {
+  /* 窄屏回到整页文档流：不套固定高度，避免「外层不能滚、内层也滚不动」 */
+  body {
+    height: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
   .console-shell {
     display: block;
+    height: auto;
+    overflow: visible;
+  }
+
+  .workspace-shell {
+    display: block;
+    height: auto;
+    overflow: visible;
+  }
+
+  .project-workspace {
+    display: block;
+    min-height: 0;
+  }
+
+  .view-content {
+    flex: none;
+    overflow: visible;
+  }
+
+  .task-center-page {
+    display: block;
+  }
+
+  .task-center-results,
+  .task-center-empty {
+    flex: none;
+    overflow: visible;
+  }
+
+  .discovery-page {
+    flex: none;
+    overflow: visible;
+  }
+
+  /* 单列布局下阅读器恢复文档流，正文由整页滚动 */
+  .task-detail-panel {
+    display: block;
+    overflow: visible;
+  }
+
+  .document-viewer {
+    display: block;
+    height: auto;
+    overflow: visible;
+  }
+
+  .document-body {
+    flex: none;
+  }
+
+  .markdown-body,
+  .jsonl-body {
+    height: auto;
+  }
+
+  .document-outline {
+    height: auto;
   }
 
   .project-sidebar {
@@ -3264,6 +3431,7 @@ body.is-resizing-panel {
 
   .split-browser,
   .task-browser {
+    height: auto;
     min-height: 0;
     display: block;
   }
