@@ -1,9 +1,11 @@
 import {
   Archive,
+  Check,
   CheckCircle2,
   ChevronRight,
   Circle,
   CircleHelp,
+  Copy,
   Eye,
   FileJson2,
   FileText,
@@ -13,7 +15,7 @@ import {
   UserRound,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import type {
   ProjectDocumentResponse,
@@ -396,7 +398,10 @@ export function TaskBrowser({
                     <span aria-current="page">{taskDetail.data.task.title}</span>
                   </nav>
                 ) : null}
-                <h2>{taskDetail.data.task.title}</h2>
+                <div className="task-detail-title-row">
+                  <h2>{taskDetail.data.task.title}</h2>
+                  <TaskNameCopyButton name={taskDetail.data.task.title} className="task-name-copy--static" />
+                </div>
                 <div className="task-meta">
                   <span>{formatTaskStatus(taskDetail.data.task)}</span>
                   {taskDetail.data.task.assignee !== null ? <span><UserRound size={14} />{taskDetail.data.task.assignee}</span> : null}
@@ -502,7 +507,7 @@ function TaskTreeNode({
 
   return (
     <div className={`task-tree-node ${depthClass}`} role="treeitem" aria-expanded={hasExpandableContent ? expanded : undefined}>
-      <div className="task-tree-row">
+      <div className={`task-tree-row ${selectedTaskSourcePath === task.sourcePath ? "task-tree-row--selected" : ""}`}>
         {hasExpandableContent ? (
           filterMode ? (
             <span className="task-expand-indicator" aria-hidden="true">
@@ -549,6 +554,8 @@ function TaskTreeNode({
             {depth > 3 ? <small className="task-depth-marker">第 {depth + 1} 层</small> : null}
           </span>
         </button>
+
+        <TaskNameCopyButton name={task.title} />
       </div>
 
       {expanded ? (
@@ -718,4 +725,82 @@ function isCompletedTask(task: TaskSummaryApi): boolean {
 function matchesTaskTitle(task: TaskSummaryApi, normalizedQuery: string): boolean {
   const normalizedTitle = task.title.trim().toLocaleLowerCase("zh-CN");
   return normalizedTitle.includes(normalizedQuery);
+}
+
+interface TaskNameCopyButtonProps {
+  /** 要复制的任务名。 */
+  name: string;
+  /** 额外的样式类，例如详情头部的常驻显示修饰。 */
+  className?: string;
+}
+
+/** 复制任务名按钮：写入剪贴板后短暂显示成功状态。 */
+function TaskNameCopyButton({ name, className }: TaskNameCopyButtonProps) {
+  const [copied, setCopied] = useState(false);
+  // 保存重置定时器，组件卸载时清理，避免对已卸载组件调用 setState。
+  const resetTimer = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    if (resetTimer.current !== null) {
+      window.clearTimeout(resetTimer.current);
+    }
+  }, []);
+
+  /** 点击复制任务名，成功后显示约 1.5 秒的勾选态。 */
+  const handleCopy = (): void => {
+    void writeClipboard(name).then((succeeded) => {
+      if (!succeeded) {
+        return;
+      }
+      setCopied(true);
+      if (resetTimer.current !== null) {
+        window.clearTimeout(resetTimer.current);
+      }
+      resetTimer.current = window.setTimeout(() => setCopied(false), 1500);
+    });
+  };
+
+  const classes = ["task-name-copy", className ?? "", copied ? "task-name-copy--copied" : ""]
+    .filter((value) => value !== "")
+    .join(" ");
+
+  return (
+    <button
+      type="button"
+      className={classes}
+      title={copied ? "已复制" : "复制任务名"}
+      aria-label={copied ? `已复制任务名：${name}` : `复制任务名：${name}`}
+      onClick={handleCopy}
+    >
+      {copied ? <Check size={13} aria-hidden="true" /> : <Copy size={13} aria-hidden="true" />}
+    </button>
+  );
+}
+
+/** 写入系统剪贴板；Clipboard API 不可用或被拒时回退到临时 textarea。 */
+async function writeClipboard(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard !== undefined) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // 非安全上下文或权限被拒：继续尝试兼容方案。
+  }
+
+  try {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.top = "-9999px";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.select();
+    const succeeded = document.execCommand("copy");
+    document.body.removeChild(textarea);
+    return succeeded;
+  } catch {
+    return false;
+  }
 }

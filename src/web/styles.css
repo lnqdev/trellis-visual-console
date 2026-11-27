@@ -2109,9 +2109,50 @@ body.is-resizing-panel {
 .task-tree-row {
   min-width: 0;
   display: grid;
-  grid-template-columns: 20px minmax(0, 1fr);
+  grid-template-columns: 20px minmax(0, 1fr) auto;
   align-items: stretch;
   gap: 2px;
+}
+
+/* 任务名快捷复制：列表行内默认隐藏，悬停、聚焦或选中时出现。 */
+.task-name-copy {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  align-self: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--subtle);
+  background: transparent;
+  opacity: 0;
+  transition:
+    opacity 140ms ease,
+    color 140ms ease,
+    background-color 140ms ease;
+}
+
+.task-tree-row:hover .task-name-copy,
+.task-tree-row:focus-within .task-name-copy,
+.task-tree-row--selected .task-name-copy,
+.task-name-copy:focus-visible,
+.task-name-copy--copied {
+  opacity: 1;
+}
+
+.task-name-copy:hover {
+  color: #dbeafe;
+  background: var(--surface-hover);
+}
+
+.task-name-copy--copied {
+  color: #86efac;
+}
+
+/* 详情头部没有悬停显隐需求，复制按钮常驻。 */
+.task-name-copy--static {
+  opacity: 1;
 }
 
 .task-expand-button,
@@ -2299,6 +2340,19 @@ body.is-resizing-panel {
 .task-detail-header h2 {
   margin-bottom: 7px;
   font-size: 19px;
+}
+
+/* 详情标题与复制按钮同行，保证长标题可截断。 */
+.task-detail-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+
+.task-detail-title-row h2 {
+  min-width: 0;
+  margin-bottom: 0;
 }
 
 .task-breadcrumbs {
