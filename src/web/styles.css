@@ -892,7 +892,7 @@ body.is-resizing-panel {
 /* 第二行：五个维度筛选均等分布 */
 .task-center-filters-secondary {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 9px;
 }
 
@@ -1069,11 +1069,12 @@ body.is-resizing-panel {
     minmax(220px, 1.8fr)
     64px
     90px
+    72px
     minmax(80px, 0.8fr)
     minmax(90px, 0.9fr)
     minmax(90px, 0.9fr)
     minmax(135px, 1fr);
-  grid-template-areas: "project title collection status phase assignee package time";
+  grid-template-areas: "project title collection status priority phase assignee package time";
   align-items: center;
   gap: 12px;
   padding: 13px 10px;
@@ -1148,6 +1149,11 @@ body.is-resizing-panel {
   background: var(--surface-strong);
 }
 
+.task-center-priority-cell {
+  grid-area: priority;
+  width: fit-content;
+}
+
 .task-center-project-cell,
 .task-center-title-cell,
 .task-center-meta-cell,
@@ -1180,15 +1186,15 @@ body.is-resizing-panel {
   white-space: nowrap;
 }
 
-.task-center-meta-cell:nth-of-type(5) {
+.task-center-phase-cell {
   grid-area: phase;
 }
 
-.task-center-meta-cell:nth-of-type(6) {
+.task-center-assignee-cell {
   grid-area: assignee;
 }
 
-.task-center-meta-cell:nth-of-type(7) {
+.task-center-package-cell {
   grid-area: package;
 }
 
@@ -2290,6 +2296,44 @@ body.is-resizing-panel {
   font-weight: 800;
 }
 
+/* 优先级徽标：P0-P3 分档着色，非法枚举使用告警色，未设置保持中性。 */
+.task-priority {
+  flex: 0 0 auto;
+  padding: 2px 5px;
+  border-radius: 5px;
+  color: #cbd5e1;
+  background: rgb(148 163 184 / 12%);
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.task-priority--p0 {
+  color: #fecaca;
+  background: rgb(239 68 68 / 18%);
+}
+
+.task-priority--p1 {
+  color: #fed7aa;
+  background: rgb(249 115 22 / 18%);
+}
+
+.task-priority--p2 {
+  color: #bfdbfe;
+  background: rgb(59 130 246 / 14%);
+}
+
+.task-priority--p3 {
+  color: #cbd5e1;
+  background: rgb(148 163 184 / 12%);
+}
+
+.task-priority--unknown {
+  color: #fde68a;
+  background: rgb(245 158 11 / 12%);
+}
+
 .task-parent-context,
 .task-depth-marker {
   margin-top: 3px;
@@ -2883,10 +2927,10 @@ body.is-resizing-panel {
   }
 
   .task-center-row {
-    grid-template-columns: minmax(130px, 1fr) minmax(210px, 1.7fr) 75px 100px;
+    grid-template-columns: minmax(120px, 1fr) minmax(200px, 1.7fr) 70px 92px 76px;
     grid-template-areas:
-      "project title collection status"
-      "phase assignee package time";
+      "project title collection status priority"
+      "phase assignee package time time";
     row-gap: 10px;
   }
 }
@@ -2986,8 +3030,9 @@ body.is-resizing-panel {
     grid-template-areas:
       "project title"
       "collection status"
-      "phase assignee"
-      "package time";
+      "priority phase"
+      "assignee package"
+      "time time";
     align-items: start;
   }
 }
@@ -3075,8 +3120,9 @@ body.is-resizing-panel {
       "project project"
       "title title"
       "collection status"
-      "phase assignee"
-      "package time";
+      "priority phase"
+      "assignee package"
+      "time time";
     padding-inline: 6px;
   }
 

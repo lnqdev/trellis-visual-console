@@ -184,6 +184,18 @@ pub struct TaskSummarySnapshot {
     pub id: String,
     pub title: String,
     pub status: String,
+    /// 任务优先级（P0-P3）；非法值保留原值用于降级展示，并在索引阶段产出警告。
+    #[serde(default)]
+    pub priority: Option<String>,
+    /// 任务开发类型（如 backend/frontend/fullstack/docs）。
+    #[serde(default)]
+    pub dev_type: Option<String>,
+    /// 任务创建日期；Trellis 原生格式为 YYYY-MM-DD，不做 RFC3339 校验。
+    #[serde(default)]
+    pub created_at: Option<String>,
+    /// 任务完成日期；Trellis 原生格式为 YYYY-MM-DD，不做 RFC3339 校验。
+    #[serde(default)]
+    pub completed_at: Option<String>,
     pub phase: Option<String>,
     pub assignee: Option<String>,
     pub package_name: Option<String>,
@@ -376,6 +388,27 @@ fn validate_tasks(tasks: &[TaskSummarySnapshot], prefix: &str, details: &mut Vec
         validate_optional_datetime(
             task.updated_at.as_deref(),
             &format!("{task_prefix}.updatedAt"),
+            details,
+        );
+        validate_optional_non_empty(
+            task.priority.as_deref(),
+            &format!("{task_prefix}.priority"),
+            details,
+        );
+        validate_optional_non_empty(
+            task.dev_type.as_deref(),
+            &format!("{task_prefix}.devType"),
+            details,
+        );
+        // createdAt / completedAt 是 YYYY-MM-DD 日期，不能套用 RFC3339 校验。
+        validate_optional_non_empty(
+            task.created_at.as_deref(),
+            &format!("{task_prefix}.createdAt"),
+            details,
+        );
+        validate_optional_non_empty(
+            task.completed_at.as_deref(),
+            &format!("{task_prefix}.completedAt"),
             details,
         );
         validate_optional_non_empty(

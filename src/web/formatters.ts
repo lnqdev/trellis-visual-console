@@ -74,3 +74,72 @@ export function formatTaskStatusValue(status: string): string {
 export function formatTaskStatus(task: TaskSummaryApi): string {
   return formatTaskStatusValue(task.status);
 }
+
+/** 任务优先级的视觉分组；none 表示未设置，unknown 表示非法枚举。 */
+export type TaskPriorityGroup = "p0" | "p1" | "p2" | "p3" | "unknown" | "none";
+
+/** 将优先级归入稳定的视觉分组，非法值不丢弃、交由 UI 降级展示。 */
+export function readTaskPriorityGroup(priority: string | null): TaskPriorityGroup {
+  switch (priority) {
+    case null:
+      return "none";
+    case "P0":
+      return "p0";
+    case "P1":
+      return "p1";
+    case "P2":
+      return "p2";
+    case "P3":
+      return "p3";
+    default:
+      return "unknown";
+  }
+}
+
+/** 格式化优先级展示值，缺失时回退占位符。 */
+export function formatTaskPriority(priority: string | null): string {
+  return priority ?? "—";
+}
+
+/** 返回优先级在筛选下拉中的排序权重，未知值排在已知枚举之后。 */
+export function readTaskPriorityOrder(priority: string): number {
+  switch (priority) {
+    case "P0":
+      return 0;
+    case "P1":
+      return 1;
+    case "P2":
+      return 2;
+    case "P3":
+      return 3;
+    default:
+      return Number.MAX_SAFE_INTEGER;
+  }
+}
+
+/** 格式化 YYYY-MM-DD 日期；缺失回退占位符，非日期格式原样返回。 */
+export function formatTaskDate(value: string | null): string {
+  if (value === null) {
+    return "—";
+  }
+  const dateOnly = /^(\d{4}-\d{2}-\d{2})/.exec(value);
+  return dateOnly?.[1] ?? value;
+}
+
+/** 返回开发类型的中文标签，未知类型原样展示。 */
+export function formatTaskDevType(devType: string | null): string {
+  switch (devType) {
+    case null:
+      return "—";
+    case "backend":
+      return "后端";
+    case "frontend":
+      return "前端";
+    case "fullstack":
+      return "全栈";
+    case "docs":
+      return "文档";
+    default:
+      return devType;
+  }
+}

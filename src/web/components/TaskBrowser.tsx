@@ -22,11 +22,18 @@ import type {
   TaskDetailResponse,
   TaskSummaryApi,
 } from "../../shared/api";
-import { formatDateTime, formatTaskStatus, readTaskStatusGroup } from "../formatters";
+import {
+  formatDateTime,
+  formatTaskDate,
+  formatTaskDevType,
+  formatTaskStatus,
+  readTaskStatusGroup,
+} from "../formatters";
 import type { AsyncState } from "../hooks/useProjectConsole";
 import { useResizablePanel } from "../hooks/useResizablePanel";
 import { DocumentViewer } from "./DocumentViewer";
 import { Dropdown, type DropdownOption } from "./Dropdown";
+import { PriorityBadge } from "./PriorityBadge";
 
 interface TaskBrowserProps {
   activeTasks: TaskSummaryApi[];
@@ -404,6 +411,10 @@ export function TaskBrowser({
                 </div>
                 <div className="task-meta">
                   <span>{formatTaskStatus(taskDetail.data.task)}</span>
+                  <PriorityBadge priority={taskDetail.data.task.priority} />
+                  <span>类型 {formatTaskDevType(taskDetail.data.task.devType)}</span>
+                  <span>创建 {formatTaskDate(taskDetail.data.task.createdAt)}</span>
+                  <span>完成 {formatTaskDate(taskDetail.data.task.completedAt)}</span>
                   {taskDetail.data.task.assignee !== null ? <span><UserRound size={14} />{taskDetail.data.task.assignee}</span> : null}
                   {taskDetail.data.task.packageName !== null ? <span>{taskDetail.data.task.packageName}</span> : null}
                 </div>
@@ -535,6 +546,7 @@ function TaskTreeNode({
           <span className="task-item-content">
             <span className="task-item-title-line">
               <strong title={task.title}>{task.title}</strong>
+              <PriorityBadge priority={task.priority} />
               {allChildren.length > 0 ? (
                 <span className="task-progress" aria-label={`已完成 ${completedChildren} 个，共 ${allChildren.length} 个直接子任务`}>
                   {completedChildren}/{allChildren.length}
@@ -542,6 +554,9 @@ function TaskTreeNode({
               ) : null}
             </span>
             <small>{formatTaskStatus(task)} · {formatDateTime(task.updatedAt)}</small>
+            <small className="task-item-dates">
+              创建 {formatTaskDate(task.createdAt)} · 完成 {formatTaskDate(task.completedAt)}
+            </small>
             {filterMode && isMatched && task.assignee !== null && task.assignee.trim() !== "" ? (
               <small className="task-search-assignee">
                 <UserRound size={12} aria-hidden="true" />

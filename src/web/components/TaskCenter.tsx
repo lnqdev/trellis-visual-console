@@ -14,6 +14,7 @@ import {
   type TaskCenterState,
 } from "../hooks/useTaskCenter";
 import { Dropdown, type DropdownOption } from "./Dropdown";
+import { PriorityBadge } from "./PriorityBadge";
 
 interface TaskCenterProps {
   state: TaskCenterState;
@@ -144,7 +145,7 @@ export function TaskCenter({
                 type="search"
                 aria-label="搜索"
                 value={state.selection.query}
-                placeholder="项目、标题、ID、状态、阶段、负责人或包"
+                placeholder="项目、标题、ID、状态、优先级、类型、阶段、负责人或包"
                 onChange={(event) => state.updateSelection({ query: event.target.value })}
               />
             </span>
@@ -183,6 +184,12 @@ export function TaskCenter({
             value={state.selection.status}
             options={withAllOption(state.filterOptions.statuses)}
             onChange={(status) => state.updateSelection({ status })}
+          />
+          <Dropdown
+            label="优先级"
+            value={state.selection.priority}
+            options={withAllOption(toTextOptions(state.filterOptions.priorities))}
+            onChange={(priority) => state.updateSelection({ priority })}
           />
           <Dropdown
             label="阶段"
@@ -276,9 +283,12 @@ export function TaskCenter({
                 >
                   {formatTaskStatusValue(item.task.status)}
                 </span>
-                <MetaValue label="阶段" value={item.task.phase} />
-                <MetaValue label="负责人" value={item.task.assignee} />
-                <MetaValue label="包" value={item.task.packageName} />
+                <span className="task-center-priority-cell">
+                  <PriorityBadge priority={item.task.priority} />
+                </span>
+                <MetaValue className="task-center-phase-cell" label="阶段" value={item.task.phase} />
+                <MetaValue className="task-center-assignee-cell" label="负责人" value={item.task.assignee} />
+                <MetaValue className="task-center-package-cell" label="包" value={item.task.packageName} />
                 <span className="task-center-time-cell">
                   <small>更新时间</small>
                   <strong>{formatDateTime(item.task.updatedAt)}</strong>
@@ -348,10 +358,10 @@ function SummaryItem({ label, value }: { label: string; value: number }) {
   );
 }
 
-/** 展示单个任务元数据值。 */
-function MetaValue({ label, value }: { label: string; value: string | null }) {
+/** 展示单个任务元数据值，由 className 指定所在网格区域。 */
+function MetaValue({ label, value, className }: { label: string; value: string | null; className: string }) {
   return (
-    <span className="task-center-meta-cell">
+    <span className={`task-center-meta-cell ${className}`}>
       <small>{label}</small>
       <strong>{value ?? "—"}</strong>
     </span>

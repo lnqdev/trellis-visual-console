@@ -321,6 +321,10 @@ fn parse_task_directory(
     let record_name = read_task_string(&task_record, "name", diagnostics, &task_source_path);
     let record_title = read_task_string(&task_record, "title", diagnostics, &task_source_path);
     let record_status = read_task_string(&task_record, "status", diagnostics, &task_source_path);
+    let priority = read_task_priority(&task_record, diagnostics, &task_source_path);
+    let dev_type = read_task_string(&task_record, "dev_type", diagnostics, &task_source_path);
+    let created_at = read_task_string(&task_record, "createdAt", diagnostics, &task_source_path);
+    let completed_at = read_task_string(&task_record, "completedAt", diagnostics, &task_source_path);
     let assignee = read_task_string(&task_record, "assignee", diagnostics, &task_source_path);
     let package_name = read_task_string(&task_record, "package", diagnostics, &task_source_path);
     let parent_name = read_task_string(&task_record, "parent", diagnostics, &task_source_path);
@@ -351,6 +355,10 @@ fn parse_task_directory(
             title,
             phase: map_task_status_to_phase(&status),
             status,
+            priority,
+            dev_type,
+            created_at,
+            completed_at,
             assignee,
             package_name,
             updated_at: read_task_modified_at(&task_json_path, task_root),
@@ -422,6 +430,29 @@ fn read_task_string(
             None
         }
     }
+}
+
+/// Trellis task.json 支持的优先级枚举。
+const TASK_PRIORITIES: [&str; 4] = ["P0", "P1", "P2", "P3"];
+
+/// 读取任务优先级；非法枚举保留原值用于降级展示，并产出 warning 诊断。
+fn read_task_priority(
+    task: &Map<String, Value>,
+    diagnostics: &mut Vec<SnapshotDiagnostic>,
+    source_path: &str,
+) -> Option<String> {
+    let priority = read_task_string(task, "priority", diagnostics, source_path)?;
+    if !TASK_PRIORITIES.contains(&priority.as_str()) {
+        diagnostics.push(SnapshotDiagnostic {
+            severity: SnapshotSeverity::Warning,
+            code: "task-priority-invalid".to_owned(),
+            message: format!(
+                "任务字段 priority 的值 {priority:?} 不是受支持的优先级（P0-P3），已按原值展示"
+            ),
+            source_path: Some(source_path.to_owned()),
+        });
+    }
+    Some(priority)
 }
 
 fn read_task_string_array(

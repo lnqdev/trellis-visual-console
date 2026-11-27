@@ -6,7 +6,9 @@ import type {
 } from "../../shared/api";
 import { fetchTaskCenter } from "../api-client";
 import {
+  formatTaskDevType,
   formatTaskStatusValue,
+  readTaskPriorityOrder,
   readTaskStatusGroup,
   type TaskStatusGroup,
 } from "../formatters";
@@ -27,6 +29,7 @@ export interface TaskCenterSelection {
   query: string;
   projectId: string | null;
   status: string | null;
+  priority: string | null;
   phase: string | null;
   assignee: string | null;
   packageName: string | null;
@@ -40,6 +43,7 @@ export const DEFAULT_TASK_CENTER_SELECTION: TaskCenterSelection = {
   query: "",
   projectId: null,
   status: null,
+  priority: null,
   phase: null,
   assignee: null,
   packageName: null,
@@ -56,6 +60,7 @@ export interface TaskCenterStatusOption {
 export interface TaskCenterFilterOptions {
   projects: ProjectListItem[];
   statuses: TaskCenterStatusOption[];
+  priorities: string[];
   phases: string[];
   assignees: string[];
   packages: string[];
@@ -180,6 +185,7 @@ export function useTaskCenter({
   const filterOptions = useMemo<TaskCenterFilterOptions>(() => ({
     projects: scopedProjects,
     statuses: createStatusOptions(collectionItems),
+    priorities: createPriorityOptions(collectionItems),
     phases: createStringOptions(collectionItems.map((item) => item.task.phase)),
     assignees: createStringOptions(collectionItems.map((item) => item.task.assignee)),
     packages: createStringOptions(collectionItems.map((item) => item.task.packageName)),
@@ -199,6 +205,9 @@ export function useTaskCenter({
         status: hasValueOption(filterOptions.statuses, current.status)
           ? current.status
           : null,
+        priority: hasStringOption(filterOptions.priorities, current.priority)
+          ? current.priority
+          : null,
         phase: hasStringOption(filterOptions.phases, current.phase) ? current.phase : null,
         assignee: hasStringOption(filterOptions.assignees, current.assignee)
           ? current.assignee
@@ -216,6 +225,7 @@ export function useTaskCenter({
     return collectionItems
       .filter((item) => selection.projectId === null || item.projectId === selection.projectId)
       .filter((item) => selection.status === null || matchesStatusFilter(item, selection.status))
+      .filter((item) => selection.priority === null || item.task.priority === selection.priority)
       .filter((item) => selection.phase === null || item.task.phase === selection.phase)
       .filter((item) => selection.assignee === null || item.task.assignee === selection.assignee)
       .filter(
@@ -240,6 +250,7 @@ export function useTaskCenter({
     selection.assignee,
     selection.packageName,
     selection.phase,
+    selection.priority,
     selection.projectId,
     selection.scope,
     selection.sort,
@@ -318,6 +329,19 @@ function createStatusOptions(items: TaskCenterItemApi[]): TaskCenterStatusOption
     .map((value) => ({ value, label: formatTaskStatusValue(value) }));
 }
 
+/** 创建去重且按 P0-P3 优先排序的优先级选项，非法值排在末尾。 */
+function createPriorityOptions(items: TaskCenterItemApi[]): string[] {
+  const values = new Set(
+    items
+      .map((item) => item.task.priority)
+      .filter((value): value is string => value !== null),
+  );
+  return [...values].sort((left, right) => {
+    const orderDifference = readTaskPriorityOrder(left) - readTaskPriorityOrder(right);
+    return orderDifference === 0 ? TEXT_COLLATOR.compare(left, right) : orderDifference;
+  });
+}
+
 /** 创建去重且稳定排序的非空字符串选项。 */
 function createStringOptions(values: Array<string | null>): string[] {
   return [...new Set(values.filter((value): value is string => value !== null))]
@@ -346,6 +370,9 @@ function matchesQuery(result: TaskCenterResultItem, normalizedQuery: string): bo
     task.id,
     task.status,
     formatTaskStatusValue(task.status),
+    task.priority ?? "",
+    task.devType ?? "",
+    formatTaskDevType(task.devType),
     task.phase ?? "",
     task.assignee ?? "",
     task.packageName ?? "",

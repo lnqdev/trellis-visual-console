@@ -927,6 +927,7 @@ function readUrlSelection(): UrlSelection {
         query: params.get("q") ?? "",
         projectId: params.get("taskProject"),
         status: status === "done" ? "completed" : status,
+        priority: params.get("priority"),
         phase: params.get("phase"),
         assignee: params.get("assignee"),
         packageName: params.get("package"),
@@ -969,6 +970,9 @@ function writeUrlSelection(selection: UrlSelection): void {
     }
     if (selection.taskCenter.status !== null) {
       params.set("status", selection.taskCenter.status);
+    }
+    if (selection.taskCenter.priority !== null) {
+      params.set("priority", selection.taskCenter.priority);
     }
     if (selection.taskCenter.phase !== null) {
       params.set("phase", selection.taskCenter.phase);
